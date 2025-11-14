@@ -50,13 +50,13 @@ Professional academic publication style using booktabs aesthetics across all bac
 Best for: Journal articles, dissertations, academic papers.
 
 - Text: Clean markdown with minimal decorations
-- HTML: Simple, printer-friendly HTML
+- HTML: Default HTML styling
 - LaTeX: Classic booktabs style with \\toprule, \\midrule, \\bottomrule
 """
 const ACADEMIC = Dict{Symbol, Any}(
-    :text => PrettyTables.tf_markdown,
-    :html => PrettyTables.tf_html_minimalist,
-    :latex => PrettyTables.tf_latex_booktabs
+    :text => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs
 )
 
 """
@@ -65,14 +65,14 @@ const ACADEMIC = Dict{Symbol, Any}(
 Modern, visually appealing style with unicode box-drawing characters.
 Best for: Presentations, modern reports, terminal display.
 
-- Text: Unicode rounded boxes for elegant terminal output
-- HTML: Dark theme with subtle styling
-- LaTeX: Modern LaTeX style
+- Text: Unicode boxes for elegant terminal output
+- HTML: Default HTML styling
+- LaTeX: Booktabs LaTeX style
 """
 const MODERN = Dict{Symbol, Any}(
-    :text => PrettyTables.tf_unicode_rounded,
-    :html => PrettyTables.tf_html_dark,
-    :latex => PrettyTables.tf_latex_modern
+    :text => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs
 )
 
 """
@@ -81,14 +81,14 @@ const MODERN = Dict{Symbol, Any}(
 Minimalist style with clean lines and minimal visual elements.
 Best for: Simple tables, quick reports, embedded documentation.
 
-- Text: Simple ASCII with minimal decorations
-- HTML: Ultra-minimal HTML
-- LaTeX: Simple LaTeX without booktabs
+- Text: Matrix-style text format
+- HTML: Default HTML
+- LaTeX: Booktabs LaTeX
 """
 const MINIMAL = Dict{Symbol, Any}(
-    :text => PrettyTables.tf_simple,
-    :html => PrettyTables.tf_html_simple,
-    :latex => PrettyTables.tf_latex_simple
+    :text => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs
 )
 
 """
@@ -97,14 +97,14 @@ const MINIMAL = Dict{Symbol, Any}(
 Space-efficient style for dense tables with lots of data.
 Best for: Large tables, space-constrained outputs.
 
-- Text: Compact ASCII layout
-- HTML: Minimal padding and spacing
-- LaTeX: Compact LaTeX style
+- Text: Matrix-style (compact) layout
+- HTML: Default HTML with minimal padding
+- LaTeX: Booktabs style
 """
 const COMPACT = Dict{Symbol, Any}(
-    :text => PrettyTables.tf_compact,
-    :html => PrettyTables.tf_html_minimalist,
-    :latex => PrettyTables.tf_latex_simple
+    :text => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs
 )
 
 """
@@ -114,7 +114,7 @@ Default ModelSummaries.jl theme (same as :academic).
 Provides sensible defaults for all backends.
 
 - Text: Markdown format
-- HTML: Minimalist HTML
+- HTML: Default HTML
 - LaTeX: Booktabs style
 """
 const DEFAULT = ACADEMIC
@@ -126,13 +126,13 @@ Clean unicode-based tables for terminal display.
 Best for: Terminal output, REPLs, modern consoles.
 
 - Text: Standard unicode box-drawing
-- HTML: Simple HTML
+- HTML: Default HTML
 - LaTeX: Booktabs
 """
 const UNICODE = Dict{Symbol, Any}(
-    :text => PrettyTables.tf_unicode,
-    :html => PrettyTables.tf_html_minimalist,
-    :latex => PrettyTables.tf_latex_booktabs
+    :text => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs
 )
 
 # List of all available theme names
