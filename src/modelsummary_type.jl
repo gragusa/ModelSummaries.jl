@@ -393,14 +393,12 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     kwargs = copy(rt.pretty_kwargs)
 
     if backend == :text
-        # Text backend doesn't use table_format - customization via kwargs only
+        # Text backend uses default TextTableFormat (Unicode box-drawing)
         kwargs[:backend] = :text
         kwargs[:alignment] = alignment
-        kwargs[:header_alignment] = rt.header_align
-        # Text backend supports body_hlines
-        if !isempty(hlines_adjusted)
-            kwargs[:body_hlines] = hlines_adjusted
-        end
+        kwargs[:column_label_alignment] = rt.header_align
+        # Note: Text backend doesn't support body_hlines via keyword
+        # Horizontal lines must be configured in the TextTableFormat object
 
     elseif backend == :ascii
         # ASCII backend uses text backend with ASCII-only table format
@@ -409,11 +407,9 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         end
         kwargs[:backend] = :text
         kwargs[:alignment] = alignment
-        kwargs[:header_alignment] = rt.header_align
-        # Text backend supports body_hlines
-        if !isempty(hlines_adjusted)
-            kwargs[:body_hlines] = hlines_adjusted
-        end
+        kwargs[:column_label_alignment] = rt.header_align
+        # Note: Text backend doesn't support body_hlines via keyword
+        # Horizontal lines must be configured in the TextTableFormat object
 
     elseif backend == :markdown
         # Set table format for markdown (PrettyTables 3.x uses table_format keyword, not tf)
