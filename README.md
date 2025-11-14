@@ -11,21 +11,11 @@ Create publication-quality regression tables in Julia with a simple, modern API.
 
 **ModelSummaries.jl** (formerly RegressionTables2.jl) provides beautiful regression tables for use with [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl), [GLM.jl](https://github.com/JuliaStats/GLM.jl), and any package that implements the [RegressionModel abstraction](https://juliastats.org/StatsBase.jl/latest/statmodels/).
 
-Inspired by Stata's [`esttab`](http://repec.sowi.unibe.ch/stata/estout/esttab.html) and R's [`stargazer`](https://cran.r-project.org/web/packages/stargazer/).
-
-## Features
-
-- **Simple API**: Use `backend=:latex` instead of complex type hierarchies
-- **Multiple output formats**: LaTeX, HTML, Markdown/text
-- **Auto-detection**: Automatically selects appropriate format based on display context
-- **Custom covariance matrices**: Integrate with [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) for robust standard errors
-- **Extensive customization**: Control alignment, formatting, statistics, and more
-- **Post-creation editing**: Add lines, change backends, customize formatting after creation
-
 ## Installation
 
 ```julia
-] add ModelSummaries
+using Pkg
+Pkg.add("github.com/gragusa/ModelSummaries.jl")
 ```
 
 ## Quick Start
@@ -334,20 +324,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 MIT License - see [LICENSE.md](LICENSE.md)
 
-## Authors
+## Aknowledgment
 
-- **Giuseppe Ragusa** - Current maintainer
-- **Johannes Boehm** - Original RegressionTables.jl author
-
-## Citation
-
-If you use this package in your research, please cite:
-
-```bibtex
-@software{modelsummaries,
-  author = {Ragusa, Giuseppe and Boehm, Johannes},
-  title = {ModelSummaries.jl: Publication-Quality Regression Tables in Julia},
-  year = {2025},
-  url = {https://github.com/gragusa/ModelSummaries.jl}
-}
-```
+**Johannes Boehm**, author of `RegressionTables.jl`, should be credited for all the good things here. 
