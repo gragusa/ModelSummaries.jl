@@ -22,7 +22,7 @@ A container for regression table data that uses PrettyTables.jl for rendering.
 - `hlines`: Positions of horizontal lines (row indices)
 - `formatters`: Vector of PrettyTables formatters
 - `highlighters`: Vector of PrettyTables highlighters
-- `backend`: Rendering backend (:text, :markdown, :html, :latex, or nothing for auto-detection)
+- `backend`: Rendering backend (:text, :ascii, :markdown, :html, :latex, or nothing for auto-detection)
 - `pretty_kwargs`: Additional keyword arguments to pass to PrettyTables.pretty_table
 - `table_format`: Mapping of backend ⇒ table format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat) used by `_render_table`
 
@@ -93,27 +93,28 @@ mutable struct ModelSummary
     end
 end
 
-const _MODEL_SUMMARIES_BACKENDS = (:text, :markdown, :html, :latex)
+const _MODEL_SUMMARIES_BACKENDS = (:text, :ascii, :markdown, :html, :latex)
 
 """
     default_table_format(backend::Symbol)
 
 Return the default table format for the given backend when no explicit
-`table_format` is provided. Supported backends are `:text`, `:markdown`, `:html`, and `:latex`.
+`table_format` is provided. Supported backends are `:text`, `:ascii`, `:markdown`, `:html`, and `:latex`.
 
 Note: PrettyTables 3.x uses backend-specific format types:
 - LatexTableFormat for LaTeX
 - MarkdownTableFormat for Markdown
 - HtmlTableFormat for HTML
-- Text backend: No format type (customization via keyword arguments only)
+- Text/ASCII backends: No format type (customization via keyword arguments only)
 
 In ModelSummaries.jl:
 - :text backend uses the PrettyTables text backend (no format object)
+- :ascii backend uses the PrettyTables text backend with ASCII-only characters
 - :markdown backend uses MarkdownTableFormat
 """
 function default_table_format(backend::Symbol)
-    if backend == :text
-        # Text backend doesn't use a format object
+    if backend == :text || backend == :ascii
+        # Text and ASCII backends don't use a format object
         return nothing
     elseif backend == :markdown
         return PrettyTables.MarkdownTableFormat()
@@ -122,7 +123,7 @@ function default_table_format(backend::Symbol)
     elseif backend == :latex
         return PrettyTables.latex_table_format__booktabs
     else
-        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :markdown, :html, or :latex."))
+        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :ascii, :markdown, :html, or :latex."))
     end
 end
 
@@ -289,14 +290,15 @@ end
     set_backend!(rt::ModelSummary, backend::Symbol)
 
 Set the rendering backend.
-Valid backends: :text, :markdown, :html, :latex, or :auto (nothing) for automatic detection.
+Valid backends: :text, :ascii, :markdown, :html, :latex, or :auto (nothing) for automatic detection.
 
 Note: :text backend uses PrettyTables text backend (customization via kwargs),
+:ascii backend is like :text but forces ASCII-only characters,
 while :markdown uses markdown backend with MarkdownTableFormat.
 """
 function set_backend!(rt::ModelSummary, backend::Union{Symbol, Nothing})
     if backend !== nothing
-        @assert backend in (:text, :markdown, :html, :latex) "Backend must be :text, :markdown, :html, :latex, or nothing"
+        @assert backend in (:text, :ascii, :markdown, :html, :latex) "Backend must be :text, :ascii, :markdown, :html, :latex, or nothing"
     end
     rt.backend = backend
     rt
@@ -376,6 +378,17 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         kwargs[:backend] = :text
         kwargs[:alignment] = alignment
         kwargs[:header_alignment] = rt.header_align
+        # Text backend supports body_hlines
+        if !isempty(hlines_adjusted)
+            kwargs[:body_hlines] = hlines_adjusted
+        end
+
+    elseif backend == :ascii
+        # ASCII backend is like text but ensures only ASCII characters
+        kwargs[:backend] = :text
+        kwargs[:alignment] = alignment
+        kwargs[:header_alignment] = rt.header_align
+        kwargs[:unicode] = false  # Force ASCII-only characters
         # Text backend supports body_hlines
         if !isempty(hlines_adjusted)
             kwargs[:body_hlines] = hlines_adjusted
