@@ -96,7 +96,7 @@ mutable struct ModelSummary
     highlighters::Vector           # PrettyTables highlighters
     backend::Union{Symbol, Nothing}# :text, :html, :latex, or nothing
     pretty_kwargs::Dict{Symbol, Any} # Additional PrettyTables options
-    table_format::Dict{Symbol, PrettyTables.TableFormat} # Backend -> PrettyTables theme
+    table_format::Dict{Symbol, Any} # Backend -> backend-specific format objects
 end
 ```
 
@@ -107,7 +107,7 @@ end
 3. **Alignment Vectors**: Separate alignment for header and body provides fine-grained control
 4. **Nullable Backend**: `backend === nothing` enables automatic MIME detection
 5. **Extensible Kwargs**: `pretty_kwargs` allows access to any PrettyTables.jl feature
-6. **Theme Map**: `table_format` holds the PrettyTables `TableFormat` per backend so users can override Markdown/HTML/LaTeX themes independently.
+6. **Theme Map**: `table_format` holds backend-specific format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat) so users can override themes independently per backend.
 
 ---
 
@@ -392,6 +392,119 @@ Internally the mapping is stored on `ModelSummary.table_format` so later calls t
 
 ---
 
+## Theme System
+
+ModelSummaries.jl provides a comprehensive theme system for consistent, beautiful table styling across all backends.
+
+### Preset Themes
+
+Six curated themes are available via the `Themes` module:
+
+```julia
+using ModelSummaries
+
+# Academic publication style (default)
+modelsummary(m1, m2; theme=:academic)
+
+# Modern markdown formatting
+modelsummary(m1, m2; theme=:modern)
+
+# Minimalist style
+modelsummary(m1, m2; theme=:minimal)
+
+# Compact for dense tables
+modelsummary(m1, m2; theme=:compact)
+
+# Unicode box-drawing
+modelsummary(m1, m2; theme=:unicode)
+```
+
+### Theme Characteristics
+
+| Theme | Text Backend | LaTeX Backend | Best For |
+|-------|-------------|---------------|----------|
+| `:academic` | Markdown | Booktabs | Journal articles, dissertations |
+| `:modern` | Markdown | Booktabs | Reports, presentations |
+| `:minimal` | Markdown | Booktabs | Simple tables, documentation |
+| `:compact` | Markdown | Booktabs | Large tables, space-constrained |
+| `:unicode` | Markdown | Booktabs | Terminal output, REPLs |
+| `:default` | Markdown | Booktabs | Alias for `:academic` |
+
+### Custom Themes
+
+Create custom themes using Dict or NamedTuple:
+
+```julia
+using PrettyTables
+
+# Custom theme as Dict
+my_theme = Dict(
+    :text => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs
+)
+
+modelsummary(m1, m2; theme=my_theme)
+
+# Or as NamedTuple
+my_theme = (
+    text = PrettyTables.MarkdownTableFormat(),
+    html = PrettyTables.HtmlTableFormat(),
+    latex = PrettyTables.latex_table_format__booktabs
+)
+
+modelsummary(m1, m2; theme=my_theme)
+```
+
+### Theme Discovery
+
+List available themes:
+
+```julia
+using ModelSummaries.Themes
+Themes.list_themes()
+```
+
+### PrettyTables 3.x Format Types
+
+Each backend uses a specific format type:
+
+- **LaTeX**: `LatexTableFormat` - Controls rules, borders, alignment
+- **Markdown**: `MarkdownTableFormat` - Title levels, line chars
+- **HTML**: `HtmlTableFormat` - CSS, table width
+- **Text**: Uses `MarkdownTableFormat` internally
+
+Example with direct format objects:
+
+```julia
+# LaTeX with booktabs
+modelsummary(m1, m2;
+    backend=:latex,
+    table_format=Dict(:latex => PrettyTables.latex_table_format__booktabs)
+)
+
+# Matrix-style text output
+modelsummary(m1, m2;
+    backend=:text,
+    table_format=Dict(:text => PrettyTables.text_table_format__matrix)
+)
+```
+
+### Implementation Notes
+
+**Theme vs table_format:**
+- `theme` - High-level preset, easier to use
+- `table_format` - Low-level control, more flexible
+- If both provided, `theme` takes precedence
+
+**PrettyTables 3.x Compatibility:**
+- No unified `TableFormat` type (each backend has its own)
+- Uses `table_format` keyword (not `tf`)
+- Horizontal lines (`body_hlines`) only work with LaTeX backend
+- Markdown/HTML backends have limited customization
+
+---
+
 ## Public API
 
 ### Table Creation
@@ -403,7 +516,8 @@ Internally the mapping is stored on `ModelSummary.table_format` so later calls t
 modelsummary(
     rrs::RegressionModel...;
     backend = nothing,  # :latex, :html, :text, or nothing (auto-detect)
-    table_format = nothing,  # Dict/NamedTuple of backend => PrettyTables.TableFormat (optional)
+    theme = nothing,    # :academic, :modern, :minimal, :compact, :unicode, or custom Dict/NamedTuple
+    table_format = nothing,  # Fine-grained control (Dict/NamedTuple of backend => format objects)
     keep = [],
     drop = [],
     order = [],
