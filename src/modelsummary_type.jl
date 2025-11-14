@@ -9,7 +9,7 @@
         highlighters::Vector
         backend::Union{Symbol, Nothing}
         pretty_kwargs::Dict{Symbol, Any}
-        table_format::Dict{Symbol, PrettyTables.TableFormat}
+        table_format::Dict{Symbol, Any}  # Can hold LatexTableFormat, MarkdownTableFormat, or HtmlTableFormat
     end
 
 A container for regression table data that uses PrettyTables.jl for rendering.
@@ -22,9 +22,9 @@ A container for regression table data that uses PrettyTables.jl for rendering.
 - `hlines`: Positions of horizontal lines (row indices)
 - `formatters`: Vector of PrettyTables formatters
 - `highlighters`: Vector of PrettyTables highlighters
-- `backend`: Rendering backend (:text, :html, :latex, or nothing for auto-detection)
+- `backend`: Rendering backend (:text, :markdown, :html, :latex, or nothing for auto-detection)
 - `pretty_kwargs`: Additional keyword arguments to pass to PrettyTables.pretty_table
-- `table_format`: Mapping of backend ⇒ `PrettyTables.TableFormat` used by `_render_table`
+- `table_format`: Mapping of backend ⇒ table format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat) used by `_render_table`
 
 # Display
 The table automatically selects the appropriate backend based on MIME type:
@@ -63,7 +63,7 @@ mutable struct ModelSummary
     highlighters::Vector
     backend::Union{Symbol, Nothing}
     pretty_kwargs::Dict{Symbol, Any}
-    table_format::Dict{Symbol, PrettyTables.TableFormat}
+    table_format::Dict{Symbol, Any}
 
     function ModelSummary(
         data::Matrix{Any},
@@ -93,33 +93,46 @@ mutable struct ModelSummary
     end
 end
 
-const _MODEL_SUMMARIES_BACKENDS = (:text, :html, :latex)
+const _MODEL_SUMMARIES_BACKENDS = (:text, :markdown, :html, :latex)
 
 """
     default_table_format(backend::Symbol)
 
-Return the PrettyTables `TableFormat` used for the given backend when no explicit
-`table_format` is provided. Supported backends are `:text`, `:html`, and `:latex`.
+Return the default table format for the given backend when no explicit
+`table_format` is provided. Supported backends are `:text`, `:markdown`, `:html`, and `:latex`.
+
+Note: PrettyTables 3.x uses backend-specific format types:
+- LatexTableFormat for LaTeX
+- MarkdownTableFormat for Markdown
+- HtmlTableFormat for HTML
+- Text backend: No format type (customization via keyword arguments only)
+
+In ModelSummaries.jl:
+- :text backend uses the PrettyTables text backend (no format object)
+- :markdown backend uses MarkdownTableFormat
 """
 function default_table_format(backend::Symbol)
-    if backend == :text || backend == :markdown
-        return PrettyTables.tf_markdown
+    if backend == :text
+        # Text backend doesn't use a format object
+        return nothing
+    elseif backend == :markdown
+        return PrettyTables.MarkdownTableFormat()
     elseif backend == :html
-        return PrettyTables.tf_html_minimalist
+        return PrettyTables.HtmlTableFormat()
     elseif backend == :latex
-        return PrettyTables.tf_latex_booktabs
+        return PrettyTables.latex_table_format__booktabs
     else
-        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :html, or :latex."))
+        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :markdown, :html, or :latex."))
     end
 end
 
 """
     default_table_formats()
 
-Construct a dictionary with the default `TableFormat` for every backend.
+Construct a dictionary with the default table format for every backend.
 """
 function default_table_formats()
-    formats = Dict{Symbol, PrettyTables.TableFormat}()
+    formats = Dict{Symbol, Any}()
     for backend in _MODEL_SUMMARIES_BACKENDS
         formats[backend] = default_table_format(backend)
     end
@@ -127,38 +140,45 @@ function default_table_formats()
 end
 
 function _table_format_from_symbol(sym::Symbol)
-    candidates = Symbol[sym]
-    if !startswith(String(sym), "tf_")
-        push!(candidates, Symbol("tf_$(sym)"))
-    end
+    # In PrettyTables 3.x, there are no unified tf_* constants
+    # Only a few specific constants exist like latex_table_format__booktabs
+    candidates = [
+        Symbol("latex_table_format__$(sym)"),
+        Symbol("text_table_format__$(sym)"),
+        Symbol("markdown_table_format__$(sym)"),
+        Symbol("html_table_format__$(sym)")
+    ]
+
     for candidate in candidates
         if isdefined(PrettyTables, candidate)
-            value = getproperty(PrettyTables, candidate)
-            if value isa PrettyTables.TableFormat
-                return value
-            end
+            return getproperty(PrettyTables, candidate)
         end
     end
-    throw(ArgumentError("Unknown table_format alias $sym. Provide an actual PrettyTables.TableFormat or use a valid alias (e.g., :markdown, :html_minimalist, :latex_booktabs, :unicode_rounded)."))
+    throw(ArgumentError("Unknown table_format alias :$sym. In PrettyTables 3.x, use format constructors directly (e.g., LatexTableFormat(), MarkdownTableFormat()) or specific constants like :booktabs."))
 end
 
 function _coerce_table_format_value(val, backend::Symbol)
     if val === nothing || val === :default
         return default_table_format(backend)
-    elseif val isa PrettyTables.TableFormat
+    elseif val isa Union{PrettyTables.LatexTableFormat, PrettyTables.MarkdownTableFormat, PrettyTables.HtmlTableFormat}
         return val
     elseif val isa Symbol
-        return _table_format_from_symbol(val)
+        # Try to resolve known symbols
+        if val == :booktabs && backend == :latex
+            return PrettyTables.latex_table_format__booktabs
+        else
+            return _table_format_from_symbol(val)
+        end
     else
-        throw(ArgumentError("table_format entries must be PrettyTables.TableFormat objects, `:default`, or a supported alias symbol."))
+        throw(ArgumentError("table_format entries must be table format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat), `:default`, or a supported alias symbol."))
     end
 end
 
 """
     _normalize_table_format(spec)
 
-Normalize user input into a backend ⇒ `TableFormat` dictionary.
-Accepts `nothing`, a single `TableFormat`, an alias `Symbol`, `NamedTuple`, or any `AbstractDict`.
+Normalize user input into a backend ⇒ table format dictionary.
+Accepts `nothing`, a table format object, an alias `Symbol`, `NamedTuple`, or any `AbstractDict`.
 """
 function _normalize_table_format(spec)
     if spec === nothing
@@ -176,7 +196,7 @@ function _normalize_table_format(spec)
         end
         return formats
     else
-        formats = Dict{Symbol, PrettyTables.TableFormat}()
+        formats = Dict{Symbol, Any}()
         for backend in _MODEL_SUMMARIES_BACKENDS
             formats[backend] = _coerce_table_format_value(spec, backend)
         end
@@ -269,11 +289,14 @@ end
     set_backend!(rt::ModelSummary, backend::Symbol)
 
 Set the rendering backend.
-Valid backends: :text, :html, :latex, or :auto (nothing) for automatic detection.
+Valid backends: :text, :markdown, :html, :latex, or :auto (nothing) for automatic detection.
+
+Note: :text backend uses PrettyTables text backend (customization via kwargs),
+while :markdown uses markdown backend with MarkdownTableFormat.
 """
 function set_backend!(rt::ModelSummary, backend::Union{Symbol, Nothing})
     if backend !== nothing
-        @assert backend in (:text, :html, :latex) "Backend must be :text, :html, :latex, or nothing"
+        @assert backend in (:text, :markdown, :html, :latex) "Backend must be :text, :markdown, :html, :latex, or nothing"
     end
     rt.backend = backend
     rt
@@ -348,33 +371,45 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     # PrettyTables configuration based on backend
     kwargs = copy(rt.pretty_kwargs)
 
-    if !haskey(kwargs, :tf)
-        kwargs[:tf] = get(rt.table_format, backend, default_table_format(backend))
-    end
-
-    if backend == :text || backend == :markdown
-        kwargs[:backend] = :markdown  # Use markdown backend for text output
+    if backend == :text
+        # Text backend doesn't use table_format - customization via kwargs only
+        kwargs[:backend] = Val(:text)
         kwargs[:alignment] = alignment
-        kwargs[:column_label_alignment] = rt.header_align
-        # Add horizontal lines support for markdown backend
+        kwargs[:header_alignment] = rt.header_align
+        # Text backend supports body_hlines
         if !isempty(hlines_adjusted)
             kwargs[:body_hlines] = hlines_adjusted
         end
+
+    elseif backend == :markdown
+        # Set table format for markdown (PrettyTables 3.x uses table_format keyword, not tf)
+        if !haskey(kwargs, :table_format)
+            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
+        end
+        kwargs[:backend] = Val(:markdown)
+        kwargs[:alignment] = alignment
+        kwargs[:column_label_alignment] = rt.header_align
+        # Note: Markdown backend in PrettyTables 3.x doesn't support body_hlines
 
     elseif backend == :html
-        kwargs[:backend] = :html
+        # Set table format for HTML
+        if !haskey(kwargs, :table_format)
+            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
+        end
+        kwargs[:backend] = Val(:html)
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
-        # HTML backend supports body_hlines
-        if !isempty(hlines_adjusted)
-            kwargs[:body_hlines] = hlines_adjusted
-        end
+        # HTML backend doesn't support body_hlines directly either
 
     elseif backend == :latex
-        kwargs[:backend] = :latex
+        # Set table format for LaTeX
+        if !haskey(kwargs, :table_format)
+            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
+        end
+        kwargs[:backend] = Val(:latex)
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
-        # Add horizontal lines for LaTeX backend
+        # LaTeX backend supports body_hlines
         if !isempty(hlines_adjusted)
             kwargs[:body_hlines] = hlines_adjusted
         end
@@ -451,7 +486,7 @@ end
 
 # MIME-based display methods
 function Base.show(io::IO, ::MIME"text/plain", rt::ModelSummary)
-    backend = rt.backend === nothing ? :text : rt.backend
+    backend = rt.backend === nothing ? :markdown : rt.backend
     _render_table(io, rt, backend)
 end
 
