@@ -96,6 +96,21 @@ end
 const _MODEL_SUMMARIES_BACKENDS = (:text, :ascii, :markdown, :html, :latex)
 
 """
+    _ascii_table_format()
+
+Create a TextTableFormat using only ASCII characters (no Unicode box-drawing).
+Uses '+' for corners/intersections, '|' for vertical lines, and '-' for horizontal lines.
+"""
+function _ascii_table_format()
+    ascii_borders = PrettyTables.TextTableBorders(
+        '+', '+', '+', '+',  # top-right, top-left, bottom-left, bottom-right
+        '+', '+', '+', '+', '+',  # down, right, left, cross, up
+        '|', '-'  # vertical, horizontal
+    )
+    return PrettyTables.TextTableFormat(; borders=ascii_borders)
+end
+
+"""
     default_table_format(backend::Symbol)
 
 Return the default table format for the given backend when no explicit
@@ -105,17 +120,21 @@ Note: PrettyTables 3.x uses backend-specific format types:
 - LatexTableFormat for LaTeX
 - MarkdownTableFormat for Markdown
 - HtmlTableFormat for HTML
-- Text/ASCII backends: No format type (customization via keyword arguments only)
+- Text backend: Uses default TextTableFormat (Unicode box-drawing)
+- ASCII backend: Uses TextTableFormat with ASCII-only characters
 
 In ModelSummaries.jl:
-- :text backend uses the PrettyTables text backend (no format object)
+- :text backend uses the PrettyTables text backend with Unicode box-drawing
 - :ascii backend uses the PrettyTables text backend with ASCII-only characters
 - :markdown backend uses MarkdownTableFormat
 """
 function default_table_format(backend::Symbol)
-    if backend == :text || backend == :ascii
-        # Text and ASCII backends don't use a format object
+    if backend == :text
+        # Text backend uses default TextTableFormat (Unicode)
         return nothing
+    elseif backend == :ascii
+        # ASCII backend uses custom ASCII-only format
+        return _ascii_table_format()
     elseif backend == :markdown
         return PrettyTables.MarkdownTableFormat()
     elseif backend == :html
@@ -384,11 +403,13 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         end
 
     elseif backend == :ascii
-        # ASCII backend is like text but ensures only ASCII characters
+        # ASCII backend uses text backend with ASCII-only table format
+        if !haskey(kwargs, :table_format)
+            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
+        end
         kwargs[:backend] = :text
         kwargs[:alignment] = alignment
         kwargs[:header_alignment] = rt.header_align
-        kwargs[:unicode] = false  # Force ASCII-only characters
         # Text backend supports body_hlines
         if !isempty(hlines_adjusted)
             kwargs[:body_hlines] = hlines_adjusted
