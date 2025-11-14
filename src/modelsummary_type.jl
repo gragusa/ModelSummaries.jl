@@ -373,7 +373,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
 
     if backend == :text
         # Text backend doesn't use table_format - customization via kwargs only
-        kwargs[:backend] = Val(:text)
+        kwargs[:backend] = :text
         kwargs[:alignment] = alignment
         kwargs[:header_alignment] = rt.header_align
         # Text backend supports body_hlines
@@ -386,7 +386,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         if !haskey(kwargs, :table_format)
             kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
         end
-        kwargs[:backend] = Val(:markdown)
+        kwargs[:backend] = :markdown
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
         # Note: Markdown backend in PrettyTables 3.x doesn't support body_hlines
@@ -396,7 +396,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         if !haskey(kwargs, :table_format)
             kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
         end
-        kwargs[:backend] = Val(:html)
+        kwargs[:backend] = :html
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
         # HTML backend doesn't support body_hlines directly either
@@ -406,7 +406,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         if !haskey(kwargs, :table_format)
             kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
         end
-        kwargs[:backend] = Val(:latex)
+        kwargs[:backend] = :latex
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
         # LaTeX backend supports body_hlines
