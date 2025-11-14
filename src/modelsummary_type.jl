@@ -456,7 +456,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     ## Organize header rows
     column_header = build_column_labels(rt.header)
     column_header = [column_header, rt.data[1,:]]
-
+    Main.@infiltrate
     # Render using PrettyTables
     PrettyTables.pretty_table(
         io,
@@ -514,7 +514,7 @@ end
 
 # MIME-based display methods
 function Base.show(io::IO, ::MIME"text/plain", rt::ModelSummary)
-    backend = rt.backend === nothing ? :markdown : rt.backend
+    backend = rt.backend === nothing ? :text : rt.backend
     _render_table(io, rt, backend)
 end
 
