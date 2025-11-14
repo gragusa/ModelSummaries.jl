@@ -46,16 +46,18 @@ using PrettyTables
 """
     ACADEMIC
 
-Professional academic publication style using booktabs aesthetics across all backends.
+Professional academic publication style using booktabs aesthetics.
 Best for: Journal articles, dissertations, academic papers.
 
-- Markdown: Clean markdown with minimal decorations
-- HTML: Default HTML styling
-- LaTeX: Classic booktabs style with \\toprule, \\midrule, \\bottomrule
-
-Note: Text backend uses keyword arguments for customization, not format objects.
+- Text: Unicode box-drawing with full borders
+- Markdown: Standard markdown table
+- HTML: Clean HTML table
+- LaTeX: Classic booktabs style
 """
 const ACADEMIC = Dict{Symbol, Any}(
+    :text => PrettyTables.TextTableFormat(),  # Default unicode box-drawing
+    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+              (b -> PrettyTables.TextTableFormat(; borders=b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -64,14 +66,22 @@ const ACADEMIC = Dict{Symbol, Any}(
 """
     MODERN
 
-Modern, visually appealing style with unicode box-drawing characters.
+Modern style with unicode rounded corners.
 Best for: Presentations, modern reports, terminal display.
 
-- Markdown: Unicode boxes for elegant terminal output
-- HTML: Default HTML styling
-- LaTeX: Booktabs LaTeX style
+- Text: Unicode rounded box-drawing
+- Markdown: Standard markdown
+- HTML: Styled HTML
+- LaTeX: Booktabs
 """
 const MODERN = Dict{Symbol, Any}(
+    :text => PrettyTables.TextTableBorders(
+        '╮', '╭', '╰', '╯',  # Rounded corners
+        '┬', '├', '┤', '┼', '┴',
+        '│', '─'
+    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
+    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+              (b -> PrettyTables.TextTableFormat(; borders=b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -80,14 +90,30 @@ const MODERN = Dict{Symbol, Any}(
 """
     MINIMAL
 
-Minimalist style with clean lines and minimal visual elements.
-Best for: Simple tables, quick reports, embedded documentation.
+Minimalist style with minimal borders.
+Best for: Simple tables, quick reports, documentation.
 
-- Markdown: Matrix-style text format
-- HTML: Default HTML
-- LaTeX: Booktabs LaTeX
+- Text: Simple single-line borders
+- Markdown: Standard markdown
+- HTML: Borderless HTML
+- LaTeX: Simple LaTeX
 """
 const MINIMAL = Dict{Symbol, Any}(
+    :text => PrettyTables.TextTableBorders(
+        '┐', '┌', '└', '┘',  # Single-line corners
+        '┬', '├', '┤', '┼', '┴',
+        '│', '─'
+    ) |> (b -> PrettyTables.TextTableFormat(;
+        borders=b,
+        horizontal_line_at_beginning=false,
+        horizontal_line_after_data_rows=false
+    )),
+    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+              (b -> PrettyTables.TextTableFormat(;
+                  borders=b,
+                  horizontal_line_at_beginning=false,
+                  horizontal_line_after_data_rows=false
+              )),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -96,14 +122,21 @@ const MINIMAL = Dict{Symbol, Any}(
 """
     COMPACT
 
-Space-efficient style for dense tables with lots of data.
+Space-efficient style using matrix-style format.
 Best for: Large tables, space-constrained outputs.
 
-- Markdown: Matrix-style (compact) layout
-- HTML: Default HTML with minimal padding
-- LaTeX: Booktabs style
+- Text: Matrix style (minimal decoration)
+- Markdown: Standard markdown
+- HTML: Compact HTML
+- LaTeX: Booktabs (same as other themes)
 """
 const COMPACT = Dict{Symbol, Any}(
+    :text => PrettyTables.text_table_format__matrix,
+    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+              (b -> PrettyTables.TextTableFormat(;
+                  borders=b,
+                  vertical_lines_at_data_columns=:none
+              )),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -113,25 +146,28 @@ const COMPACT = Dict{Symbol, Any}(
     DEFAULT
 
 Default ModelSummaries.jl theme (same as :academic).
-Provides sensible defaults for all backends.
-
-- Markdown: Markdown format
-- HTML: Default HTML
-- LaTeX: Booktabs style
 """
 const DEFAULT = ACADEMIC
 
 """
     UNICODE
 
-Clean unicode-based tables for terminal display.
+Unicode box-drawing with double lines for emphasis.
 Best for: Terminal output, REPLs, modern consoles.
 
-- Markdown: Standard unicode box-drawing
+- Text: Double-line unicode borders
+- Markdown: Standard markdown
 - HTML: Default HTML
 - LaTeX: Booktabs
 """
 const UNICODE = Dict{Symbol, Any}(
+    :text => PrettyTables.TextTableBorders(
+        '╗', '╔', '╚', '╝',  # Double-line corners
+        '╦', '╠', '╣', '╬', '╩',
+        '║', '═'
+    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
+    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '=') |>
+              (b -> PrettyTables.TextTableFormat(; borders=b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
