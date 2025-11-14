@@ -472,13 +472,8 @@ end
 
 ## Breaking Changes to Consider
 
-### Option A: Conservative (Recommended for v2.x)
-- Keep all existing APIs working
-- Add new features alongside
-- Deprecate DataRow but keep functional
-- Internal refactoring only
+### Bold (For v3.0)
 
-### Option B: Bold (For v3.0)
 - Remove DataRow from public API completely
 - Simplify API to be PrettyTables-first
 - Remove wrapper functions in favor of direct manipulation
@@ -486,7 +481,7 @@ end
 
 **Recommendation**: Go with Option A for now, prepare for Option B in v3.0
 
----
+
 
 ## Testing Strategy
 
@@ -497,37 +492,13 @@ end
 5. **Performance tests**: Ensure refactoring doesn't slow things down
 6. **Visual tests**: Compare rendered output before/after changes
 
----
 
-## Expected Benefits
-
-### For Users
-1. **Easier to use**: Work with familiar PrettyTables constructs
-2. **More powerful**: Access to all PrettyTables features
-3. **Better defaults**: Beautiful themes out of the box
-4. **Better docs**: Can reference PrettyTables docs directly
-5. **More flexible**: Can customize anything
-
-### For Maintainers
-1. **Less code**: Remove DataRow conversion layer
-2. **Easier to maintain**: Leverage PrettyTables instead of reimplementing
-3. **Better architecture**: Cleaner separation of concerns
-4. **Easier to extend**: Just use PrettyTables features
-5. **Better tested**: Rely on PrettyTables' test suite
-
-### For Ecosystem
-1. **Better integration**: Works naturally with PrettyTables ecosystem
-2. **More discoverable**: Users finding PrettyTables also find ModelSummaries
-3. **Standard interface**: Follows PrettyTables conventions
-4. **Future-proof**: Automatically get new PrettyTables features
-
----
 
 ## Open Questions
 
 1. **Theme naming**: What names for themes? (academic, modern, minimal, publication, presentation?)
 2. **Default theme**: Keep current defaults or switch to a preset?
-3. **API naming**: `theme` vs `table_format` vs `style`?
+3. **API naming**: `theme`!!
 4. **Backwards compatibility**: How long to support DataRow?
 5. **Documentation**: Separate guide or integrate into main docs?
 
