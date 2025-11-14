@@ -69,6 +69,24 @@ modelsummary(m1, m2; backend=:text)
 modelsummary(m1, m2)  # Uses markdown in REPL, HTML in Jupyter
 ```
 
+### Table Themes
+
+Choose the PrettyTables theme used for each backend via the `table_format` keyword:
+
+```julia
+using PrettyTables
+
+modelsummary(m1, m2;
+    table_format = Dict(
+        :text => PrettyTables.tf_unicode_rounded,
+        :html => PrettyTables.tf_html_minimalist,
+        :latex => PrettyTables.tf_latex_booktabs,
+    ),
+)
+```
+
+You can pass a single `TableFormat`, provide a `Dict`/`NamedTuple` keyed by backend, or use PrettyTables aliases such as `:unicode_rounded` and `:latex_booktabs`. Any backend that is not specified falls back to the defaults shown above.
+
 ## Custom Covariance Matrices
 
 Use robust standard errors with [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl):

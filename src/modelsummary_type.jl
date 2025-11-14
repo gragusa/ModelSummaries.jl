@@ -9,6 +9,7 @@
         highlighters::Vector
         backend::Union{Symbol, Nothing}
         pretty_kwargs::Dict{Symbol, Any}
+        table_format::Dict{Symbol, PrettyTables.TableFormat}
     end
 
 A container for regression table data that uses PrettyTables.jl for rendering.
@@ -23,6 +24,7 @@ A container for regression table data that uses PrettyTables.jl for rendering.
 - `highlighters`: Vector of PrettyTables highlighters
 - `backend`: Rendering backend (:text, :html, :latex, or nothing for auto-detection)
 - `pretty_kwargs`: Additional keyword arguments to pass to PrettyTables.pretty_table
+- `table_format`: Mapping of backend ⇒ `PrettyTables.TableFormat` used by `_render_table`
 
 # Display
 The table automatically selects the appropriate backend based on MIME type:
@@ -61,6 +63,7 @@ mutable struct ModelSummary
     highlighters::Vector
     backend::Union{Symbol, Nothing}
     pretty_kwargs::Dict{Symbol, Any}
+    table_format::Dict{Symbol, PrettyTables.TableFormat}
 
     function ModelSummary(
         data::Matrix{Any},
@@ -71,9 +74,113 @@ mutable struct ModelSummary
         formatters::Vector=[],
         highlighters::Vector=[],
         backend::Union{Symbol, Nothing}=nothing,
-        pretty_kwargs::Dict{Symbol, Any}=Dict{Symbol, Any}()
+        pretty_kwargs::Dict{Symbol, Any}=Dict{Symbol, Any}(),
+        table_format=nothing
     )
-        new(data, header, header_align, body_align, hlines, formatters, highlighters, backend, pretty_kwargs)
+        tf_map = _normalize_table_format(table_format)
+        new(
+            data,
+            header,
+            header_align,
+            body_align,
+            hlines,
+            formatters,
+            highlighters,
+            backend,
+            pretty_kwargs,
+            tf_map,
+        )
+    end
+end
+
+const _MODEL_SUMMARIES_BACKENDS = (:text, :html, :latex)
+
+"""
+    default_table_format(backend::Symbol)
+
+Return the PrettyTables `TableFormat` used for the given backend when no explicit
+`table_format` is provided. Supported backends are `:text`, `:html`, and `:latex`.
+"""
+function default_table_format(backend::Symbol)
+    if backend == :text || backend == :markdown
+        return PrettyTables.tf_markdown
+    elseif backend == :html
+        return PrettyTables.tf_html_minimalist
+    elseif backend == :latex
+        return PrettyTables.tf_latex_booktabs
+    else
+        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :html, or :latex."))
+    end
+end
+
+"""
+    default_table_formats()
+
+Construct a dictionary with the default `TableFormat` for every backend.
+"""
+function default_table_formats()
+    formats = Dict{Symbol, PrettyTables.TableFormat}()
+    for backend in _MODEL_SUMMARIES_BACKENDS
+        formats[backend] = default_table_format(backend)
+    end
+    formats
+end
+
+function _table_format_from_symbol(sym::Symbol)
+    candidates = Symbol[sym]
+    if !startswith(String(sym), "tf_")
+        push!(candidates, Symbol("tf_$(sym)"))
+    end
+    for candidate in candidates
+        if isdefined(PrettyTables, candidate)
+            value = getproperty(PrettyTables, candidate)
+            if value isa PrettyTables.TableFormat
+                return value
+            end
+        end
+    end
+    throw(ArgumentError("Unknown table_format alias $sym. Provide an actual PrettyTables.TableFormat or use a valid alias (e.g., :markdown, :html_minimalist, :latex_booktabs, :unicode_rounded)."))
+end
+
+function _coerce_table_format_value(val, backend::Symbol)
+    if val === nothing || val === :default
+        return default_table_format(backend)
+    elseif val isa PrettyTables.TableFormat
+        return val
+    elseif val isa Symbol
+        return _table_format_from_symbol(val)
+    else
+        throw(ArgumentError("table_format entries must be PrettyTables.TableFormat objects, `:default`, or a supported alias symbol."))
+    end
+end
+
+"""
+    _normalize_table_format(spec)
+
+Normalize user input into a backend ⇒ `TableFormat` dictionary.
+Accepts `nothing`, a single `TableFormat`, an alias `Symbol`, `NamedTuple`, or any `AbstractDict`.
+"""
+function _normalize_table_format(spec)
+    if spec === nothing
+        return default_table_formats()
+    elseif spec isa NamedTuple
+        return _normalize_table_format(Dict(spec))
+    elseif spec isa Pair
+        return _normalize_table_format(Dict(spec))
+    elseif spec isa AbstractDict
+        formats = default_table_formats()
+        for (k, v) in spec
+            backend = Symbol(k)
+            backend in _MODEL_SUMMARIES_BACKENDS || throw(ArgumentError("Unsupported backend $backend in table_format keyword."))
+            formats[backend] = _coerce_table_format_value(v, backend)
+        end
+        return formats
+    else
+        formats = Dict{Symbol, PrettyTables.TableFormat}()
+        for backend in _MODEL_SUMMARIES_BACKENDS
+            formats[backend] = _coerce_table_format_value(spec, backend)
+        end
+        return formats
     end
 end
 
@@ -83,6 +190,7 @@ function ModelSummary(
     body::Matrix{Any};
     header_align::Union{Vector{Symbol}, Nothing}=nothing,
     body_align::Union{Vector{Symbol}, Nothing}=nothing,
+    table_format=nothing,
     kwargs...
 )
     ncols = length(header)
@@ -101,6 +209,7 @@ function ModelSummary(
         [header],
         header_align,
         body_align;
+        table_format=table_format,
         kwargs...
     )
 end
@@ -229,7 +338,11 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     # PrettyTables configuration based on backend
     kwargs = copy(rt.pretty_kwargs)
 
-    if backend == :text
+    if !haskey(kwargs, :tf)
+        kwargs[:tf] = get(rt.table_format, backend, default_table_format(backend))
+    end
+
+    if backend == :text || backend == :markdown
         kwargs[:backend] = :markdown  # Use markdown backend for text output
         # Note: Markdown backend doesn't support body_hlines
         kwargs[:alignment] = alignment
@@ -244,9 +357,9 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     elseif backend == :latex
         kwargs[:backend] = :latex
         # Add horizontal lines (only latex backend supports this)
-        if !isempty(hlines_adjusted)
-            kwargs[:body_hlines] = hlines_adjusted
-        end
+        # if !isempty(hlines_adjusted)
+        #     kwargs[:body_hlines] = hlines_adjusted
+        # end
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
     end
@@ -260,15 +373,65 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     if !isempty(rt.highlighters)
         kwargs[:highlighters] = tuple(rt.highlighters...)
     end
+    
+    ## Organize header rows
+    column_header = build_column_labels(rt.header)
+    column_header = [column_header, rt.data[1,:]]
 
     # Render using PrettyTables
     PrettyTables.pretty_table(
         io,
-        rt.data;
-        column_labels=rt.header,
+        rt.data[2:end, :];
+        column_labels=column_header,
+        merge_column_label_cells = :auto,
         kwargs...
     )
 end
+
+function build_column_labels(header::Vector{Vector{String}})
+    row = header[1]
+
+    # drop leading empty cell (row label), if present
+    if !isempty(row) && row[1] == ""
+        row = row[2:end]
+    end
+
+    labels = Any[] # can contain both String and MultiColumn
+    push!(labels, "")  # first cell is empty for row labels
+       
+    i = 1
+    while i <= length(row)
+        label = row[i]
+
+        # skip empty cells entirely
+        if isempty(label)
+            i += 1
+            continue
+        end
+
+        # count how many times this label repeats consecutively
+        j = i + 1
+        while j <= length(row) && row[j] == label
+            j += 1
+        end
+
+        span = j - i
+
+        if span == 1
+            # single column, use plain label
+            push!(labels, label)
+        else
+            # consecutive group, use MultiColumn
+            push!(labels, MultiColumn(span, label))
+        end
+
+        i = j
+    end
+
+    return labels
+end
+
+
 
 # MIME-based display methods
 function Base.show(io::IO, ::MIME"text/plain", rt::ModelSummary)
@@ -324,7 +487,8 @@ function ModelSummary(
     data::Vector{DataRow{T}},
     align::String,
     breaks::Vector{Int}=Int[],
-    colwidths::Vector{Int}=Int[]
+    colwidths::Vector{Int}=Int[];
+    table_format=nothing
 ) where {T<:AbstractRenderType}
     # Convert DataRow vector to matrix format
     nrows = length(data)
@@ -440,7 +604,8 @@ function ModelSummary(
         header_align,
         body_align;
         hlines=adjusted_breaks,
-        backend=backend
+        backend=backend,
+        table_format=table_format
     )
 
     return rt

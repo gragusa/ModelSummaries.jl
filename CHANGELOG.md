@@ -1,5 +1,12 @@
 # ModelSummaries.jl Changelog
 
+# ModelSummaries.jl Changelog
+
+## Unreleased
+
+### Added
+- New `table_format` keyword and `ModelSummary.table_format` field to control the PrettyTables `TableFormat` used by each backend. Users can now provide a single format, a backend-keyed `Dict`/`NamedTuple`, or alias symbols (e.g. `:unicode_rounded`) and the renderer will honor the selection for `:text`, `:html`, and `:latex` outputs.
+
 ## Version 0.1.0 - Complete Package Refactor
 
 ### Major Breaking Changes

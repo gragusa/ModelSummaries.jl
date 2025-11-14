@@ -50,3 +50,36 @@ the existing API backwards compatible and allowing third‑party packages to plu
 
 This architecture keeps the core API simple for end users, isolates the customization surface for partner packages, and
 maintains backward compatibility with existing regression types.
+
+## Backend Table Format Customization
+
+### Motivation
+
+ModelSummaries renders tables through PrettyTables.jl and historically hard-coded the Markdown/HTML/LaTeX themes.
+Users requested the ability to supply their own `TableFormat` objects (for example, PrettyTables' Unicode rounded box or
+custom corporate LaTeX styles) and to keep those preferences attached to a `ModelSummary` so every later `show`/`write`
+call uses the same formatting without reapplying configuration.
+
+### Design
+
+1. **Persistent theme map**: `ModelSummary` now holds a `table_format::Dict{Symbol, PrettyTables.TableFormat}` that
+   records the chosen theme per backend (`:text`, `:html`, `:latex`). The struct constructor normalizes user input so
+   downstream code can rely on a canonical dictionary.
+2. **Public keyword**: `modelsummary(...; table_format=...)` accepts a single format, alias symbol, `Dict`, or
+   `NamedTuple`. Missing backends default to the stock PrettyTables themes (`tf_markdown`, `tf_html_minimalist`,
+   `tf_latex_booktabs`). Passing `nothing` keeps the previous behavior.
+3. **Normalization helper**: `_normalize_table_format` coerces user input into a complete Dict by:
+   - Detecting alias symbols and mapping them to PrettyTables `tf_*` constants (both bare names like `:unicode_rounded`
+     and explicit `:tf_unicode_rounded` are supported).
+   - Expanding `NamedTuple`s or `Dict`s keyed by backend symbols.
+   - Falling back to defaults when a backend is unspecified or explicitly set to `nothing`/`:default`.
+4. **Rendering hook**: `_render_table` checks `rt.pretty_kwargs` for a user-specified `:tf`; if absent it pulls the
+   backend-specific entry from `rt.table_format`. This preserves caller overrides set via `merge_kwargs!` while ensuring
+   the new keyword drives the PrettyTables theme everywhere else.
+
+### Benefits
+
+- Users can configure themes once when constructing the table instead of mutating PrettyTables kwargs after the fact.
+- Backend-specific styling is now symmetrical with backend selection, improving clarity of the public API.
+- The implementation is backwards compatible: existing code that relied on PrettyTables defaults continues to work, and
+  advanced users can still override `:tf` manually inside `pretty_kwargs` when needed.

@@ -389,7 +389,7 @@ function modelsummary(
     file = nothing,
     transform_labels::Union{Dict,Symbol} = Dict{String,String}(),
     extralines = nothing,
-    section_order = [:controls, :fe, :randomeffects, :clusters, :other_stats, :estimator],
+    section_order = nothing,
     print_fe_suffix = true,
     print_control_indicator = true,
     standardize_coef = false,
@@ -405,10 +405,15 @@ function modelsummary(
     use_relabeled_values = false,
     confint_level = 0.95,
     extra_space::Bool=false,
+    table_format=nothing,
     kwargs...
 )
     # Convert backend to internal render type for compatibility with existing formatting code
     render = _backend_to_render(backend)
+    table_format_map = _normalize_table_format(table_format)
+    if section_order === nothing
+        section_order = default_section_order(render)
+    end
 
     @assert align ∈ (:l, :r, :c) "align must be one of :l, :r, :c"
     @assert header_align ∈ (:l, :r, :c) "header_align must be one of :l, :r, :c"
@@ -499,7 +504,7 @@ function modelsummary(
         pop!(sections)
     end
 
-    out = Vector{DataRow{T}}()
+    out = Vector{DataRow{typeof(render)}}()
     breaks = Int[]
     wdths=fill(0, length(rrs)+1)
 
@@ -694,7 +699,8 @@ function modelsummary(
     f = ModelSummary(
         out,
         align,
-        breaks,
+        breaks;
+        table_format=table_format_map,
         #colwidths added automatically
     )
     if file !== nothing

@@ -96,6 +96,7 @@ mutable struct ModelSummary
     highlighters::Vector           # PrettyTables highlighters
     backend::Union{Symbol, Nothing}# :text, :html, :latex, or nothing
     pretty_kwargs::Dict{Symbol, Any} # Additional PrettyTables options
+    table_format::Dict{Symbol, PrettyTables.TableFormat} # Backend -> PrettyTables theme
 end
 ```
 
@@ -106,6 +107,7 @@ end
 3. **Alignment Vectors**: Separate alignment for header and body provides fine-grained control
 4. **Nullable Backend**: `backend === nothing` enables automatic MIME detection
 5. **Extensible Kwargs**: `pretty_kwargs` allows access to any PrettyTables.jl feature
+6. **Theme Map**: `table_format` holds the PrettyTables `TableFormat` per backend so users can override Markdown/HTML/LaTeX themes independently.
 
 ---
 
@@ -272,25 +274,23 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     # 1. Prepare PrettyTables kwargs
     kwargs = copy(rt.pretty_kwargs)
 
-    # 2. Configure backend-specific settings
+    # 2. Pick PrettyTables theme (can be overridden per backend)
+    kwargs[:tf] = get(rt.table_format, backend, default_table_format(backend))
+
+    # 3. Configure backend-specific settings
     if backend == :text
-        kwargs[:backend] = Val(:text)
-        kwargs[:tf] = PrettyTables.tf_markdown
-        kwargs[:body_hlines] = rt.hlines
+        kwargs[:backend] = :markdown
     elseif backend == :html
-        kwargs[:backend] = Val(:html)
-        kwargs[:tf] = PrettyTables.tf_html_minimalist
+        kwargs[:backend] = :html
     elseif backend == :latex
-        kwargs[:backend] = Val(:latex)
-        kwargs[:tf] = PrettyTables.tf_latex_booktabs
-        kwargs[:body_hlines] = rt.hlines
+        kwargs[:backend] = :latex
     end
 
-    # 3. Add alignment
+    # 4. Add alignment
     kwargs[:alignment] = rt.body_align
-    kwargs[:header_alignment] = rt.header_align
+    kwargs[:column_label_alignment] = rt.header_align
 
-    # 4. Add formatters and highlighters
+    # 5. Add formatters and highlighters
     if !isempty(rt.formatters)
         kwargs[:formatters] = tuple(rt.formatters...)
     end
@@ -298,8 +298,17 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         kwargs[:highlighters] = tuple(rt.highlighters...)
     end
 
-    # 5. Render via PrettyTables
-    PrettyTables.pretty_table(io, rt.data, header=rt.header; kwargs...)
+    # 6. Build multi-row headers and render
+    column_header = build_column_labels(rt.header)
+    column_header = [column_header, rt.data[1, :]]
+
+    PrettyTables.pretty_table(
+        io,
+        rt.data[2:end, :];
+        column_labels=column_header,
+        merge_column_label_cells=:auto,
+        kwargs...
+    )
 end
 ```
 
@@ -358,6 +367,29 @@ Example output:
 \end{tabular}
 ```
 
+### Custom Table Formats
+
+Users can override the PrettyTables `TableFormat` used by each backend via the `table_format` keyword:
+
+```julia
+using PrettyTables
+
+modelsummary(model1, model2;
+    table_format = Dict(
+        :text => PrettyTables.tf_unicode_rounded,
+        :html => PrettyTables.tf_html_minimalist,
+        :latex => PrettyTables.tf_latex_booktabs,
+    ),
+)
+```
+
+Accepted inputs include:
+- A single `TableFormat` (applied to every backend)
+- Alias symbols such as `:unicode_rounded` or `:latex_booktabs` (resolved to `tf_*` constants)
+- `Dict` / `NamedTuple` keyed by `:text`, `:html`, `:latex`, with unspecified entries falling back to defaults
+
+Internally the mapping is stored on `ModelSummary.table_format` so later calls to `_render_table` or `write()` consistently reuse the requested themes.
+
 ---
 
 ## Public API
@@ -371,6 +403,7 @@ Example output:
 modelsummary(
     rrs::RegressionModel...;
     backend = nothing,  # :latex, :html, :text, or nothing (auto-detect)
+    table_format = nothing,  # Dict/NamedTuple of backend => PrettyTables.TableFormat (optional)
     keep = [],
     drop = [],
     order = [],
@@ -414,6 +447,11 @@ modelsummary(m1, m2; backend = :html, file = "table.html")
 - `backend = :latex`: LaTeX output
 - `backend = :html`: HTML output
 - `backend = :text`: Markdown/text output
+
+**Table Formats** (`table_format` keyword):
+- Accepts a single `PrettyTables.TableFormat`, alias symbol (e.g., `:unicode_rounded`), or a backend-keyed `Dict`/`NamedTuple`.
+- Any unspecified backend falls back to `default_table_format(:text|:html|:latex)`.
+- Stored on `ModelSummary.table_format` so the choice persists for `show` and `write`.
 
 ### Post-Creation Customization
 

@@ -20,7 +20,8 @@ tests = [
         "default_changes.jl",
         "RegressionTables.jl",
         "decorations.jl",
-        "label_transforms.jl"
+        "label_transforms.jl",
+        "table_format.jl",
     ]
 
 for test in tests
