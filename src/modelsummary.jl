@@ -352,6 +352,8 @@ Produces a publication-quality regression table, similar to Stata's `esttab` and
 * `print_estimator_section`  is a `Bool` that governs whether to print a section on which estimator (OLS/IV/Binomial/Poisson...) is used. Defaults to `true` if more than one value is displayed.
 * `standardize_coef` is a `Bool` that governs whether the table should show standardized coefficients. Note that this only works with `TableRegressionModel`s, and that only coefficient estimates and the `below_statistic` are being standardized (i.e. the R^2 etc still pertain to the non-standardized regression).
 * `backend` is a `Symbol` or `nothing` that governs the output format. Supported values are `:latex`, `:html`, `:text`, or `nothing` (auto-detect based on context). Defaults to `nothing`.
+* `theme` is a `Symbol`, `Dict`, or `NamedTuple` that governs the table visual style across all backends. Available preset themes: `:academic`, `:modern`, `:minimal`, `:compact`, `:unicode`, `:default`. You can also pass a custom Dict/NamedTuple mapping backend symbols to PrettyTables.TableFormat objects. If both `theme` and `table_format` are provided, `theme` takes precedence. Defaults to `nothing` (uses default formats).
+* `table_format` is a `Dict`, `NamedTuple`, or `PrettyTables.TableFormat` that allows fine-grained control over table appearance for each backend. For most users, the `theme` parameter is easier to use. Defaults to `nothing`.
 * `file` is a `String` that governs whether the table should be saved to a file. Defaults to `nothing`.
 * `transform_labels` is a `Dict` or one of the `Symbol`s `:ampersand`, `:underscore`, `:underscore2space`, `:latex`
 * `confint_level` is a `Float64` that governs the confidence level for the confidence interval. Defaults to `0.95`.
@@ -405,12 +407,24 @@ function modelsummary(
     use_relabeled_values = false,
     confint_level = 0.95,
     extra_space::Bool=false,
+    theme::Union{Symbol, AbstractDict, NamedTuple, Nothing} = nothing,
     table_format=nothing,
     kwargs...
 )
     # Convert backend to internal render type for compatibility with existing formatting code
     render = _backend_to_render(backend)
-    table_format_map = _normalize_table_format(table_format)
+
+    # Handle theme parameter (overrides table_format if both are provided)
+    if theme !== nothing
+        if table_format !== nothing
+            @warn "Both `theme` and `table_format` specified. Using `theme` and ignoring `table_format`."
+        end
+        theme_dict = Themes.get_theme(theme)
+        table_format_map = _normalize_table_format(theme_dict)
+    else
+        table_format_map = _normalize_table_format(table_format)
+    end
+
     if section_order === nothing
         section_order = default_section_order(render)
     end

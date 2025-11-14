@@ -289,7 +289,17 @@ This allows you to use any PrettyTables.jl option for customization.
 ```julia
 merge_kwargs!(rt; title="My Results", title_alignment=:c)
 merge_kwargs!(rt; vcrop_mode=:middle, crop_num_lines_at_end=10)
+
+# You can also access pretty_kwargs directly for advanced customization:
+rt.pretty_kwargs[:body_hlines] = [3, 5, 7]
+rt.pretty_kwargs[:highlighters] = (Highlighter(...),)
+rt.pretty_kwargs[:formatters] = (ft_printf("%.4f", [2, 3]),)
 ```
+
+# Note
+For advanced users: You can directly manipulate `rt.pretty_kwargs` dictionary
+to access the full PrettyTables.jl API without needing wrapper functions.
+See the PrettyTables.jl documentation for all available options.
 """
 function merge_kwargs!(rt::ModelSummary; kwargs...)
     merge!(rt.pretty_kwargs, Dict{Symbol, Any}(kwargs))
@@ -344,24 +354,30 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
 
     if backend == :text || backend == :markdown
         kwargs[:backend] = :markdown  # Use markdown backend for text output
-        # Note: Markdown backend doesn't support body_hlines
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
+        # Add horizontal lines support for markdown backend
+        if !isempty(hlines_adjusted)
+            kwargs[:body_hlines] = hlines_adjusted
+        end
 
     elseif backend == :html
         kwargs[:backend] = :html
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
-        # HTML doesn't have the same hlines concept, but we can use CSS classes
+        # HTML backend supports body_hlines
+        if !isempty(hlines_adjusted)
+            kwargs[:body_hlines] = hlines_adjusted
+        end
 
     elseif backend == :latex
         kwargs[:backend] = :latex
-        # Add horizontal lines (only latex backend supports this)
-        # if !isempty(hlines_adjusted)
-        #     kwargs[:body_hlines] = hlines_adjusted
-        # end
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
+        # Add horizontal lines for LaTeX backend
+        if !isempty(hlines_adjusted)
+            kwargs[:body_hlines] = hlines_adjusted
+        end
     end
 
     # Add formatters if any

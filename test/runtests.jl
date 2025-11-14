@@ -22,6 +22,7 @@ tests = [
         "decorations.jl",
         "label_transforms.jl",
         "table_format.jl",
+        "new_features.jl",
     ]
 
 for test in tests

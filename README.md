@@ -71,7 +71,28 @@ modelsummary(m1, m2)  # Uses markdown in REPL, HTML in Jupyter
 
 ### Table Themes
 
-Choose the PrettyTables theme used for each backend via the `table_format` keyword:
+ModelSummaries.jl provides beautiful preset themes for different use cases:
+
+```julia
+# Academic publication style (default)
+modelsummary(m1, m2; theme=:academic)
+
+# Modern style with unicode box-drawing
+modelsummary(m1, m2; theme=:modern)
+
+# Minimalist style
+modelsummary(m1, m2; theme=:minimal)
+
+# Compact style for dense tables
+modelsummary(m1, m2; theme=:compact)
+
+# Clean unicode tables
+modelsummary(m1, m2; theme=:unicode)
+```
+
+Available themes: `:academic`, `:modern`, `:minimal`, `:compact`, `:unicode`, `:default`
+
+For fine-grained control, use the `table_format` keyword:
 
 ```julia
 using PrettyTables
@@ -85,7 +106,9 @@ modelsummary(m1, m2;
 )
 ```
 
-You can pass a single `TableFormat`, provide a `Dict`/`NamedTuple` keyed by backend, or use PrettyTables aliases such as `:unicode_rounded` and `:latex_booktabs`. Any backend that is not specified falls back to the defaults shown above.
+You can pass a single `TableFormat`, provide a `Dict`/`NamedTuple` keyed by backend, or use PrettyTables aliases such as `:unicode_rounded` and `:latex_booktabs`. Any backend that is not specified falls back to the defaults.
+
+**See [PRETTYTABLES_GUIDE.md](PRETTYTABLES_GUIDE.md) for comprehensive examples of using PrettyTables features.**
 
 ## Custom Covariance Matrices
 

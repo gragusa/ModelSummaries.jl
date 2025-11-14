@@ -51,6 +51,9 @@ module ModelSummaries
     # Customization functions
     export add_hline!, remove_hline!, set_alignment!, add_formatter!, set_backend!, merge_kwargs!
 
+    # Themes
+    export Themes
+
     export make_estim_decorator
     export vcov
 
@@ -78,6 +81,9 @@ module ModelSummaries
 
     # table structure (PrettyTables-based)
     include("modelsummary_type.jl")
+
+    # theme presets
+    include("themes.jl")
 
     # main functions
     include("modelsummary.jl")
