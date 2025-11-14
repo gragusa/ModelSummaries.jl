@@ -9,7 +9,7 @@
         highlighters::Vector
         backend::Union{Symbol, Nothing}
         pretty_kwargs::Dict{Symbol, Any}
-        table_format::Dict{Symbol, Any}  # Can hold LatexTableFormat, TextTableFormat, MarkdownTableFormat, or HtmlTableFormat
+        table_format::Dict{Symbol, Any}  # Can hold LatexTableFormat, MarkdownTableFormat, or HtmlTableFormat
     end
 
 A container for regression table data that uses PrettyTables.jl for rendering.
@@ -24,7 +24,7 @@ A container for regression table data that uses PrettyTables.jl for rendering.
 - `highlighters`: Vector of PrettyTables highlighters
 - `backend`: Rendering backend (:text, :html, :latex, or nothing for auto-detection)
 - `pretty_kwargs`: Additional keyword arguments to pass to PrettyTables.pretty_table
-- `table_format`: Mapping of backend ⇒ table format objects (LatexTableFormat, TextTableFormat, etc.) used by `_render_table`
+- `table_format`: Mapping of backend ⇒ table format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat) used by `_render_table`
 
 # Display
 The table automatically selects the appropriate backend based on MIME type:
@@ -155,19 +155,17 @@ end
 function _coerce_table_format_value(val, backend::Symbol)
     if val === nothing || val === :default
         return default_table_format(backend)
-    elseif val isa Union{PrettyTables.LatexTableFormat, PrettyTables.TextTableFormat, PrettyTables.MarkdownTableFormat, PrettyTables.HtmlTableFormat}
+    elseif val isa Union{PrettyTables.LatexTableFormat, PrettyTables.MarkdownTableFormat, PrettyTables.HtmlTableFormat}
         return val
     elseif val isa Symbol
         # Try to resolve known symbols
         if val == :booktabs && backend == :latex
             return PrettyTables.latex_table_format__booktabs
-        elseif val == :matrix && backend == :text
-            return PrettyTables.text_table_format__matrix
         else
             return _table_format_from_symbol(val)
         end
     else
-        throw(ArgumentError("table_format entries must be table format objects (LatexTableFormat, TextTableFormat, etc.), `:default`, or a supported alias symbol."))
+        throw(ArgumentError("table_format entries must be table format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat), `:default`, or a supported alias symbol."))
     end
 end
 
