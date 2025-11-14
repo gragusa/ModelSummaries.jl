@@ -714,6 +714,7 @@ function modelsummary(
         out,
         align,
         breaks;
+        backend=backend,
         table_format=table_format_map,
         #colwidths added automatically
     )

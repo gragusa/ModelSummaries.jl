@@ -573,6 +573,7 @@ function ModelSummary(
     align::String,
     breaks::Vector{Int}=Int[],
     colwidths::Vector{Int}=Int[];
+    backend::Union{Symbol, Nothing}=nothing,
     table_format=nothing
 ) where {T<:AbstractRenderType}
     # Convert DataRow vector to matrix format
@@ -673,13 +674,15 @@ function ModelSummary(
     # Adjust breaks (they're 1-indexed in old system, need to subtract header rows)
     adjusted_breaks = Int[b - nheader for b in breaks if b > nheader]
 
-    # Determine backend from render type
-    backend = if T <: AbstractLatex
-        :latex
-    elseif T <: AbstractHtml
-        :html
-    else
-        nothing  # Auto-detect
+    # Determine backend from render type (only if not explicitly specified)
+    if backend === nothing
+        backend = if T <: AbstractLatex
+            :latex
+        elseif T <: AbstractHtml
+            :html
+        else
+            nothing  # Auto-detect
+        end
     end
 
     # Create new ModelSummary
