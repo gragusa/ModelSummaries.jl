@@ -439,10 +439,8 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         kwargs[:backend] = :latex
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
-        # LaTeX backend supports body_hlines
-        if !isempty(hlines_adjusted)
-            kwargs[:body_hlines] = hlines_adjusted
-        end
+        # Note: LaTeX backend doesn't support body_hlines via keyword in PrettyTables 3.x
+        # Horizontal lines must be configured in the LatexTableFormat object
     end
 
     # Add formatters if any
