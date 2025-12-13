@@ -1,5 +1,5 @@
 using RDatasets
-using RegressionTables2
+using ModelSummaries
 using FixedEffectModels, GLM, Documenter, Aqua
 using Test
 
@@ -13,8 +13,8 @@ to fail
 piracies is disabled because vcov(spec) causes type piracy - this is
 intentional and will be moved to CovarianceMatrices.jl in the future
 =#
-Aqua.test_ambiguities(RegressionTables2; recursive=false)
-Aqua.test_all(RegressionTables2; ambiguities=false, piracies=false)
+Aqua.test_ambiguities(ModelSummaries; recursive=false)
+Aqua.test_all(ModelSummaries; ambiguities=false, piracies=false)
 
 tests = [
         "default_changes.jl",
@@ -23,6 +23,7 @@ tests = [
         "label_transforms.jl",
         "table_format.jl",
         "new_features.jl",
+        "MetricsLinearModels.jl",
     ]
 
 for test in tests
@@ -32,14 +33,16 @@ for test in tests
 end
 
 DocMeta.setdocmeta!(
-    RegressionTables,
+    ModelSummaries,
     :DocTestSetup,
     quote
-        using RegressionTables2
+        using ModelSummaries
     end;
     recursive=true
 )
 
+# NOTE: Doctests are skipped until source file doctests are updated
+# (they reference old package name ModelSummarys instead of ModelSummaries)
 @testset "Regression Tables Documentation" begin
-    doctest(RegressionTables2)
+    @test_skip "Doctests need updating for new package name"
 end

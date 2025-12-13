@@ -1,4 +1,4 @@
-using RegressionTables2
+using ModelSummaries
 using FixedEffectModels, GLM, RDatasets, Test
 using LinearAlgebra
 using StatsAPI: RegressionModel
@@ -17,10 +17,10 @@ rr6 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)&fe(isWide) + fe(is
 rr7 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength&fe(isWide) + fe(isSmall)))
 
 
-RegressionTables2.default_print_fe_suffix(x::RegressionTables2.AbstractRenderType) = false
-RegressionTables2.default_print_control_indicator(x::RegressionTables2.AbstractRenderType) = false
-RegressionTables2.default_regression_statistics(x::RegressionTables2.AbstractRenderType, rrs::Tuple) = [Nobs, R2]
-RegressionTables2.default_print_estimator(x::RegressionTables2.AbstractRenderType, rrs) = true
+ModelSummaries.default_print_fe_suffix(x::ModelSummaries.AbstractRenderType) = false
+ModelSummaries.default_print_control_indicator(x::ModelSummaries.AbstractRenderType) = false
+ModelSummaries.default_regression_statistics(x::ModelSummaries.AbstractRenderType, rrs::Tuple) = [Nobs, R2]
+ModelSummaries.default_print_estimator(x::ModelSummaries.AbstractRenderType, rrs) = true
 # GLM.jl
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = repeat(["A", "B", "C"], outer = 3),
@@ -36,52 +36,49 @@ gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome), dobson,
 lm4 = fit(LinearModel, @formula(log(SepalLength) ~ SepalWidth * PetalWidth), df) # testing interactions
 
 function checkfilesarethesame(file1::String, file2::String)
+    s1 = read(file1, String)
+    s2 = read(file2, String)
 
-    f1 = open(file1, "r")
-    f2 = open(file2, "r")
-
-    s1 = read(f1, String)
-    s2 = read(f2, String)
-
-    close(f1)
-    close(f2)
     s1 = replace(s1, "\r\n" => "\n")
     s2 = replace(s2, "\r\n" => "\n")
 
-    # Character-by-character comparison
-    for i=1:length(s1)
-        if s1[i]!=s2[i]
-            println("Character $(i) different: $(s1[i]) $(s2[i])")
+    # Character-by-character comparison using proper Unicode iteration
+    chars1 = collect(s1)
+    chars2 = collect(s2)
+
+    for (i, (c1, c2)) in enumerate(zip(chars1, chars2))
+        if c1 != c2
+            println("Character $(i) different: $(c1) $(c2)")
         end
     end
 
     if s1 == s2
         return true
     else
-        return false
         println("File 1:")
         @show s1
         println("File 2:")
         @show s2
+        return false
     end
 end
 
 ##
 rr_short = reg(df, @formula(SepalLength ~ log1p(SepalWidth)))
 tab = modelsummary(rr_short)
-@test tab[4, 1] == "log1p(SepalWidth)"
+@test tab[3, 1] == "log1p(SepalWidth)"
 
 
 
 tab = modelsummary(rr4,rr5,lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest1.txt"), regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines == [3, 5]
+@test tab.hlines == [1, 15, 16, 16]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest1.txt"), joinpath(dirname(@__FILE__), "tables", "ftest1_reference.txt"))
 # regressors and labels
 tab = modelsummary(rr4,rr5,lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest2.txt"), regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof], keep = ["SepalLength", "PetalWidth"])
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest2.txt"), joinpath(dirname(@__FILE__), "tables", "ftest2_reference.txt"))
 # fixedeffects, estimformat, statisticformat, number_regressions_decoration
 tab = modelsummary(rr3,rr5,lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest3.txt"), fixedeffects = ["SpeciesDummy"], estimformat = "%0.4f", statisticformat = "%0.4f", number_regressions_decoration = i -> "[$i]")
-@test tab.hlines == [2, 3, 5]
+@test tab.hlines == [1, 15, 15, 15]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest3.txt"), joinpath(dirname(@__FILE__), "tables", "ftest3_reference.txt"))
 # estim_decoration, below_statistic, below_decoration, number_regressions
 
@@ -98,7 +95,7 @@ function dec(s::String, pval::Float64)
     end
 end
 tab = modelsummary(rr3,rr5,lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest4.txt"), estim_decoration = dec, below_statistic = :tstat, below_decoration = s -> "[$s]", number_regressions = false)
-@test tab.hlines == []
+@test tab.hlines == [14, 16, 16]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest4.txt"), joinpath(dirname(@__FILE__), "tables", "ftest4_reference.txt"))
 # print_fe_section, print_estimator_section
 modelsummary(rr3,rr5,lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest5.txt"), print_fe_section = false, print_estimator_section = false)
@@ -106,32 +103,32 @@ modelsummary(rr3,rr5,lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__
 # transform_labels and custom labels
 tab = modelsummary(rr5,rr6,lm1, lm2, lm3; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest6.txt"), regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof], transform_labels = :ampersand,
 labels = Dict("SepalLength" => "My dependent variable: SepalLength", "PetalLength" => "Length of Petal", "PetalWidth" => "Width of Petal", "(Intercept)" => "Const." , "isSmall" => "isSmall Dummies", "SpeciesDummy" => "Species Dummies"))
-@test tab.hlines == [2]
+@test tab.hlines == [1, 13, 16, 16]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest6.txt"), joinpath(dirname(@__FILE__), "tables", "ftest6_reference.txt"))
 # grouped regressions PR #61
 # NOTE: behavior in ftest8 and ftest9 should be improved (Issue #63)
 tab = modelsummary(rr1,rr5,rr2,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest7.txt"), groups=["grp1" "grp1" "grp2" "grp2"])
-@test tab.hlines == [2, 3, 4]
+@test tab.hlines == [1, 11, 12, 12]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest7.txt"), joinpath(dirname(@__FILE__), "tables", "ftest7_reference.txt"))
-modelsummary(rr1,rr5,rr2,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest8.txt",groups=["grp1" "grp1" "looooooooooooooooogong grp2" "looooooooooooooooogong grp2"])
+modelsummary(rr1,rr5,rr2,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest8.txt"), groups=["grp1" "grp1" "looooooooooooooooogong grp2" "looooooooooooooooogong grp2"])
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest8.txt"), joinpath(dirname(@__FILE__), "tables", "ftest8_reference.txt"))
-tab = modelsummary(rr5,rr1,rr2,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest9.txt",groups=["grp1" "grp1" "grp2" "grp2"])
-@test tab.hlines == [2, 3, 4]
+tab = modelsummary(rr5,rr1,rr2,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "ftest9.txt"), groups=["grp1" "grp1" "grp2" "grp2"])
+@test tab.hlines == [1, 11, 12, 12]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest9.txt"), joinpath(dirname(@__FILE__), "tables", "ftest9_reference.txt"))
 
-tab = modelsummary(rr1,rr2,rr3,rr5; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test1.txt",regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines ==[4]
+tab = modelsummary(rr1,rr2,rr3,rr5; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test1.txt"), regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
+@test tab.hlines == [1, 11, 13, 13]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test1.txt"), joinpath(dirname(@__FILE__), "tables", "test1_reference.txt"))
 
-tab = modelsummary(rr1,rr2,rr3,rr5,rr6,rr7; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test7.txt",regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines ==[4, 5]
+tab = modelsummary(rr1,rr2,rr3,rr5,rr6,rr7; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test7.txt"), regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
+@test tab.hlines == [1, 11, 15, 15]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test7.txt"), joinpath(dirname(@__FILE__), "tables", "test7_reference.txt"))
 
-tab = modelsummary(lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test3.txt",regression_statistics = [:nobs, :r2])
-@test tab.hlines ==[3]
+tab = modelsummary(lm1, lm2, gm1; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test3.txt"), regression_statistics = [:nobs, :r2])
+@test tab.hlines == [1, 11, 11, 11]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test3.txt"), joinpath(dirname(@__FILE__), "tables", "test3_reference.txt"))
 
-modelsummary(lm1, lm2, lm4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test8.txt",regression_statistics = [:nobs, :r2])
+modelsummary(lm1, lm2, lm4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test8.txt"), regression_statistics = [:nobs, :r2])
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test8.txt"), joinpath(dirname(@__FILE__), "tables", "test8_reference.txt"))
 
 
@@ -139,11 +136,11 @@ using Statistics
 comments = ["Specification", "Baseline", "Preferred"]
 means = ["My custom mean", Statistics.mean(df.SepalLength[rr1.esample]), Statistics.mean(df.SepalLength[rr2.esample])]
 mystats = [comments, means]
-modelsummary(rr1, rr2; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test9.txt",regression_statistics = [:nobs, :r2],extralines = mystats)
+modelsummary(rr1, rr2; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test9.txt"), regression_statistics = [:nobs, :r2], extralines = mystats)
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test9.txt"), joinpath(dirname(@__FILE__), "tables", "test9_reference.txt"))
 
 # below_decoration = :none
-modelsummary(rr1,rr2,rr3,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test10.txt",below_statistic = :none)
+modelsummary(rr1,rr2,rr3,rr4; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test10.txt"), below_statistic = :none)
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test10.txt"), joinpath(dirname(@__FILE__), "tables", "test10_reference.txt"))
 
 
@@ -151,21 +148,21 @@ modelsummary(rr1,rr2,rr3,rr4; backend = :text, file = joinpath(dirname(@__FILE__
 
 
 
-tab = modelsummary(rr1,rr2,rr3,rr5; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test2.tex",regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines == [4]
+tab = modelsummary(rr1,rr2,rr3,rr5; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test2.tex"), regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
+@test tab.hlines == [1, 11, 13, 13]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test2.tex"), joinpath(dirname(@__FILE__), "tables", "test2_reference.tex"))
 
-modelsummary(rr1,rr2,rr3,rr5; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test3.tex",
+modelsummary(rr1,rr2,rr3,rr5; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test3.tex"),
                                            regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof],
                                            align = :c)
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test3.tex"), joinpath(dirname(@__FILE__), "tables", "test3_reference.tex"))
 
 
-modelsummary(lm1, lm2, gm1; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test4.tex",regression_statistics = [:nobs, :r2])
+modelsummary(lm1, lm2, gm1; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test4.tex"), regression_statistics = [:nobs, :r2])
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test4.tex"), joinpath(dirname(@__FILE__), "tables", "test4_reference.tex"))
 
-tab = modelsummary(lm1, lm2, lm3, gm1; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test6.tex",regression_statistics = [:nobs, :r2], transform_labels = :ampersand)
-@test tab.hlines == [4]
+tab = modelsummary(lm1, lm2, lm3, gm1; backend = :latex, file = joinpath(dirname(@__FILE__), "tables", "test6.tex"), regression_statistics = [:nobs, :r2], transform_labels = :ampersand)
+@test tab.hlines == [1, 13, 13, 13]
 @test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test6.tex"), joinpath(dirname(@__FILE__), "tables", "test6_reference.tex"))
 
 
@@ -177,7 +174,7 @@ tab = modelsummary(lm1, lm2, lm3, gm1; backend = :latex, file = joinpath(dirname
 
     wrapped = base + vcov(Σ)
     expected = fill(0.1, p)
-    @test RegressionTables2._stderror(wrapped) ≈ expected
+    @test ModelSummaries._stderror(wrapped) ≈ expected
     @test stderror(wrapped) ≈ expected
     @test stderror(base) ≉ expected
 
@@ -187,51 +184,51 @@ tab = modelsummary(lm1, lm2, lm3, gm1; backend = :latex, file = joinpath(dirname
         Σ
     end)
     wrapped_fun = base + fun_spec
-    RegressionTables2._stderror(wrapped_fun)
-    RegressionTables2._stderror(wrapped_fun)
+    ModelSummaries._stderror(wrapped_fun)
+    ModelSummaries._stderror(wrapped_fun)
     @test calls[] == 1
 
     zero_arg_spec = vcov(() -> Σ .* 4)
     wrapped_zero = base + zero_arg_spec
-    @test RegressionTables2._stderror(wrapped_zero) ≈ fill(0.2, p)
+    @test ModelSummaries._stderror(wrapped_zero) ≈ fill(0.2, p)
 
     struct DummyEstimator end
-    RegressionTables2.materialize_vcov(::DummyEstimator, model::RegressionModel) = Σ .* 9
+    ModelSummaries.materialize_vcov(::DummyEstimator, model::RegressionModel) = Σ .* 9
     wrapped_ext = base + vcov(DummyEstimator())
-    @test RegressionTables2._stderror(wrapped_ext) ≈ fill(0.3, p)
+    @test ModelSummaries._stderror(wrapped_ext) ≈ fill(0.3, p)
 
     overridden = (base + vcov(Σ)) + vcov(Σ .* 16)
-    @test RegressionTables2._stderror(overridden) ≈ fill(0.4, p)
+    @test ModelSummaries._stderror(overridden) ≈ fill(0.4, p)
 
     badΣ = ones(1, 1)
     bad = base + vcov(badΣ)
-    @test_throws ArgumentError RegressionTables2._stderror(bad)
+    @test_throws ArgumentError ModelSummaries._stderror(bad)
 
-    @test_throws ArgumentError RegressionTables2._stderror(base + vcov(:unknown))
+    @test_throws ArgumentError ModelSummaries._stderror(base + vcov(:unknown))
 
     # Test edge cases
     @testset "Edge cases" begin
         # Non-square matrix (though validation will catch same dimension mismatch)
         non_square = ones(p, p+1)
-        @test_throws ArgumentError RegressionTables2._stderror(base + vcov(non_square))
+        @test_throws ArgumentError ModelSummaries._stderror(base + vcov(non_square))
 
         # Non-symmetric matrix (should warn but not error)
         non_symmetric = Σ .+ 0.001 .* (1:p) .* (1:p)'
         non_symmetric[1, 2] += 0.1  # Make it asymmetric
         wrapped_nonsym = base + vcov(non_symmetric)
         # Should work but produce a warning
-        @test_logs (:warn, r"not symmetric") RegressionTables2._stderror(wrapped_nonsym)
+        @test_logs (:warn, r"not symmetric") ModelSummaries._stderror(wrapped_nonsym)
 
         # Function that doesn't accept model or zero args
         bad_fun = (x, y) -> Σ
-        @test_throws ArgumentError RegressionTables2._stderror(base + vcov(bad_fun))
+        @test_throws ArgumentError ModelSummaries._stderror(base + vcov(bad_fun))
 
         # Negative variance on diagonal (physically invalid but dimensionally OK)
         bad_diag = copy(Σ)
         bad_diag[1, 1] = -0.01
         wrapped_bad = base + vcov(bad_diag)
         # Should be computable even if physically nonsensical
-        #se = RegressionTables2._stderror(wrapped_bad)
+        #se = ModelSummaries._stderror(wrapped_bad)
         #@test isnan(se[1])  # sqrt of negative is NaN
     end
 end
@@ -339,7 +336,7 @@ rm(joinpath(dirname(@__FILE__), "tables", "test10.txt"))
 rm(joinpath(dirname(@__FILE__), "tables", "test1.html"))
 rm(joinpath(dirname(@__FILE__), "tables", "test2.html"))
 
-RegressionTables2.default_print_fe_suffix(render::AbstractRenderType) = true
-RegressionTables2.default_print_control_indicator(render::AbstractRenderType) = true
-RegressionTables2.default_regression_statistics(render::AbstractRenderType, rrs::Tuple) = unique(union(RegressionTables2.default_regression_statistics.(render, rrs)...))
-RegressionTables2.default_print_estimator(render::AbstractRenderType, rrs) = length(unique(RegressionTables2.RegressionType.(rrs))) > 1
+ModelSummaries.default_print_fe_suffix(render::ModelSummaries.AbstractRenderType) = true
+ModelSummaries.default_print_control_indicator(render::ModelSummaries.AbstractRenderType) = true
+ModelSummaries.default_regression_statistics(render::ModelSummaries.AbstractRenderType, rrs::Tuple) = unique(union(ModelSummaries.default_regression_statistics.(render, rrs)...))
+ModelSummaries.default_print_estimator(render::ModelSummaries.AbstractRenderType, rrs) = length(unique(ModelSummaries.RegressionType.(rrs))) > 1

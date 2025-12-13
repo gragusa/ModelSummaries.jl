@@ -93,11 +93,12 @@ Base.repr(render::AbstractRenderType, x; args...) = "$x"
 Base.repr(render::AbstractRenderType, x::Pair; args...) = repr(render, first(x); args...)
 Base.repr(render::AbstractRenderType, x::Int; args...) = format(x, commas=true)
 
-function Base.repr(render::AbstractRenderType, x::Float64; digits=3, commas=true, str_format=nothing, args...)
+function Base.repr(render::AbstractRenderType, x::Float64; digits=nothing, commas=true, str_format=nothing, args...)
+    actual_digits = digits === nothing ? default_digits(render, x) : digits
     if str_format !== nothing
         cfmt(str_format, x)
     else
-        format(x; precision=digits, commas)
+        format(x; precision=actual_digits, commas)
     end
 end
 
@@ -145,25 +146,34 @@ lineend(::AbstractRenderType) = ""
 # Additional repr methods for regression statistics and coefficient names
 # These are placeholders - full implementations are in the included files
 
-# For regression statistics
-function Base.repr(render::AbstractRenderType, x::AbstractRegressionStatistic; digits=3, args...)
-    repr(render, value(x); digits, args...)
+# For regression statistics - use default_digits when digits not specified
+function Base.repr(render::AbstractRenderType, x::AbstractRegressionStatistic; digits=nothing, args...)
+    actual_digits = digits === nothing ? default_digits(render, x) : digits
+    repr(render, value(x); digits=actual_digits, args...)
 end
 
-function Base.repr(render::AbstractRenderType, x::AbstractR2; digits=3, args...)
-    repr(render, value(x); digits, args...)
+function Base.repr(render::AbstractRenderType, x::AbstractR2; digits=nothing, args...)
+    actual_digits = digits === nothing ? default_digits(render, x) : digits
+    repr(render, value(x); digits=actual_digits, args...)
 end
 
-function Base.repr(render::AbstractRenderType, x::AbstractUnderStatistic; digits=3, args...)
-    below_decoration(render, repr(render, value(x); digits, commas=false, args...))
+function Base.repr(render::AbstractRenderType, x::AbstractUnderStatistic; digits=nothing, args...)
+    actual_digits = digits === nothing ? default_digits(render, x) : digits
+    below_decoration(render, repr(render, value(x); digits=actual_digits, commas=false, args...))
 end
 
-function Base.repr(render::AbstractRenderType, x::ConfInt; digits=3, args...)
-    below_decoration(render, repr(render, value(x)[1]; digits) * ", " * repr(render, value(x)[2]; digits))
+function Base.repr(render::AbstractRenderType, x::ConfInt; digits=nothing, args...)
+    actual_digits = digits === nothing ? default_digits(render, x) : digits
+    below_decoration(render, repr(render, value(x)[1]; digits=actual_digits) * ", " * repr(render, value(x)[2]; digits=actual_digits))
 end
 
-function Base.repr(render::AbstractRenderType, x::CoefValue; digits=3, args...)
-    estim_decorator(render, repr(render, value(x); digits, commas=false, args...), x.pvalue)
+function Base.repr(render::AbstractRenderType, x::CoefValue; digits=nothing, stars=true, args...)
+    actual_digits = digits === nothing ? default_digits(render, x) : digits
+    if stars
+        estim_decorator(render, repr(render, value(x); digits=actual_digits, commas=false, args...), x.pvalue)
+    else
+        repr(render, value(x); digits=actual_digits, commas=false, args...)
+    end
 end
 
 function Base.repr(render::AbstractRenderType, x::Type{V}; args...) where {V <: AbstractRegressionStatistic}

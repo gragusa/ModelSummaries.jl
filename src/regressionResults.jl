@@ -170,7 +170,8 @@ function _validate_vcov_dimensions(model, Σ)
     end
 
     # Check for symmetry (covariance matrices should be symmetric)
-    if !issymmetric(Σ)
+    # Use isapprox instead of issymmetric to handle floating-point rounding errors
+    if !isapprox(Σ, transpose(Σ))
         @warn "Covariance matrix is not symmetric. This may indicate an error in computation."
     end
 end

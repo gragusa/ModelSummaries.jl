@@ -353,6 +353,8 @@ end
 # Make ModelSummary act like a matrix for compatibility
 Base.size(rt::ModelSummary) = size(rt.data)
 Base.size(rt::ModelSummary, i::Int) = size(rt.data, i)
+Base.axes(rt::ModelSummary) = axes(rt.data)
+Base.axes(rt::ModelSummary, d::Int) = axes(rt.data, d)
 Base.getindex(rt::ModelSummary, i::Int, j::Int) = rt.data[i, j]
 function Base.setindex!(rt::ModelSummary, val, i::Int, j::Int)
     rt.data[i, j] = val
@@ -456,7 +458,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     ## Organize header rows
     column_header = build_column_labels(rt.header)
     column_header = [column_header, rt.data[1,:]]
-    Main.@infiltrate
+    
     # Render using PrettyTables
     PrettyTables.pretty_table(
         io,
@@ -568,6 +570,7 @@ function ModelSummary(
     breaks::Vector{Int}=Int[],
     colwidths::Vector{Int}=Int[];
     backend::Union{Symbol, Nothing}=nothing,
+    stars::Bool=true,
     table_format=nothing
 ) where {T<:AbstractRenderType}
     # Convert DataRow vector to matrix format
@@ -617,7 +620,7 @@ function ModelSummary(
         for item in row.data
             if isa(item, Pair)
                 # Multicolumn cell
-                value = repr(row.render, first(item))
+                value = repr(row.render, first(item); stars)
                 span = length(last(item))
                 # Put value in first column of span
                 result[col] = value
@@ -627,7 +630,7 @@ function ModelSummary(
                 end
                 col += span
             else
-                result[col] = repr(row.render, item)
+                result[col] = repr(row.render, item; stars)
                 col += 1
             end
         end
