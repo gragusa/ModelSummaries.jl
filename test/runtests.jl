@@ -18,7 +18,7 @@ Aqua.test_all(ModelSummaries; ambiguities=false, piracies=false)
 
 tests = [
         "default_changes.jl",
-        "RegressionTables.jl",
+        "modelsummaries.jl",
         "decorations.jl",
         "label_transforms.jl",
         "table_format.jl",

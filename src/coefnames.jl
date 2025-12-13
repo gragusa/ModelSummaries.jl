@@ -230,6 +230,27 @@ Base.get(x::Dict{String, String}, val::ClusterCoefName, def::ClusterCoefName) =
 
 Base.replace(x::ClusterCoefName, r::Pair) = ClusterCoefName(replace(x.name, r))
 
+"""
+    struct FirstStageCoefName <: AbstractCoefName
+        name::AbstractCoefName
+    end
+
+Used to store the name of a first-stage statistic for IV models.
+"""
+struct FirstStageCoefName <: AbstractCoefName
+    name::AbstractCoefName
+    FirstStageCoefName(x::AbstractCoefName) = new(x)
+end
+
+FirstStageCoefName(x::String) = FirstStageCoefName(CoefName(x))
+
+value(x::FirstStageCoefName) = x.name
+Base.string(x::FirstStageCoefName) = string(x.name)
+Base.get(x::Dict{String, String}, val::FirstStageCoefName, def::FirstStageCoefName) =
+    FirstStageCoefName(get(x, val.name, def.name))
+
+Base.replace(x::FirstStageCoefName, r::Pair) = FirstStageCoefName(replace(x.name, r))
+
 
 """
     struct RandomEffectCoefName <: AbstractCoefName

@@ -34,6 +34,7 @@ modelsummary(m1, m2)
 ```
 
 This automatically:
+    
 - Detects the output context (terminal, Jupyter, LaTeX)
 - Applies appropriate formatting
 - Uses sensible defaults

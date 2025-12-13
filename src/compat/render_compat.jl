@@ -86,6 +86,7 @@ below_decoration(render::AbstractRenderType, s) = "($s)"
 number_regressions_decoration(render::AbstractRenderType, s) = "($s)"
 fe_suffix(render::AbstractRenderType) = " Fixed Effects"
 cluster_suffix(render::AbstractRenderType) = " Clustering"
+first_stage_suffix(render::AbstractRenderType) = " First Stage"
 fe_value(render::AbstractRenderType, v) = v ? "Yes" : ""
 
 # Base.repr implementations for compatibility
@@ -201,6 +202,10 @@ function Base.repr(render::AbstractRenderType, x::ClusterCoefName; args...)
     repr(render, value(x); args...) * cluster_suffix(render)
 end
 
+function Base.repr(render::AbstractRenderType, x::FirstStageCoefName; args...)
+    repr(render, value(x); args...) * first_stage_suffix(render)
+end
+
 function Base.repr(render::AbstractRenderType, x::InteractedCoefName; args...)
     join(repr.(render, value(x); args...), interaction_combine(render))
 end
@@ -255,6 +260,10 @@ end
 
 function Base.repr(render::AbstractRenderType, x::ClusterValue; args...)
     repr(render, value(x) > 0; args...)
+end
+
+function Base.repr(render::AbstractRenderType, x::FirstStageValue; digits=default_digits(render, x), args...)
+    isnothing(value(x)) ? "" : repr(render, value(x); digits, commas=true)
 end
 
 function Base.repr(render::AbstractRenderType, x::RandomEffectValue; args...)

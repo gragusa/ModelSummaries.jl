@@ -666,5 +666,19 @@ end
 
 value(x::ClusterValue) = x.val
 
+"""
+    struct FirstStageValue
+        val::Union{Float64, Nothing}
+    end
+
+Store first-stage F-statistic value for IV models. Display as float.
+"""
+struct FirstStageValue <: AbstractRegressionData
+    val::Union{Float64, Nothing}
+end
+
+value(x::FirstStageValue) = x.val
+
 fill_missing(x::AbstractRegressionData) = missing
 fill_missing(x::FixedEffectValue) = FixedEffectValue(false)
+fill_missing(x::FirstStageValue) = FirstStageValue(nothing)

@@ -1,1041 +1,619 @@
-# ModelSummaries.jl Architecture Documentation
+# ModelSummaries.jl
 
-## Overview
+A Julia package for creating publication-quality regression tables from statistical models. Similar to Stata's `esttab` and R's `stargazer`, ModelSummaries.jl generates formatted tables for multiple regression models with support for LaTeX, HTML, and text output.
 
-This document describes the technical architecture of ModelSummaries.jl (formerly RegressionTables2.jl) after the refactoring to use PrettyTables.jl 3.0 as the rendering backend and the simplification of the API to use `backend` parameters instead of type-based rendering.
+## Installation
 
-**Key Changes**:
-- Package renamed from `RegressionTables2` to `ModelSummaries`
-- Type renamed from `RegressionTable` to `ModelSummary`
-- Simplified API: use `backend=:latex` instead of `render=LatexTable()`
-- Render types (`AsciiTable`, `LatexTable`, `HtmlTable`) removed from public API (kept internally)
-- Files renamed: `regtable.jl` → `modelsummary.jl`, `regressiontable.jl` → `modelsummary_type.jl`
-
----
-
-## Table of Contents
-
-1. [Architectural Overview](#architectural-overview)
-2. [Core Data Structures](#core-data-structures)
-3. [Compatibility Layer](#compatibility-layer)
-4. [MIME Type Detection](#mime-type-detection)
-5. [Rendering Pipeline](#rendering-pipeline)
-6. [Public API](#public-api)
-7. [Technical Implementation Details](#technical-implementation-details)
-8. [Migration Notes](#migration-notes)
-
----
-
-## Architectural Overview
-
-### Design Principles
-
-1. **Separation of Concerns**: Statistics computation is separate from rendering
-2. **Simple API**: Use `backend` parameter instead of type-based rendering
-3. **MIME-aware Display**: Automatic backend selection based on display context
-4. **Extensibility**: Post-creation customization via mutating functions
-5. **PrettyTables.jl Integration**: Leverage existing ecosystem tools
-
-### System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Code (modelsummary)                      │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Compatibility Layer (DataRow)                   │
-│  • AbstractRenderType hierarchy                              │
-│  • DataRow construction                                      │
-│  • repr() methods for all types                              │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│            ModelSummary (Matrix Storage)                  │
-│  • data::Matrix{Any}                                         │
-│  • header::Vector{Vector{String}}                            │
-│  • hlines::Vector{Int}                                       │
-│  • backend::Union{Symbol, Nothing}                           │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│              MIME-based Display System                       │
-│  • show(::IO, ::MIME"text/plain", ::ModelSummary)        │
-│  • show(::IO, ::MIME"text/html", ::ModelSummary)         │
-│  • show(::IO, ::MIME"text/latex", ::ModelSummary)        │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  PrettyTables.jl 3.0                         │
-│  • pretty_table(io, data; backend=Val(:text))               │
-│  • tf_markdown, tf_html_minimalist, tf_latex_booktabs       │
-│  • Formatters, highlighters, custom kwargs                   │
-└─────────────────────────────────────────────────────────────┘
+```julia
+using Pkg
+Pkg.add("ModelSummaries")
 ```
 
+## Quick Start
+
+```julia
+using ModelSummaries, GLM, DataFrames
+
+# Fit some models
+df = DataFrame(y = randn(100), x1 = randn(100), x2 = randn(100))
+m1 = lm(@formula(y ~ x1), df)
+m2 = lm(@formula(y ~ x1 + x2), df)
+
+# Create a regression table
+modelsummary(m1, m2)
+
+# Save to file
+modelsummary(m1, m2; backend=:latex, file="table.tex")
+```
+
+## Supported Model Types
+
+ModelSummaries.jl works with any model implementing the `StatsAPI.RegressionModel` interface. Package extensions provide enhanced support for:
+
+- **GLM.jl** - Linear and generalized linear models
+- **FixedEffectModels.jl** - High-dimensional fixed effects models
+- **CovarianceMatrices.jl** - Robust standard errors (HC0-HC5, HAC, cluster-robust)
+
 ---
 
-## Core Data Structures
+## Core API
 
-### ModelSummary
+### `modelsummary(models...; kwargs...)`
 
-The new `ModelSummary` struct is the core data structure that replaces the old `Vector{DataRow}` system.
+The main function for creating regression tables.
+
+```julia
+modelsummary(
+    models::RegressionModel...;
+    # Output control
+    backend = nothing,          # :text, :latex, :html, or nothing (auto-detect)
+    file = nothing,             # Save to file path
+
+    # Coefficient display
+    keep = [],                  # Coefficients to show (String, Regex, Int, Range)
+    drop = [],                  # Coefficients to hide
+    order = [],                 # Reorder coefficients
+    labels = Dict{String,String}(),  # Rename coefficients
+
+    # Statistics below coefficients
+    below_statistic = StdError, # StdError, TStat, ConfInt, or nothing
+    stat_below = true,          # true: below coefficient, false: same line
+
+    # Table statistics
+    regression_statistics = [Nobs, R2],  # Bottom-of-table statistics
+
+    # Formatting
+    align = :r,                 # Body column alignment (:l, :c, :r)
+    header_align = :c,          # Header alignment
+    digits = nothing,           # Decimal places (default: 3)
+    stars = false,              # Show significance stars
+
+    # Sections
+    print_depvar = true,        # Show dependent variable
+    number_regressions = true,  # Number the columns
+    print_fe_section = true,    # Show fixed effects section
+    print_estimator_section = false,  # Show estimator type
+
+    # Visual styling
+    theme = nothing,            # :academic, :modern, :minimal, :compact, :unicode
+    table_format = nothing,     # Fine-grained PrettyTables format control
+
+    # Label transformations
+    transform_labels = Dict{String,String}(),  # :latex, :ampersand, :underscore
+    extralines = nothing,       # Additional rows at table bottom
+    groups = nothing,           # Column group headers
+)
+```
+
+**Returns:** A `ModelSummary` object that displays automatically in REPL/notebooks.
+
+### Output Backends
+
+| Backend | MIME Type | Use Case |
+|---------|-----------|----------|
+| `:text` | `text/plain` | Terminal, REPL |
+| `:latex` | `text/latex` | LaTeX documents |
+| `:html` | `text/html` | Jupyter, web pages |
+| `:markdown` | `text/plain` | Markdown files |
+| `:ascii` | `text/plain` | ASCII-only terminals |
+
+When `backend=nothing`, the output format is auto-detected based on display context.
+
+---
+
+## ModelSummary Type
+
+The `ModelSummary` struct holds table data and formatting options:
 
 ```julia
 mutable struct ModelSummary
-    data::Matrix{Any}              # Table body (without header)
-    header::Vector{Vector{String}} # Multi-level headers
-    header_align::Vector{Symbol}   # Column alignment for headers (:l, :c, :r)
-    body_align::Vector{Symbol}     # Column alignment for body
-    hlines::Vector{Int}            # Horizontal line positions (row indices)
+    data::Matrix{Any}              # Table body
+    header::Vector{Vector{String}} # Header rows
+    header_align::Vector{Symbol}   # Header column alignment
+    body_align::Vector{Symbol}     # Body column alignment
+    hlines::Vector{Int}            # Horizontal line positions
     formatters::Vector             # PrettyTables formatters
     highlighters::Vector           # PrettyTables highlighters
-    backend::Union{Symbol, Nothing}# :text, :html, :latex, or nothing
-    pretty_kwargs::Dict{Symbol, Any} # Additional PrettyTables options
-    table_format::Dict{Symbol, Any} # Backend -> backend-specific format objects
+    backend::Union{Symbol,Nothing} # Rendering backend
+    pretty_kwargs::Dict{Symbol,Any}# PrettyTables options
+    table_format::Dict{Symbol,Any} # Backend-specific formats
 end
 ```
 
-#### Key Design Decisions
+### Post-Creation Customization
 
-1. **Matrix Storage**: Body data stored as `Matrix{Any}` allows mixed types and is directly compatible with PrettyTables.jl
-2. **Separate Header**: `header::Vector{Vector{String}}` supports multi-level headers (e.g., groups + dependent variables)
-3. **Alignment Vectors**: Separate alignment for header and body provides fine-grained control
-4. **Nullable Backend**: `backend === nothing` enables automatic MIME detection
-5. **Extensible Kwargs**: `pretty_kwargs` allows access to any PrettyTables.jl feature
-6. **Theme Map**: `table_format` holds backend-specific format objects (LatexTableFormat, MarkdownTableFormat, HtmlTableFormat) so users can override themes independently per backend.
-
----
-
-## Compatibility Layer
-
-### Purpose
-
-The compatibility layer (`src/compat/render_compat.jl`) bridges the old rendering system with the new PrettyTables-based system, ensuring existing code continues to work.
-
-### Components
-
-#### 1. AbstractRenderType Hierarchy
+After creating a table, modify it with these functions:
 
 ```julia
-abstract type AbstractRenderType end
+# Add horizontal line after row 5
+add_hline!(ms, 5)
 
-abstract type AbstractAscii <: AbstractRenderType end
-abstract type AbstractLatex <: AbstractRenderType end
-abstract type AbstractHtml <: AbstractRenderType end
+# Remove horizontal line
+remove_hline!(ms, 5)
 
-struct AsciiTable <: AbstractAscii end
-struct LatexTable <: AbstractLatex end
-struct LatexTableStar <: AbstractLatex end
-struct HtmlTable <: AbstractHtml end
+# Change column alignment (body)
+set_alignment!(ms, 2, :c)
+
+# Change header alignment
+set_alignment!(ms, 2, :l; header=true)
+
+# Force specific backend
+set_backend!(ms, :latex)
+
+# Add PrettyTables formatters
+add_formatter!(ms, formatter)
+
+# Merge additional PrettyTables options
+merge_kwargs!(ms; title="My Results", title_alignment=:c)
 ```
 
-**Purpose**: Maintain type-based dispatch for `repr()` methods during table construction.
-
-#### 2. DataRow Compatibility Type
+### Matrix-like Access
 
 ```julia
-mutable struct DataRow{T<:AbstractRenderType}
-    data::Vector              # Can contain regular values or Pairs (multicolumn)
-    align::String             # Alignment string (e.g., "lrrr")
-    print_underlines::Vector{Bool}  # Which cells to underline
-    render::T                 # Render type for dispatch
-end
+ms = modelsummary(m1, m2)
+size(ms)        # (nrows, ncols)
+ms[2, 3]        # Access cell
+ms[2, 3] = "X"  # Modify cell
 ```
 
-**Purpose**: Allow existing `modelsummary.jl` logic to construct rows as before.
-
-**Key Feature**: Supports multicolumn cells via `Pair` type (e.g., `"Group 1" => 2:4` spans columns 2-4).
-
-#### 3. repr() Methods
-
-The compatibility layer implements ~50 `repr()` methods for all types used in table construction:
-
-- **Statistics**: `AbstractRegressionStatistic`, `R2`, `FStat`, etc.
-- **Coefficients**: `CoefValue`, `StdError`, `TStat`, `ConfInt`
-- **Coefficient Names**: `AbstractCoefName`, `InteractedCoefName`, `CategoricalCoefName`
-- **Basic Types**: `Float64`, `Int`, `Bool`, `String`, `Nothing`, `Missing`
-
-**Example**:
-```julia
-function Base.repr(render::AbstractRenderType, x::CoefValue; digits=3, args...)
-    estim_decorator(render, repr(render, value(x); digits, commas=false), x.pvalue)
-end
-```
-
-This method:
-1. Extracts the coefficient value
-2. Formats it with specified digits
-3. Applies p-value decorations (stars)
-
-### Conversion from DataRow to ModelSummary
-
-The compatibility constructor handles the conversion:
+### File Output
 
 ```julia
-function ModelSummary(
-    data::Vector{DataRow{T}},
-    align::String,
-    breaks::Vector{Int}=Int[],
-    colwidths::Vector{Int}=Int[]
-) where {T<:AbstractRenderType}
-```
-
-#### Conversion Algorithm
-
-1. **Identify Headers**: Rows with `print_underlines` are headers
-2. **Count Columns**: Handle multicolumn cells (Pairs) to determine total columns
-3. **Expand Rows**: Convert each DataRow to a flat vector, expanding multicolumn cells
-4. **Build Matrices**: Separate header and body data
-5. **Convert Alignment**: String → Symbol vector (`"lrr"` → `[:l, :r, :r]`)
-6. **Adjust Breaks**: Convert from absolute row numbers to body row numbers
-7. **Detect Backend**: Map render type to backend (LaTeX/HTML/auto)
-
-#### Example Conversion
-
-**Input (Old System)**:
-```julia
-data = [
-    DataRow(["", "Model 1", "Model 2"], "lcc", [false, true, true]),
-    DataRow(["(Intercept)", "1.23", "2.45"], "lrr", [false, false, false]),
-    DataRow(["", "(0.45)", "(0.67)"], "lrr", [false, false, false])
-]
-```
-
-**Output (New System)**:
-```julia
-ModelSummary(
-    data = [
-        ["(Intercept)", "1.23", "2.45"],
-        ["", "(0.45)", "(0.67)"]
-    ],
-    header = [["", "Model 1", "Model 2"]],
-    header_align = [:l, :c, :c],
-    body_align = [:l, :r, :r],
-    hlines = []
-)
+# Extension determines format
+write("table.tex", ms)   # LaTeX
+write("table.html", ms)  # HTML
+write("table.txt", ms)   # Text
 ```
 
 ---
 
-## MIME Type Detection
+## Themes
 
-### Mechanism
-
-Julia's display system automatically selects the appropriate `show` method based on context:
+Preset themes provide consistent styling across backends:
 
 ```julia
-# Terminal/REPL
-show(io::IO, ::MIME"text/plain", rt::ModelSummary)
-    → Uses :text backend → Markdown table
-
-# Jupyter/IJulia
-show(io::IO, ::MIME"text/html", rt::ModelSummary)
-    → Uses :html backend → HTML table
-
-# LaTeX documents (via Latexify.jl)
-show(io::IO, ::MIME"text/latex", rt::ModelSummary)
-    → Uses :latex backend → LaTeX table
-```
-
-### Backend Selection Logic
-
-```julia
-function Base.show(io::IO, ::MIME"text/plain", rt::ModelSummary)
-    # Use user-specified backend if set, otherwise auto-detect
-    backend = rt.backend === nothing ? :text : rt.backend
-    _render_table(io, rt, backend)
-end
-```
-
-### Override Mechanism
-
-Users can force a specific backend:
-
-```julia
-rt = modelsummary(model1, model2)
-set_backend!(rt, :latex)  # Force LaTeX output everywhere
-```
-
----
-
-## Rendering Pipeline
-
-### _render_table() Function
-
-This internal function handles the actual rendering:
-
-```julia
-function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
-    # 1. Prepare PrettyTables kwargs
-    kwargs = copy(rt.pretty_kwargs)
-
-    # 2. Pick PrettyTables theme (can be overridden per backend)
-    kwargs[:tf] = get(rt.table_format, backend, default_table_format(backend))
-
-    # 3. Configure backend-specific settings
-    if backend == :text
-        kwargs[:backend] = :markdown
-    elseif backend == :html
-        kwargs[:backend] = :html
-    elseif backend == :latex
-        kwargs[:backend] = :latex
-    end
-
-    # 4. Add alignment
-    kwargs[:alignment] = rt.body_align
-    kwargs[:column_label_alignment] = rt.header_align
-
-    # 5. Add formatters and highlighters
-    if !isempty(rt.formatters)
-        kwargs[:formatters] = tuple(rt.formatters...)
-    end
-    if !isempty(rt.highlighters)
-        kwargs[:highlighters] = tuple(rt.highlighters...)
-    end
-
-    # 6. Build multi-row headers and render
-    column_header = build_column_labels(rt.header)
-    column_header = [column_header, rt.data[1, :]]
-
-    PrettyTables.pretty_table(
-        io,
-        rt.data[2:end, :];
-        column_labels=column_header,
-        merge_column_label_cells=:auto,
-        kwargs...
-    )
-end
-```
-
-### Backend-Specific Features
-
-#### Text (Markdown)
-
-- **Theme**: `tf_markdown` - clean, readable terminal output
-- **Horizontal Lines**: Supported via `body_hlines`
-- **Alignment**: Full support
-- **Unicode**: Uses box-drawing characters
-
-Example output:
-```
-| Variable    | Model 1 | Model 2 |
-|-------------|---------|---------|
-| (Intercept) | 1.23*** | 2.45*** |
-|             | (0.45)  | (0.67)  |
-```
-
-#### HTML
-
-- **Theme**: `tf_html_minimalist` - clean, unstyled HTML
-- **Structure**: Standard `<table>`, `<thead>`, `<tbody>`
-- **Styling**: Can be customized via CSS classes
-- **Alignment**: Via `align` attribute
-
-Example output:
-```html
-<table>
-  <thead>
-    <tr><th align="left"></th><th align="center">Model 1</th></tr>
-  </thead>
-  <tbody>
-    <tr><td align="left">(Intercept)</td><td align="right">1.23***</td></tr>
-  </tbody>
-</table>
-```
-
-#### LaTeX
-
-- **Theme**: `tf_latex_booktabs` - publication-quality tables
-- **Package**: Requires `\usepackage{booktabs}`
-- **Rules**: `\toprule`, `\midrule`, `\bottomrule`
-- **Horizontal Lines**: Custom `\cmidrule` via `body_hlines`
-
-Example output:
-```latex
-\begin{tabular}{lrr}
-\toprule
- & Model 1 & Model 2 \\
-\midrule
-(Intercept) & 1.23*** & 2.45*** \\
- & (0.45) & (0.67) \\
-\bottomrule
-\end{tabular}
-```
-
-### Custom Table Formats
-
-Users can override the PrettyTables `TableFormat` used by each backend via the `table_format` keyword:
-
-```julia
-using PrettyTables
-
-modelsummary(model1, model2;
-    table_format = Dict(
-        :text => PrettyTables.tf_unicode_rounded,
-        :html => PrettyTables.tf_html_minimalist,
-        :latex => PrettyTables.tf_latex_booktabs,
-    ),
-)
-```
-
-Accepted inputs include:
-- A single `TableFormat` (applied to every backend)
-- Alias symbols such as `:unicode_rounded` or `:latex_booktabs` (resolved to `tf_*` constants)
-- `Dict` / `NamedTuple` keyed by `:text`, `:html`, `:latex`, with unspecified entries falling back to defaults
-
-Internally the mapping is stored on `ModelSummary.table_format` so later calls to `_render_table` or `write()` consistently reuse the requested themes.
-
----
-
-## Theme System
-
-ModelSummaries.jl provides a comprehensive theme system for consistent, beautiful table styling across all backends.
-
-### Preset Themes
-
-Six curated themes are available via the `Themes` module:
-
-```julia
-using ModelSummaries
-
-# Academic publication style (default)
 modelsummary(m1, m2; theme=:academic)
-
-# Modern markdown formatting
-modelsummary(m1, m2; theme=:modern)
-
-# Minimalist style
-modelsummary(m1, m2; theme=:minimal)
-
-# Compact for dense tables
-modelsummary(m1, m2; theme=:compact)
-
-# Unicode box-drawing
-modelsummary(m1, m2; theme=:unicode)
 ```
 
-### Theme Characteristics
-
-| Theme | Text Backend | LaTeX Backend | Best For |
-|-------|-------------|---------------|----------|
-| `:academic` | Markdown | Booktabs | Journal articles, dissertations |
-| `:modern` | Markdown | Booktabs | Reports, presentations |
-| `:minimal` | Markdown | Booktabs | Simple tables, documentation |
-| `:compact` | Markdown | Booktabs | Large tables, space-constrained |
-| `:unicode` | Markdown | Booktabs | Terminal output, REPLs |
-| `:default` | Markdown | Booktabs | Alias for `:academic` |
+| Theme | Description |
+|-------|-------------|
+| `:academic` | Clean, professional (booktabs-style for LaTeX) |
+| `:modern` | Unicode rounded corners |
+| `:minimal` | Minimalist with fewer borders |
+| `:compact` | Space-efficient matrix style |
+| `:unicode` | Double-line unicode borders |
+| `:default` | Alias for `:academic` |
 
 ### Custom Themes
 
-Create custom themes using Dict or NamedTuple:
-
 ```julia
 using PrettyTables
 
-# Custom theme as Dict
 my_theme = Dict(
-    :text => PrettyTables.MarkdownTableFormat(),
+    :text => PrettyTables.TextTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs,
     :html => PrettyTables.HtmlTableFormat(),
-    :latex => PrettyTables.latex_table_format__booktabs
 )
-
-modelsummary(m1, m2; theme=my_theme)
-
-# Or as NamedTuple
-my_theme = (
-    text = PrettyTables.MarkdownTableFormat(),
-    html = PrettyTables.HtmlTableFormat(),
-    latex = PrettyTables.latex_table_format__booktabs
-)
-
 modelsummary(m1, m2; theme=my_theme)
 ```
 
 ### Theme Discovery
-
-List available themes:
 
 ```julia
 using ModelSummaries.Themes
 Themes.list_themes()
 ```
 
-### PrettyTables 3.x Format Types
-
-Each backend uses a specific format type:
-
-- **LaTeX**: `LatexTableFormat` - Controls rules, borders, alignment
-- **Markdown**: `MarkdownTableFormat` - Title levels, line chars
-- **HTML**: `HtmlTableFormat` - CSS, table width
-- **Text**: Uses `MarkdownTableFormat` internally
-
-Example with direct format objects:
-
-```julia
-# LaTeX with booktabs
-modelsummary(m1, m2;
-    backend=:latex,
-    table_format=Dict(:latex => PrettyTables.latex_table_format__booktabs)
-)
-
-# Matrix-style text output
-modelsummary(m1, m2;
-    backend=:text,
-    table_format=Dict(:text => PrettyTables.text_table_format__matrix)
-)
-```
-
-### Implementation Notes
-
-**Theme vs table_format:**
-- `theme` - High-level preset, easier to use
-- `table_format` - Low-level control, more flexible
-- If both provided, `theme` takes precedence
-
-**PrettyTables 3.x Compatibility:**
-- No unified `TableFormat` type (each backend has its own)
-- Uses `table_format` keyword (not `tf`)
-- Horizontal lines (`body_hlines`) only work with LaTeX backend
-- Markdown/HTML backends have limited customization
-
 ---
 
-## Public API
+## Custom Covariance Matrices
 
-### Table Creation
+Override standard errors with the `vcov()` function and `+` operator:
 
-#### `modelsummary()`
+### Direct Matrix
 
-**Signature**:
 ```julia
+Σ = [0.01 0; 0 0.02]
+modelsummary(model + vcov(Σ))
+```
+
+### Function
+
+```julia
+modelsummary(model + vcov(m -> custom_vcov_computation(m)))
+```
+
+### CovarianceMatrices.jl Integration
+
+```julia
+using CovarianceMatrices
+
+# Heteroskedasticity-robust (HC3)
+modelsummary(model + vcov(HC3()))
+
+# HAC standard errors
+modelsummary(model + vcov(Bartlett(5)))
+
+# Multiple models with different vcov
 modelsummary(
-    rrs::RegressionModel...;
-    backend = nothing,  # :latex, :html, :text, or nothing (auto-detect)
-    theme = nothing,    # :academic, :modern, :minimal, :compact, :unicode, or custom Dict/NamedTuple
-    table_format = nothing,  # Fine-grained control (Dict/NamedTuple of backend => format objects)
-    keep = [],
-    drop = [],
-    order = [],
-    labels = Dict{String,String}(),
-    align = :r,
-    header_align = :c,
-    below_statistic = StdError,
-    regression_statistics = [Nobs, R2],
-    print_depvar = true,
-    number_regressions = true,
-    # ... many more options
-) → ModelSummary
-```
-
-**Returns**: A `ModelSummary` object that can be displayed or further customized.
-
-**Example**:
-```julia
-using GLM, DataFrames, ModelSummaries
-
-data = DataFrame(x = randn(100), y = randn(100), z = randn(100))
-m1 = lm(@formula(y ~ x), data)
-m2 = lm(@formula(y ~ x + z), data)
-
-# Auto-detect backend based on context
-ms = modelsummary(m1, m2;
-    regression_statistics = [Nobs, R2, AdjR2],
-    below_statistic = StdError,
-    labels = Dict("x" => "Treatment", "z" => "Control")
-)
-
-# Force LaTeX output
-modelsummary(m1, m2; backend = :latex, file = "table.tex")
-
-# Force HTML output
-modelsummary(m1, m2; backend = :html, file = "table.html")
-```
-
-**Backend Options**:
-- `backend = nothing` (default): Auto-detect based on display context
-- `backend = :latex`: LaTeX output
-- `backend = :html`: HTML output
-- `backend = :text`: Markdown/text output
-
-**Table Formats** (`table_format` keyword):
-- Accepts a single `PrettyTables.TableFormat`, alias symbol (e.g., `:unicode_rounded`), or a backend-keyed `Dict`/`NamedTuple`.
-- Any unspecified backend falls back to `default_table_format(:text|:html|:latex)`.
-- Stored on `ModelSummary.table_format` so the choice persists for `show` and `write`.
-
-### Post-Creation Customization
-
-#### `add_hline!(rt, position)`
-
-Add a horizontal line after the specified row.
-
-**Arguments**:
-- `rt`: ModelSummary to modify
-- `position`: Row index (1-based, counting from start of body)
-
-**Example**:
-```julia
-rt = modelsummary(m1, m2)
-add_hline!(rt, 2)  # Add line after row 2
-add_hline!(rt, 5)  # Add line after row 5
-```
-
-**Returns**: Modified `rt` (for chaining)
-
-#### `remove_hline!(rt, position)`
-
-Remove a horizontal line at the specified position.
-
-**Arguments**:
-- `rt`: ModelSummary to modify
-- `position`: Row index to remove line from
-
-**Example**:
-```julia
-remove_hline!(rt, 2)
-```
-
-**Returns**: Modified `rt`
-
-#### `set_alignment!(rt, col, align; header=false)`
-
-Change alignment for a specific column.
-
-**Arguments**:
-- `rt`: ModelSummary to modify
-- `col`: Column index (1-based)
-- `align`: Alignment symbol (`:l`, `:c`, `:r`)
-- `header`: If `true`, changes header alignment; if `false`, changes body alignment
-
-**Example**:
-```julia
-rt = modelsummary(m1, m2)
-set_alignment!(rt, 2, :c)           # Center column 2 (body)
-set_alignment!(rt, 3, :l; header=true)  # Left-align column 3 (header)
-```
-
-**Returns**: Modified `rt`
-
-#### `add_formatter!(rt, formatter)`
-
-Add a PrettyTables.jl formatter function.
-
-**Arguments**:
-- `rt`: ModelSummary to modify
-- `formatter`: A PrettyTables formatter (see PrettyTables.jl docs)
-
-**Example**:
-```julia
-# Highlight cells with values > 2.0
-using PrettyTables
-formatter = (v, i, j) -> isa(v, Float64) && v > 2.0 ? "**$(v)**" : v
-add_formatter!(rt, formatter)
-
-# Format specific columns
-formatter = ft_printf("%.4f", [2, 3])  # Format columns 2-3 with 4 decimals
-add_formatter!(rt, formatter)
-```
-
-**Returns**: Modified `rt`
-
-#### `set_backend!(rt, backend)`
-
-Force a specific rendering backend.
-
-**Arguments**:
-- `rt`: ModelSummary to modify
-- `backend`: `:text`, `:html`, `:latex`, or `nothing` (auto-detect)
-
-**Example**:
-```julia
-rt = modelsummary(m1, m2)
-set_backend!(rt, :latex)  # Always render as LaTeX
-set_backend!(rt, nothing) # Restore auto-detection
-```
-
-**Returns**: Modified `rt`
-
-#### `merge_kwargs!(rt; kwargs...)`
-
-Add arbitrary PrettyTables.jl options.
-
-**Arguments**:
-- `rt`: ModelSummary to modify
-- `kwargs...`: Any keyword arguments accepted by `PrettyTables.pretty_table`
-
-**Example**:
-```julia
-rt = modelsummary(m1, m2)
-
-# Add a title
-merge_kwargs!(rt; title="Regression Results", title_alignment=:c)
-
-# Control row display
-merge_kwargs!(rt; vcrop_mode=:middle, crop_num_lines_at_end=10)
-
-# Customize LaTeX output
-merge_kwargs!(rt;
-    table_type = :longtable,  # Use longtable environment
-    wrap_table = false         # Don't wrap in table environment
+    model1 + vcov(HC0()),
+    model2 + vcov(HC3()),
+    model3 + vcov(Parzen(3))
 )
 ```
 
-**Returns**: Modified `rt`
-
-### Method Chaining
-
-All mutating functions return the modified table, allowing chaining:
+### Custom Estimator Extension
 
 ```julia
-rt = modelsummary(m1, m2) |>
-    (rt -> add_hline!(rt, 2)) |>
-    (rt -> set_alignment!(rt, 2, :c)) |>
-    (rt -> set_backend!(rt, :latex)) |>
-    (rt -> merge_kwargs!(rt; title="Results"))
-```
+struct MyEstimator end
 
-Or more concisely:
-```julia
-rt = modelsummary(m1, m2)
-add_hline!(rt, 2)
-set_alignment!(rt, 2, :c)
-set_backend!(rt, :latex)
-merge_kwargs!(rt; title="Results")
-```
-
-### File Output
-
-#### `write(filename, rt)`
-
-Write table to file with automatic backend detection.
-
-**Arguments**:
-- `filename`: Output file path
-- `rt`: ModelSummary to write
-
-**Backend Detection**:
-- `.tex` → LaTeX backend
-- `.html`, `.htm` → HTML backend
-- Others → Text backend
-- Can be overridden via `set_backend!(rt, ...)`
-
-**Example**:
-```julia
-rt = modelsummary(m1, m2)
-
-# Automatic detection
-write("table.tex", rt)    # → LaTeX
-write("table.html", rt)   # → HTML
-write("table.txt", rt)    # → Text/Markdown
-
-# Manual override
-set_backend!(rt, :latex)
-write("output", rt)        # → LaTeX (ignores extension)
-```
-
-### Matrix-like Interface
-
-`ModelSummary` implements `AbstractMatrix` interface for inspection:
-
-```julia
-rt = modelsummary(m1, m2)
-
-# Get dimensions
-size(rt)           # → (nrows, ncols)
-size(rt, 1)        # → nrows
-
-# Access elements
-rt[1, 1]           # → First cell value
-rt[2, 3]           # → Cell at row 2, column 3
-
-# Modify elements
-rt[1, 1] = "New Value"
-
-# Note: This modifies the underlying data matrix
-# You may need to call display(rt) to see changes
-```
-
----
-
-## Technical Implementation Details
-
-### Multicolumn Cell Handling
-
-Old system used `Pair` type to indicate multicolumn cells:
-
-```julia
-DataRow(["", "Group 1" => 2:3, "Group 2" => 4:5])
-```
-
-This means:
-- Column 1: empty
-- Columns 2-3: "Group 1" (merged)
-- Columns 4-5: "Group 2" (merged)
-
-The conversion algorithm expands this to a flat vector:
-
-```julia
-["", "Group 1", "", "Group 2", ""]
-```
-
-PrettyTables.jl then handles merging via `header` parameter with repeated values.
-
-### Horizontal Line Positioning
-
-**Old System**: Lines positioned via `breaks` vector (absolute row indices)
-- Row 1: Header 1
-- Row 2: Header 2 (underlined) ← break after
-- Row 3: Body row 1
-- Row 4: Body row 2
-- Row 5: Body row 3 ← break after
-
-**New System**: Lines positioned via `hlines` vector (body-relative indices)
-- Header is separate
-- Body row 1
-- Body row 2
-- Body row 3 ← hline at position 3
-
-**Conversion**:
-```julia
-# Old: breaks = [2, 5] (absolute)
-# New: hlines = [3] (body-relative, header rows excluded)
-adjusted_breaks = [b - nheader for b in breaks if b > nheader]
-```
-
-### P-value Decorations (Stars)
-
-Handled by `estim_decorator()` function in decorations module:
-
-```julia
-function estim_decorator(render::AbstractRenderType, s::String, pval::Float64)
-    stars = if pval < 0.01
-        "***"
-    elseif pval < 0.05
-        "**"
-    elseif pval < 0.1
-        "*"
-    else
-        ""
-    end
-    s * stars
+function ModelSummaries.materialize_vcov(::MyEstimator, model)
+    # Return covariance matrix
+    return compute_my_vcov(model)
 end
+
+modelsummary(model + vcov(MyEstimator()))
 ```
-
-This is called during `repr(render, ::CoefValue)` to add stars to coefficients.
-
-### Type Stability Considerations
-
-**Challenge**: The old system used type-stable `DataRow{T<:AbstractRenderType}` for dispatch.
-
-**Solution**:
-1. Maintain type parameter during construction
-2. Convert to untyped storage at final step
-3. Type information used only for `repr()` dispatch
-
-**Performance**: Negligible impact since table construction is not performance-critical (dominated by model fitting).
-
-### Memory Layout
-
-**Old System**:
-```
-Vector{DataRow{T}}
-  ├─ DataRow 1: Vector{Any} + String + Vector{Bool}
-  ├─ DataRow 2: Vector{Any} + String + Vector{Bool}
-  └─ DataRow N: Vector{Any} + String + Vector{Bool}
-```
-
-**New System**:
-```
-ModelSummary
-  ├─ data: Matrix{Any}              (dense, cache-friendly)
-  ├─ header: Vector{Vector{String}} (minimal overhead)
-  └─ metadata: hlines, align, etc.  (small)
-```
-
-**Advantage**: Better cache locality, simpler structure, less indirection.
 
 ---
 
-## Migration Notes
+## Regression Statistics
 
-### For Users
+Built-in statistics for the table footer:
 
-**No changes required!** Existing code works as-is:
+| Type | Description |
+|------|-------------|
+| `Nobs` | Number of observations |
+| `R2` | R-squared |
+| `AdjR2` | Adjusted R-squared |
+| `R2Within` | Within R-squared (fixed effects) |
+| `PseudoR2` | McFadden pseudo R-squared |
+| `R2McFadden` | Same as PseudoR2 |
+| `R2CoxSnell` | Cox-Snell R-squared |
+| `R2Nagelkerke` | Nagelkerke R-squared |
+| `R2Deviance` | Deviance R-squared |
+| `AdjPseudoR2` | Adjusted pseudo R-squared |
+| `AdjR2Deviance` | Adjusted deviance R-squared |
+| `DOF` | Degrees of freedom |
+| `LogLikelihood` | Log-likelihood |
+| `AIC` | Akaike information criterion |
+| `AICC` | Corrected AIC |
+| `BIC` | Bayesian information criterion |
+| `FStat` | F-statistic |
+| `FStatPValue` | F-statistic p-value |
+| `FStatIV` | First-stage F-statistic (IV) |
+| `FStatIVPValue` | First-stage F p-value (IV) |
 
 ```julia
-# Before and after - same code
-using ModelSummaries, GLM, DataFrames
-
-data = DataFrame(x = randn(100), y = randn(100))
-model = lm(@formula(y ~ x), data)
-modelsummary(model)  # Works exactly as before
+modelsummary(m1, m2; regression_statistics=[Nobs, R2, AdjR2, AIC, BIC])
 ```
 
-### For Package Developers
+### Symbol Shortcuts
 
-If you extended ModelSummaries.jl:
-
-#### Custom Render Types
-
-**Before**:
 ```julia
-struct MyCustomTable <: AbstractRenderType end
-
-colsep(::MyCustomTable) = " | "
-toprule(::MyCustomTable) = "=" ^ 50
+modelsummary(m1, m2; regression_statistics=[:nobs, :r2, :adjr2, :f, :p])
 ```
 
-**After**:
-This still works via compatibility layer! However, for new implementations:
+### Custom Statistics
 
 ```julia
-# Create ModelSummary normally
-rt = modelsummary(model)
-
-# Customize with PrettyTables features
-merge_kwargs!(rt;
-    tf = PrettyTables.TextFormat(...),  # Custom text format
-    header_crayon = crayon"bold blue"    # Custom styling
-)
-```
-
-#### Custom Statistics
-
-**No changes needed**. Statistics evaluation unchanged:
-
-```julia
-struct MyStatistic <: AbstractRegressionStatistic
+struct YMean <: ModelSummaries.AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
 
-MyStatistic(model::RegressionModel) = MyStatistic(my_calculation(model))
+YMean(model::RegressionModel) = try
+    YMean(mean(response(model)))
+catch
+    YMean(nothing)
+end
 
-label(render::AbstractRenderType, ::Type{MyStatistic}) = "My Stat"
-default_digits(render::AbstractRenderType, x::MyStatistic) = 4
+ModelSummaries.label(::ModelSummaries.AbstractRenderType, ::Type{YMean}) = "Mean of Y"
+
+modelsummary(m1, m2; regression_statistics=[Nobs, R2, YMean])
 ```
 
-#### Custom Model Types
+---
 
-**No changes needed**. Model interface unchanged:
+## Below-Coefficient Statistics
+
+| Type | Description |
+|------|-------------|
+| `StdError` | Standard error (default) |
+| `TStat` | t-statistic |
+| `ConfInt` | Confidence interval |
+| `nothing` | No statistic below |
 
 ```julia
-StatsAPI.coef(m::MyModel) = ...
-StatsAPI.vcov(m::MyModel) = ...
-StatsAPI.coefnames(m::MyModel) = ...
-# etc.
+modelsummary(m1, m2; below_statistic=TStat)
+modelsummary(m1, m2; below_statistic=ConfInt, confint_level=0.99)
+modelsummary(m1, m2; below_statistic=nothing)  # Coefficients only
 ```
 
-### Removed Features
+---
 
-1. **MixedModels.jl support** - Remove from code
-2. **GLFixedEffectModels.jl support** - Remove from code
-3. **Typst output** - Use LaTeX and convert if needed
-4. **Direct DataRow manipulation** - Use ModelSummary accessors instead
+## Coefficient Selection
 
-### New Features to Adopt
+### Keep Specific Coefficients
 
-1. **Post-creation customization**:
 ```julia
-rt = modelsummary(model)
-add_hline!(rt, 3)
-set_backend!(rt, :html)
+modelsummary(m1, m2; keep=["x1", "x2"])
+modelsummary(m1, m2; keep=[r"x"])           # Regex
+modelsummary(m1, m2; keep=[1, 2])           # By index
+modelsummary(m1, m2; keep=[1:3])            # Range
 ```
 
-2. **PrettyTables.jl integration**:
+### Drop Coefficients
+
 ```julia
-merge_kwargs!(rt;
-    highlighters = Highlighter(...),
-    formatters = ft_printf("%.4f", [2,3])
+modelsummary(m1, m2; drop=["(Intercept)"])
+modelsummary(m1, m2; drop=[r"fe_"])         # Drop fixed effect dummies
+```
+
+### Reorder Coefficients
+
+```julia
+modelsummary(m1, m2; order=["x2", "x1", "(Intercept)"])
+modelsummary(m1, m2; order=[r" & "])        # Interactions first
+```
+
+---
+
+## Label Customization
+
+### Coefficient Labels
+
+```julia
+modelsummary(m1, m2; labels=Dict(
+    "x1" => "Treatment",
+    "x2" => "Control",
+    "(Intercept)" => "Constant"
+))
+```
+
+### Label Transformations
+
+```julia
+# Escape LaTeX special characters
+modelsummary(m1, m2; transform_labels=:latex)
+
+# Replace & with "and"
+modelsummary(m1, m2; transform_labels=:ampersand)
+
+# Replace underscores with spaces
+modelsummary(m1, m2; transform_labels=:underscore2space)
+```
+
+---
+
+## Column Groups
+
+```julia
+# Single row of groups
+modelsummary(m1, m2, m3, m4;
+    groups=["Sample A" "Sample A" "Sample B" "Sample B"]
+)
+
+# Multi-row groups
+modelsummary(m1, m2, m3, m4;
+    groups=[
+        ["2020" "2020" "2021" "2021"],
+        ["Men" "Women" "Men" "Women"]
+    ]
 )
 ```
 
-3. **Automatic MIME detection**:
+---
+
+## Extra Lines
+
+Add custom rows at the table bottom:
+
 ```julia
-# No need to specify render type!
-rt = modelsummary(model)  # Auto-detects context
+modelsummary(m1, m2;
+    extralines=[
+        ["Sample", "Full", "Restricted"],
+        ["Controls", "Yes", "Yes"]
+    ]
+)
 ```
 
 ---
 
-## Performance Characteristics
+## Formatting Options
 
-### Table Construction
+### Number Formatting
 
-**Time Complexity**: O(n*m) where n = rows, m = columns
-- DataRow creation: O(n*m)
-- Conversion to Matrix: O(n*m)
-- Total: O(n*m) - same as before
+```julia
+modelsummary(m1, m2;
+    digits=4,                    # Coefficient precision
+    digits_stats=2,              # Statistics precision
+    estimformat="%0.4f",         # Printf format for coefficients
+    statisticformat="%0.2f"      # Printf format for statistics
+)
+```
 
-**Space Complexity**: O(n*m)
-- Old: Vector of DataRows ≈ 2*n*m (data + metadata per row)
-- New: Single Matrix + metadata ≈ n*m + O(m)
-- **Improvement**: ~2x less memory
+### Significance Stars
 
-### Rendering
+```julia
+modelsummary(m1, m2; stars=true)
+# *** p<0.01, ** p<0.05, * p<0.1
+```
 
-**Time Complexity**: O(n*m)
-- PrettyTables.jl optimized for large tables
-- Similar performance to old custom renderer
+### Custom Decorations
 
-**Space Complexity**: O(n*m)
-- String buffer for output
-- No intermediate allocations
+```julia
+# Custom coefficient decoration
+function my_decorator(value::String, pval::Float64)
+    pval < 0.05 ? "$value†" : value
+end
+modelsummary(m1, m2; estim_decoration=my_decorator)
 
-### Benchmarks
+# Custom below-statistic decoration
+modelsummary(m1, m2; below_decoration=s -> "[$s]")
 
-Typical 20-row × 5-column table:
-- Construction: <1ms
-- Rendering: <1ms
-- Total: <2ms
-
-Negligible compared to model fitting (typically seconds to minutes).
-
----
-
-## Future Enhancements
-
-### Potential Additions
-
-1. **Interactive tables** (HTML): Sortable columns, search
-2. **Export formats**: Excel, CSV via PrettyTables.jl
-3. **Themes**: Pre-configured styles (academic, modern, minimal)
-4. **Diff tables**: Side-by-side model comparisons with highlighting
-5. **Async rendering**: For very large tables
-
-### PrettyTables.jl 3.0 Features Not Yet Utilized
-
-- **Merged cells**: Better support for complex headers
-- **Cell-specific formatting**: Per-cell colors, fonts
-- **Footers**: Summary rows at bottom
-- **Row/column labels**: More sophisticated labeling
-- **Conditional formatting**: Highlight based on value ranges
-- **Unicode styling**: Emoji, special characters
+# Custom regression numbering
+modelsummary(m1, m2; number_regressions_decoration=i -> "Model $i")
+```
 
 ---
 
-## References
+## Customizing Defaults
 
-- [PrettyTables.jl Documentation](https://ronisbr.github.io/PrettyTables.jl/stable/)
-- [PrettyTables.jl 3.0 Announcement](https://discourse.julialang.org/t/ann-prettytables-v3-0-0/131821)
-- [StatsAPI.jl](https://juliastats.org/StatsAPI.jl/stable/)
-- [Original ModelSummarys.jl](https://github.com/jmboehm/ModelSummarys.jl)
+Override default behavior by defining methods on `AbstractRenderType`:
+
+```julia
+# Change default digits
+ModelSummaries.default_digits(::ModelSummaries.AbstractRenderType, x) = 4
+
+# Change default statistics
+ModelSummaries.default_regression_statistics(::ModelSummaries.AbstractRenderType, rrs) = [Nobs, R2, AdjR2]
+
+# Change default below statistic
+ModelSummaries.default_below_statistic(::ModelSummaries.AbstractRenderType) = TStat
+
+# LaTeX-specific defaults
+ModelSummaries.default_transform_labels(::ModelSummaries.AbstractLatex, rrs) = :latex
+```
 
 ---
 
-## Support
+## PrettyTables Integration
 
-For issues or questions:
-1. Check existing documentation
-2. Review PrettyTables.jl docs for rendering questions
-3. Open an issue on GitHub
-4. Provide minimal reproducible example
+`ModelSummary` uses PrettyTables.jl 3.x for rendering. Access all PrettyTables features:
+
+```julia
+ms = modelsummary(m1, m2)
+
+# Direct kwargs access
+ms.pretty_kwargs[:title] = "Regression Results"
+ms.pretty_kwargs[:title_alignment] = :c
+
+# Or use merge_kwargs!
+merge_kwargs!(ms;
+    title="Results",
+    vcrop_mode=:middle,
+    crop_num_lines_at_end=10
+)
+```
+
+### Backend-Specific Formats
+
+PrettyTables 3.x uses backend-specific format types:
+
+- `LatexTableFormat` for LaTeX
+- `TextTableFormat` for text
+- `MarkdownTableFormat` for markdown
+- `HtmlTableFormat` for HTML
+
+```julia
+ms = modelsummary(m1, m2;
+    table_format=Dict(
+        :latex => PrettyTables.latex_table_format__booktabs,
+        :text => PrettyTables.text_table_format__matrix
+    )
+)
+```
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-01-13
-**Refactoring Completed**: 2025-01-13
+## Project Structure
+
+```
+ModelSummaries.jl/
+├── src/
+│   ├── ModelSummaries.jl      # Main module
+│   ├── modelsummary.jl        # modelsummary() function
+│   ├── modelsummary_type.jl   # ModelSummary struct
+│   ├── RegressionStatistics.jl # Nobs, R2, etc.
+│   ├── regressionResults.jl   # Model interface, vcov
+│   ├── coefnames.jl           # Coefficient name handling
+│   ├── themes.jl              # Theme presets
+│   ├── compat/                # Render type compatibility
+│   ├── decorations/           # Stars, formatting
+│   └── label_transforms/      # Label escaping
+├── ext/
+│   ├── ModelSummariesGLMExt.jl
+│   ├── ModelSummariesFixedEffectModelsExt.jl
+│   └── ModelSummariesCovarianceMatricesExt.jl
+└── test/
+```
+
+---
+
+## Dependencies
+
+**Required:**
+- PrettyTables.jl (>= 3.0)
+- StatsAPI.jl
+- StatsBase.jl
+- StatsModels.jl
+- Distributions.jl
+- Format.jl
+
+**Optional (extensions):**
+- GLM.jl
+- FixedEffectModels.jl
+- CovarianceMatrices.jl
+
+---
+
+## Examples
+
+### Basic Table
+
+```julia
+using ModelSummaries, GLM, DataFrames
+
+df = DataFrame(
+    y = randn(100),
+    x1 = randn(100),
+    x2 = randn(100),
+    group = rand(1:3, 100)
+)
+
+m1 = lm(@formula(y ~ x1), df)
+m2 = lm(@formula(y ~ x1 + x2), df)
+
+modelsummary(m1, m2)
+```
+
+### Publication-Ready LaTeX
+
+```julia
+modelsummary(m1, m2;
+    backend=:latex,
+    file="results.tex",
+    labels=Dict(
+        "x1" => "Treatment",
+        "x2" => "Control",
+        "(Intercept)" => "Constant"
+    ),
+    regression_statistics=[Nobs, R2, AdjR2],
+    stars=true,
+    transform_labels=:latex
+)
+```
+
+### Fixed Effects with Robust SE
+
+```julia
+using FixedEffectModels, CovarianceMatrices
+
+fe1 = reg(df, @formula(y ~ x1 + fe(group)))
+fe2 = reg(df, @formula(y ~ x1 + x2 + fe(group)))
+
+modelsummary(
+    fe1 + vcov(HC3()),
+    fe2 + vcov(HC3());
+    regression_statistics=[Nobs, R2, R2Within]
+)
+```
+
+### Grouped Columns
+
+```julia
+modelsummary(m1, m2, m1, m2;
+    groups=["OLS" "OLS" "Robust" "Robust"],
+    labels=Dict("x1" => "Main Effect")
+)
+```

@@ -84,11 +84,11 @@ default_digits(render::AbstractRenderType, x) = 3
     default_section_order(render::AbstractRenderType)
 
 Default section order for the table, defaults to
-`[:groups, :depvar, :number_regressions, :break, :coef, :break, :fe, :break, :randomeffects, :break, :clusters, :break, :regtype, :break, :controls, :break, :stats, :extralines]`
+`[:groups, :depvar, :number_regressions, :break, :coef, :break, :fe, :break, :randomeffects, :break, :clusters, :break, :first_stage, :break, :regtype, :break, :controls, :break, :stats, :extralines]`
 
 `:break` is a special keyword that adds a line break between sections (e.g. between `\\midrule` in Latex)
 """
-default_section_order(render::AbstractRenderType) = [:groups, :depvar, :number_regressions, :break, :coef, :break, :fe, :break, :randomeffects, :break, :clusters, :break, :regtype, :break, :controls, :break, :stats, :extralines]
+default_section_order(render::AbstractRenderType) = [:groups, :depvar, :number_regressions, :break, :coef, :break, :fe, :break, :randomeffects, :break, :clusters, :break, :first_stage, :break, :regtype, :break, :controls, :break, :stats, :extralines]
 
 """
     default_align(render::AbstractRenderType)
@@ -349,6 +349,7 @@ Produces a publication-quality regression table, similar to Stata's `esttab` and
 * `number_regressions` is a `Bool` that governs whether regressions should be numbered. Defaults to `true`.
 * `groups` is a `Vector`, `Vector{<:AbstractVector}` or `Matrix` of labels used to group regressions. This can be useful if results are shown for different data sets or sample restrictions.
 * `print_fe_section` is a `Bool` that governs whether a section on fixed effects should be shown. Defaults to `true`.
+* `print_first_stage_section` is a `Bool` that governs whether a section on first-stage statistics (for IV models) should be shown. Defaults to `false`.
 * `print_estimator_section`  is a `Bool` that governs whether to print a section on which estimator (OLS/IV/Binomial/Poisson...) is used. Defaults to `true` if more than one value is displayed.
 * `standardize_coef` is a `Bool` that governs whether the table should show standardized coefficients. Note that this only works with `TableRegressionModel`s, and that only coefficient estimates and the `below_statistic` are being standardized (i.e. the R^2 etc still pertain to the non-standardized regression).
 * `backend` is a `Symbol` or `nothing` that governs the output format. Supported values are `:latex`, `:html`, `:text`, or `nothing` (auto-detect based on context). Defaults to `nothing`.
@@ -389,6 +390,7 @@ function modelsummary(
     number_regressions::Bool = length(rrs) > 1,
     print_estimator_section = false,
     print_fe_section = true,
+    print_first_stage_section = false,
     file = nothing,
     transform_labels::Union{Dict,Symbol} = Dict{String,String}(),
     extralines = nothing,
@@ -507,6 +509,10 @@ function modelsummary(
         elseif s == :clusters
             if print_clusters
                 push!(sections, :clusters)
+            end
+        elseif s == :first_stage
+            if print_first_stage_section
+                push!(sections, :first_stage)
             end
         elseif s == :randomeffects
             if print_randomeffects
