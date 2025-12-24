@@ -97,7 +97,7 @@ using Test
         @test !isempty(ms.data)
     end
 
-    @testset "ModelWithVcov - OLS" begin
+    @testset "OLS with custom vcov" begin
         m = ols(df, @formula(y ~ x1 + x2))
         m_hc3 = m + vcov(HC3())
 
@@ -117,7 +117,7 @@ using Test
         @test size(ms_mixed, 2) == 3  # rownames + 2 models
     end
 
-    @testset "ModelWithVcov - OLS with FE" begin
+    @testset "OLS with FE and custom vcov" begin
         m = ols(df, @formula(y ~ x1 + fe(group)))
         m_hc3 = m + vcov(HC3())
 
@@ -131,7 +131,7 @@ using Test
         @test occursin("group", text_out)
     end
 
-    @testset "ModelWithVcov - IV" begin
+    @testset "IV with custom vcov" begin
         m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_hc3 = m + vcov(HC3())
 
@@ -148,11 +148,11 @@ using Test
         @test !isempty(text_out)
     end
 
-    @testset "ModelWithVcov - IV First Stage Section" begin
+    @testset "IV first stage section with custom vcov" begin
         m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_hc3 = m + vcov(HC3())
 
-        # Test first-stage section with ModelWithVcov (uses recomputed F_kp)
+        # Test first-stage section with custom vcov (uses recomputed F_kp)
         ms = modelsummary(m_hc3; print_first_stage_section=true)
 
         buf = IOBuffer()
@@ -163,7 +163,7 @@ using Test
         @test occursin("First Stage", text_out)
     end
 
-    @testset "Mixed OLSEstimator, IVEstimator, and ModelWithVcov" begin
+    @testset "Mixed model types with custom vcov" begin
         m_ols = ols(df, @formula(y ~ x1 + x2))
         m_iv = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_ols_hc3 = m_ols + vcov(HC3())
