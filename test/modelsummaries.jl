@@ -17,10 +17,10 @@ rr6 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)&fe(isWide) + fe(is
 rr7 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength&fe(isWide) + fe(isSmall)))
 
 
-ModelSummaries.default_print_fe_suffix(x::ModelSummaries.AbstractRenderType) = false
-ModelSummaries.default_print_control_indicator(x::ModelSummaries.AbstractRenderType) = false
-ModelSummaries.default_regression_statistics(x::ModelSummaries.AbstractRenderType, rrs::Tuple) = [Nobs, R2]
-ModelSummaries.default_print_estimator(x::ModelSummaries.AbstractRenderType, rrs) = true
+@eval ModelSummaries default_print_fe_suffix(x::AbstractRenderType) = false
+@eval ModelSummaries default_print_control_indicator(x::AbstractRenderType) = false
+@eval ModelSummaries default_regression_statistics(x::AbstractRenderType, rrs::Tuple) = [Nobs, R2]
+@eval ModelSummaries default_print_estimator(x::AbstractRenderType, rrs) = true
 # GLM.jl
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = repeat(["A", "B", "C"], outer = 3),
@@ -336,7 +336,7 @@ rm(joinpath(dirname(@__FILE__), "tables", "test10.txt"))
 rm(joinpath(dirname(@__FILE__), "tables", "test1.html"))
 rm(joinpath(dirname(@__FILE__), "tables", "test2.html"))
 
-ModelSummaries.default_print_fe_suffix(render::ModelSummaries.AbstractRenderType) = true
-ModelSummaries.default_print_control_indicator(render::ModelSummaries.AbstractRenderType) = true
-ModelSummaries.default_regression_statistics(render::ModelSummaries.AbstractRenderType, rrs::Tuple) = unique(union(ModelSummaries.default_regression_statistics.(render, rrs)...))
-ModelSummaries.default_print_estimator(render::ModelSummaries.AbstractRenderType, rrs) = length(unique(ModelSummaries.RegressionType.(rrs))) > 1
+@eval ModelSummaries default_print_fe_suffix(render::AbstractRenderType) = true
+@eval ModelSummaries default_print_control_indicator(render::AbstractRenderType) = true
+@eval ModelSummaries default_regression_statistics(render::AbstractRenderType, rrs::Tuple) = unique(union(default_regression_statistics.(render, rrs)...))
+@eval ModelSummaries default_print_estimator(render::AbstractRenderType, rrs) = length(unique(RegressionType.(rrs))) > 1

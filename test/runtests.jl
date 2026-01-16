@@ -23,7 +23,7 @@ tests = [
         "label_transforms.jl",
         "table_format.jl",
         "new_features.jl",
-        "MetricsLinearModels.jl",
+        "Regress.jl",
     ]
 
 for test in tests

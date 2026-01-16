@@ -8,7 +8,7 @@ FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
 GLFixedEffectModels = "bafb0ae5-e5f5-5100-81b6-6a55d777c812"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-MetricsLinearModels = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
+Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
 MixedModels = "ff71e718-51f3-5ec2-a782-8ffcbfa3c316"
 ModelSummaries = "69480e08-b3d8-4e45-a1a7-f96c93f12f9d"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
@@ -18,5 +18,5 @@ StatsAPI = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-MetricsLinearModels = {path = "../../MetricsLinearModels.jl"}
+Regress = {url = "https://github.com/gragusa/Regress.jl"}
 ModelSummaries = {path = ".."}

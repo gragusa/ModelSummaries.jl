@@ -20,7 +20,7 @@ GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
 
 [sources]
-Regress = {path = "/Users/gragusa/scratch/Regress.jl"}
+Regress = {url = "https://github.com/gragusa/Regress.jl"}
 
 [extensions]
 ModelSummariesCovarianceMatricesExt = "CovarianceMatrices"
@@ -46,4 +46,8 @@ julia = "1.9"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
+FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
+
