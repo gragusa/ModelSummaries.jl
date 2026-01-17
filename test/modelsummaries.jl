@@ -1,4 +1,5 @@
 using ModelSummaries
+using ModelSummaries: vcov  # Explicitly import vcov from ModelSummaries
 using FixedEffectModels, GLM, RDatasets, Test
 using LinearAlgebra
 using StatsAPI: RegressionModel

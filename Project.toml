@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Giuseppe Ragusa <giuseppe.ragusa@luiss.it>"]
 
 [deps]
+CovarianceMatricesBase = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+Crayons = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Format = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -14,12 +16,13 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 
 [weakdeps]
-CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
-FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
-GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
+FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
+CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 
 [sources]
+CovarianceMatricesBase = {path = "../CovarianceMatricesBase.jl"}
 Regress = {url = "https://github.com/gragusa/Regress.jl"}
 
 [extensions]
@@ -31,12 +34,16 @@ ModelSummariesRegressExt = "Regress"
 [compat]
 Aqua = "0.8"
 CovarianceMatrices = "0.30.3"
+CovarianceMatricesBase = "0.1"
+Crayons = "4.1.1"
+DataFrames = "1.8.1"
 Distributions = "0.25"
 FixedEffectModels = "1.9"
 Format = "1.3"
 GLM = "1.9"
 LinearAlgebra = "1"
 PrettyTables = "3"
+RDatasets = "0.8.1"
 Regress = "0.1"
 Statistics = "1"
 StatsAPI = "1.6"
@@ -47,7 +54,8 @@ julia = "1.9"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
-
+RDatasets = "ce6b1742-4840-55fa-b093-852dadbb1d8b"

@@ -15,7 +15,7 @@
 │ SepalWidth & Width of Petal        │         │         │         │         │ ⋯
 │                                    │         │         │         │         │ ⋯
 │ Species Fixed Effects              │     Yes │         │         │         │ ⋯
-│ isSmall Dummies Fixed Effects      │         │     Yes │         │         │ ⋯
+│ IsSmall Dummies Fixed Effects      │         │     Yes │         │         │ ⋯
 │ Species & isWide Fixed Effects     │         │     Yes │         │         │ ⋯
 │ ⋮                                  │       ⋮ │       ⋮ │       ⋮ │       ⋮ │ ⋱
 └────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴──

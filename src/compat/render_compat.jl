@@ -270,6 +270,10 @@ function Base.repr(render::AbstractRenderType, x::RandomEffectValue; args...)
     repr(render, value(x); args...)
 end
 
+function Base.repr(render::AbstractRenderType, x::AnsiTextCell; args...)
+    x
+end
+
 # LaTeX-specific labels
 label(::AbstractLatex, x::Type{Nobs}) = "\$N\$"
 label(::AbstractLatex, x::Type{R2}) = "\$R^2\$"

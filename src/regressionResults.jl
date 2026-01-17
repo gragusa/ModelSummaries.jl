@@ -9,22 +9,13 @@ within an extension, it is possible to define the necessary function.
 ##
 ## Custom covariance specifications
 ##
+## VcovSpec is imported from CovarianceMatricesBase.
+## This module provides:
+## - RegressionModelWithVcov: wrapper that attaches vcov to a model
+## - materialize_vcov: computes the actual covariance matrix
+## - + operator: model + vcov(spec) syntax
+##
 ##############################################################################
-
-"""
-    VcovSpec{T}
-
-Covariance specification that can be attached to a `RegressionModel`
-using the `model + vcov(spec)` syntax to override the variance–covariance matrix used in tables.
-
-The type parameter `T` determines how the covariance matrix is computed:
-- `AbstractMatrix`: The matrix is used directly
-- `Function`: The function is called to compute the matrix
-- Other types: Dispatched to [`ModelSummarys.materialize_vcov`](@ref) for extension by third-party packages
-"""
-struct VcovSpec{T}
-    source::T
-end
 
 """
     struct RegressionModelWithVcov{M,S} <: RegressionModel
@@ -95,25 +86,11 @@ function _coefnames(x::RegressionModel)
 end
 _coefnames(x::RegressionModelWithVcov) = _coefnames(x.model)
 
-"""
-    ModelSummarys.vcov(spec)
-
-Convert `spec` into a covariance specification that can be attached to a regression model.
-Accepted inputs include matrices, functions (with zero or one argument), and any custom object
-for which [`ModelSummarys.materialize_vcov`](@ref) is defined. The result can be added to a
-model via `model + vcov(spec)` so that the provided variance–covariance matrix is used when
-displaying standard errors.
-"""
-vcov(x::VcovSpec) = x
-
 ##############################################################################
 ##
-## TYPE PIRACY WARNING: The following method causes type piracy
-## This extends StatsAPI.vcov for all types, which we don't own.
-## TODO: Move this to CovarianceMatrices.jl or refactor the API
+## materialize_vcov - Compute variance-covariance matrix from VcovSpec
 ##
 ##############################################################################
-vcov(spec) = VcovSpec(spec)
 
 # Dispatch on VcovSpec based on source type
 materialize_vcov(spec::VcovSpec{<:AbstractMatrix}, model) = spec.source
@@ -133,16 +110,16 @@ end
 materialize_vcov(spec::VcovSpec{T}, model) where {T} = materialize_vcov(spec.source, model)
 
 """
-    ModelSummarys.materialize_vcov(estimator, model::RegressionModel)
+    materialize_vcov(estimator, model::RegressionModel)
 
 Produce the variance–covariance matrix for `model` given an estimator object.
 This is the extension point for third-party estimators: define a method that
-returns the desired matrix and `ModelSummarys` will cache and reuse it.
+returns the desired matrix and `ModelSummaries` will cache and reuse it.
 
 For example, to integrate with CovarianceMatrices.jl, define:
 ```julia
-function ModelSummarys.materialize_vcov(estimator::CovarianceMatrices.RobustVariance, model)
-    return StatsAPI.vcov(estimator, model)
+function ModelSummaries.materialize_vcov(estimator::CovarianceMatrices.RobustVariance, model)
+    return StatsBase.vcov(estimator, model)
 end
 ```
 """
@@ -151,7 +128,7 @@ function materialize_vcov(estimator, model)
         No method to compute a covariance matrix for $(typeof(estimator)).
 
         If this is from CovarianceMatrices.jl, ensure the package is loaded with `using CovarianceMatrices`.
-        Otherwise, define: `ModelSummarys.materialize_vcov(::$(typeof(estimator)), model::RegressionModel)`
+        Otherwise, define: `ModelSummaries.materialize_vcov(::$(typeof(estimator)), model::RegressionModel)`
         """))
 end
 
@@ -197,6 +174,10 @@ end
 import Base: +
 
 function +(rr::RegressionModel, spec::VcovSpec)
+    RegressionModelWithVcov(rr, spec)
+end
+
+function +(rr::StatsModels.TableRegressionModel, spec::VcovSpec)
     RegressionModelWithVcov(rr, spec)
 end
 
@@ -355,3 +336,77 @@ returns `nothing`.
 """
 other_stats(x::RegressionModel, s::Symbol) = nothing
 other_stats(x::RegressionModelWithVcov, s::Symbol) = other_stats(x.model, s)
+
+function VcovType(x::RegressionModel)
+    # Logic to detect vcov type
+    if x isa RegressionModelWithVcov
+        source = x.spec.source
+        if source isa AbstractMatrix
+            return VcovType("Custom")
+        elseif source isa Function
+            return VcovType("Function")
+        else
+            # Try to get the name of the estimator type (e.g., HC3)
+            # CovarianceMatrices.jl uses HR0, HR1, etc. Map them to HC0, HC1...
+            s = string(typeof(source))
+            # Strip module name if present
+            if occursin(".", s)
+                s = split(s, ".")[end]
+            end
+
+            if startswith(s, "HR") && length(s) == 3 && isdigit(s[3])
+                return VcovType("HC" * s[3:end])
+            end
+            return VcovType(s)
+        end
+    end
+
+    # Check for vcov_type property (common in FixedEffectModels.jl)
+    if hasproperty(x, :vcov_type)
+        s = string(x.vcov_type)
+        if s == "Simple covariance estimator"
+            return VcovType("IID")
+        elseif occursin("Robust", s) || occursin("Heteroskedastic", s)
+            return VcovType("Robust")
+        elseif occursin("Cluster", s)
+            return VcovType("Cluster")
+        end
+        return VcovType(s)
+    end
+
+    # Fallback/Default
+    return VcovType("IID")
+end
+
+##############################################################################
+##
+## Display methods for RegressionModelWithVcov
+##
+##############################################################################
+
+"""
+    vcov_type_name(v) -> String
+
+Return a readable name for the variance-covariance estimator type.
+Used in display output to indicate what type of standard errors are shown.
+"""
+vcov_type_name(v) = string(typeof(v).name.name)
+vcov_type_name(::AbstractMatrix) = "Custom"
+vcov_type_name(::Function) = "Function"
+
+# Show method - delegates to wrapped model, adds vcov note
+function Base.show(io::IO, m::RegressionModelWithVcov)
+    print(io, "RegressionModelWithVcov(")
+    print(io, typeof(m.model).name.name)
+    print(io, ", vcov=", vcov_type_name(m.spec.source))
+    print(io, ")")
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", m::RegressionModelWithVcov)
+    # Display the wrapped model
+    show(io, mime, m.model)
+    # Add vcov note
+    vcov_name = vcov_type_name(m.spec.source)
+    println(io)
+    println(io, "Std. errors: ", vcov_name)
+end

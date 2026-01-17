@@ -1,6 +1,7 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
+CovarianceMatricesBase = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
@@ -18,5 +19,6 @@ StatsAPI = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-Regress = {url = "https://github.com/gragusa/Regress.jl"}
+CovarianceMatricesBase = {path = "../../CovarianceMatricesBase.jl"}
+Regress = {path = "../../Regress.jl"}
 ModelSummaries = {path = ".."}

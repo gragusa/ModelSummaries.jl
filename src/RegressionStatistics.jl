@@ -433,8 +433,29 @@ R2Within(r::RegressionModel) = R2Within(nothing)
 """
 label(render::AbstractRenderType, x::Type{R2Within}) = "Within-" * label(render, R2)
 
+"""
+`VcovType` describes the type of covariance matrix estimator used (e.g., "IID", "Robust", "Cluster").
+Labels default to "Std. Error".
+"""
+struct VcovType <: AbstractRegressionStatistic
+    val::Union{String, Nothing}
+end
 
+"""
+    label(render::AbstractRenderType, x::Type{VcovType}) = "Std. Error"
+"""
+label(render::AbstractRenderType, x::Type{VcovType}) = "Std. Error"
 
+"""
+    struct Spacer <: AbstractRegressionStatistic
+    end
+
+A spacer statistic that produces an empty row in the table.
+"""
+struct Spacer <: AbstractRegressionStatistic end
+Spacer(x::RegressionModel) = Spacer()
+value(::Spacer) = nothing
+label(render::AbstractRenderType, ::Type{Spacer}) = ""
 
 value(s::AbstractRegressionStatistic) = s.val
 

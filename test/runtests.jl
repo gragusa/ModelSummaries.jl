@@ -12,9 +12,13 @@ to fail
 
 piracies is disabled because vcov(spec) causes type piracy - this is
 intentional and will be moved to CovarianceMatrices.jl in the future
+
+stale_deps is disabled because extension trigger packages (CovarianceMatrices,
+FixedEffectModels, GLM, DataFrames) are in [deps] for extensions but appear
+"stale" to Aqua since the main module doesn't directly use them
 =#
 Aqua.test_ambiguities(ModelSummaries; recursive=false)
-Aqua.test_all(ModelSummaries; ambiguities=false, piracies=false)
+Aqua.test_all(ModelSummaries; ambiguities=true, piracies=false, stale_deps=true)
 
 tests = [
         "default_changes.jl",
@@ -23,6 +27,7 @@ tests = [
         "label_transforms.jl",
         "table_format.jl",
         "new_features.jl",
+        "themes.jl",
         "Regress.jl",
     ]
 

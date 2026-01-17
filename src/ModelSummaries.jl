@@ -26,12 +26,17 @@ module ModelSummaries
     using StatsModels
     using Statistics
     using StatsAPI
-    import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs, vcov
+    import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs
+
+    # Import VcovSpec and vcov from CovarianceMatricesBase
+    using CovarianceMatricesBase
+    import CovarianceMatricesBase: VcovSpec, vcov
 
     using Distributions
     using Format
     using LinearAlgebra: issymmetric
     using PrettyTables
+    using Crayons
 
     ##############################################################################
     ##
@@ -42,7 +47,7 @@ module ModelSummaries
     export modelsummary, ModelSummary
     export Nobs, R2, R2McFadden, R2CoxSnell, R2Nagelkerke,
     R2Deviance, AdjR2, AdjR2McFadden, AdjR2Deviance, DOF, LogLikelihood, AIC, BIC, AICC,
-    FStat, FStatPValue, FStatIV, FStatIVPValue, R2Within, PseudoR2, AdjPseudoR2
+    FStat, FStatPValue, FStatIV, FStatIVPValue, R2Within, PseudoR2, AdjPseudoR2, VcovType, Spacer
     export TStat, StdError, ConfInt, RegressionType
 
     # Statistics type system

@@ -419,14 +419,61 @@ function modelsummary(
     render = _backend_to_render(backend)
 
     # Handle theme parameter (overrides table_format if both are provided)
+    backend_kwargs_map = Dict{Symbol, Any}()
+    extra_kwargs = Dict{Symbol, Any}()
+
     if theme !== nothing
         if table_format !== nothing
             @warn "Both `theme` and `table_format` specified. Using `theme` and ignoring `table_format`."
         end
         theme_dict = Themes.get_theme(theme)
-        table_format_map = _normalize_table_format(theme_dict)
+        
+        if haskey(theme_dict, :extra_kwargs)
+            merge!(extra_kwargs, theme_dict[:extra_kwargs])
+        end
+
+        table_format_map, backend_kwargs_map = _process_table_format(theme_dict)
     else
-        table_format_map = _normalize_table_format(table_format)
+        table_format_map, backend_kwargs_map = _process_table_format(table_format)
+    end
+    
+    # Process extra_kwargs
+    fe_symbol = get(extra_kwargs, :fe_symbol, "Yes")
+    fe_empty = get(extra_kwargs, :fe_empty, "")
+    fe_suffix = get(extra_kwargs, :fe_suffix, " Fixed Effects")
+    
+    if get(extra_kwargs, :add_vcov_stat, false)
+        # Check if we can safely add it (regression_statistics is a Vector)
+        if regression_statistics isa Vector
+            if VcovType ∉ regression_statistics
+                # Add Spacer before VcovType if requested
+                if get(extra_kwargs, :spacer_before_vcov, true) && Spacer ∉ regression_statistics
+                     push!(regression_statistics, Spacer)
+                end
+                push!(regression_statistics, VcovType)
+            end
+        else
+            # Tuple or other iterable, convert to vector and add
+            stats_vec = collect(regression_statistics)
+            if VcovType ∉ stats_vec
+                if get(extra_kwargs, :spacer_before_vcov, true) && Spacer ∉ stats_vec
+                     push!(stats_vec, Spacer)
+                end
+                push!(stats_vec, VcovType)
+            end
+            regression_statistics = stats_vec
+        end
+    end
+
+    if get(extra_kwargs, :significance_decoration, false) && estim_decoration === nothing
+         estim_decoration = (s, p) -> begin
+             if p < 0.1 # Using 0.1 as threshold for "significant" to apply color
+                 # Use AnsiTextCell to prevent double escaping by PrettyTables
+                 return AnsiTextCell(string(Crayon(foreground=:dark_gray), s, Crayon(reset=true)))
+             else
+                 return s
+             end
+         end
     end
 
     if section_order === nothing
@@ -681,6 +728,10 @@ function modelsummary(
                     end
                 end
             end
+            # Check for spacer row after coef
+            if get(extra_kwargs, :spacer_after_coef, false)
+                push_DataRow!(out, fill("", length(rrs) + 1), align, wdths, false, render)
+            end
         elseif v == :regtype
             regressiontype = vcat([RegressionType], collect(RegressionType.(rrs)))
             push_DataRow!(out, regressiontype, align, wdths, false, render)
@@ -709,9 +760,12 @@ function modelsummary(
             end
             i = findfirst(!isnothing, temp)
             fill_val = fill_missing(last(first(temp[i])))# first element of vector, last value of pair
-            st = combine_other_statistics(temp; fill_val, print_fe_suffix, fixedeffects, labels, transform_labels, kwargs...)
+            st = combine_other_statistics(temp; fill_val, print_fe_suffix, fixedeffects, labels, transform_labels, fe_symbol, fe_empty, fe_suffix, kwargs...)
             if !isnothing(st)
                 push_DataRow!(out, st, align, wdths, false, render)
+                if get(extra_kwargs, :spacer_after_fe, false)
+                    push_DataRow!(out, fill("", length(rrs) + 1), align, wdths, false, render)
+                end
             end
         end
     end
@@ -726,6 +780,7 @@ function modelsummary(
         backend=backend,
         stars=stars,
         table_format=table_format_map,
+        backend_kwargs=backend_kwargs_map,
         #colwidths added automatically
     )
     if file !== nothing
@@ -776,6 +831,9 @@ function combine_other_statistics(
     fixedeffects=Vector{String}(),
     labels=Dict{String, String}(),
     transform_labels=Dict{String, String}(),
+    fe_symbol="Yes",
+    fe_empty="",
+    fe_suffix=" Fixed Effects",
     kwargs...
 )
     nms = []
@@ -798,7 +856,12 @@ function combine_other_statistics(
     mat = Matrix{Union{Missing, Any}}(missing, length(nms), length(stats))
     for (i, s) in enumerate(stats)
         if isnothing(s)
-            mat[:, i] .= fill_val
+            # Use fill_val, handling FixedEffectValue conversion if needed
+            if fill_val isa FixedEffectValue
+                mat[:, i] .= fill_val.val ? fe_symbol : fe_empty
+            else
+                mat[:, i] .= fill_val
+            end
             continue
         end
         val_nms = first.(s)
@@ -806,15 +869,41 @@ function combine_other_statistics(
         for (j, nm) in enumerate(nms)
             k = findfirst(string(nm) .== string.(val_nms))
             if k === nothing
-                mat[j, i] = fill_val
+                 if fill_val isa FixedEffectValue
+                    mat[j, i] = fill_val.val ? fe_symbol : fe_empty
+                else
+                    mat[j, i] = fill_val
+                end
             else
-                mat[j, i] = last(s[k])
+                val = last(s[k])
+                if val isa FixedEffectValue
+                    mat[j, i] = val.val ? fe_symbol : fe_empty
+                else
+                    mat[j, i] = val
+                end
             end
         end
     end
-    if !print_fe_suffix
+    
+    # Format names - preserve CoefName types so rendering uses correct suffixes
+    if print_fe_suffix
+        # Build display names with appropriate suffix based on CoefName type
+        nms = map(nms) do n
+            base_name = uppercasefirst(string(value(n)))
+            if n isa FixedEffectCoefName
+                base_name * fe_suffix
+            elseif n isa ClusterCoefName
+                base_name * " Clustering"
+            elseif n isa FirstStageCoefName
+                base_name * " First Stage"
+            else
+                base_name * fe_suffix  # default for unknown types
+            end
+        end
+    else
         nms = value.(nms)
     end
+
     hcat(nms, mat)
 end
 

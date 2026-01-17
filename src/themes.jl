@@ -42,6 +42,7 @@ modelsummary(model1, model2; theme=my_theme)
 module Themes
 
 using PrettyTables
+using Crayons
 
 """
     ACADEMIC
@@ -173,9 +174,45 @@ const UNICODE = Dict{Symbol, Any}(
     :latex => PrettyTables.latex_table_format__booktabs
 )
 
+"""
+    STARGAZER
+
+Style that mimics the R package 'stargazer'.
+Best for: Users transitioning from R, ASCII text files.
+
+- Text: ASCII-only with clean horizontal lines, yellow headers, green borders
+- Markdown: Standard markdown
+- HTML: Default HTML
+- LaTeX: Booktabs
+"""
+const STARGAZER = Dict{Symbol, Any}(
+    :text => PrettyTables.TextTableBorders(
+        '─', '─', '─', '─',  # corners (all horizontal lines)
+        '─', '─', '─', '─', '─',  # junctions (all horizontal lines)
+        ' ', '─'  # vertical (space), horizontal (line)
+    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
+    :ascii => PrettyTables.TextTableBorders(
+        '-', '-', '-', '-',
+        '-', '-', '-', '-', '-',
+        ' ', '-'
+    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
+    :markdown => PrettyTables.MarkdownTableFormat(),
+    :html => PrettyTables.HtmlTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs,
+    :extra_kwargs => Dict(
+        :fe_symbol => "Yes",
+        :fe_empty => "",
+        :fe_suffix => " fixed effects",
+        :add_vcov_stat => true,
+        :spacer_after_coef => true,
+        :spacer_after_fe => true,
+        :spacer_before_vcov => true
+    )
+)
+
 # List of all available theme names
 const THEME_NAMES = [
-    :academic, :modern, :minimal, :compact, :default, :unicode
+    :academic, :modern, :minimal, :compact, :default, :unicode, :stargazer
 ]
 
 """
@@ -184,7 +221,7 @@ const THEME_NAMES = [
 Get a theme by name. Returns the corresponding theme Dict.
 
 # Arguments
-- `name::Symbol`: One of `:academic`, `:modern`, `:minimal`, `:compact`, `:default`, or `:unicode`
+- `name::Symbol`: One of `:academic`, `:modern`, `:minimal`, `:compact`, `:default`, `:unicode`, or `:stargazer`
 
 # Returns
 - `Dict{Symbol, Any}`: Theme configuration mapping backend symbols to TableFormat objects
@@ -211,6 +248,8 @@ function get_theme(name::Symbol)
         return DEFAULT
     elseif name == :unicode
         return UNICODE
+    elseif name == :stargazer
+        return STARGAZER
     else
         available = join(THEME_NAMES, ", ", " or ")
         throw(ArgumentError("Unknown theme :$name. Available themes: $available"))
@@ -258,6 +297,7 @@ Available ModelSummaries.jl themes:
   - compact:   Space-efficient style for dense tables
   - default:   Default ModelSummaries.jl theme
   - unicode:   Clean unicode-based terminal tables
+  - stargazer: R Stargazer-like ASCII style
 ```
 """
 function list_themes()
@@ -268,6 +308,7 @@ function list_themes()
     println("  - compact:   Space-efficient style for dense tables")
     println("  - default:   Default ModelSummaries.jl theme")
     println("  - unicode:   Clean unicode-based terminal tables")
+    println("  - stargazer: R Stargazer-like ASCII style")
 end
 
 end # module Themes

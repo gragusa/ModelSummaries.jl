@@ -64,6 +64,7 @@ mutable struct ModelSummary
     backend::Union{Symbol, Nothing}
     pretty_kwargs::Dict{Symbol, Any}
     table_format::Dict{Symbol, Any}
+    backend_kwargs::Dict{Symbol, Any} # Backend-specific kwargs
 
     function ModelSummary(
         data::Matrix{Any},
@@ -75,9 +76,16 @@ mutable struct ModelSummary
         highlighters::Vector=[],
         backend::Union{Symbol, Nothing}=nothing,
         pretty_kwargs::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-        table_format=nothing
+        table_format=nothing,
+        backend_kwargs=nothing # Optional manual override
     )
-        tf_map = _normalize_table_format(table_format)
+        tf_map, bk_map = _process_table_format(table_format)
+        
+        # If manual backend_kwargs provided, merge them
+        if backend_kwargs !== nothing
+            merge!(bk_map, backend_kwargs)
+        end
+
         new(
             data,
             header,
@@ -89,6 +97,7 @@ mutable struct ModelSummary
             backend,
             pretty_kwargs,
             tf_map,
+            bk_map
         )
     end
 end
@@ -115,18 +124,6 @@ end
 
 Return the default table format for the given backend when no explicit
 `table_format` is provided. Supported backends are `:text`, `:ascii`, `:markdown`, `:html`, and `:latex`.
-
-Note: PrettyTables 3.x uses backend-specific format types:
-- LatexTableFormat for LaTeX
-- MarkdownTableFormat for Markdown
-- HtmlTableFormat for HTML
-- Text backend: Uses default TextTableFormat (Unicode box-drawing)
-- ASCII backend: Uses TextTableFormat with ASCII-only characters
-
-In ModelSummaries.jl:
-- :text backend uses the PrettyTables text backend with Unicode box-drawing
-- :ascii backend uses the PrettyTables text backend with ASCII-only characters
-- :markdown backend uses MarkdownTableFormat
 """
 function default_table_format(backend::Symbol)
     if backend == :text
@@ -195,33 +192,71 @@ function _coerce_table_format_value(val, backend::Symbol)
 end
 
 """
-    _normalize_table_format(spec)
+    _process_table_format(spec)
 
-Normalize user input into a backend ⇒ table format dictionary.
+Process user input into:
+1. A backend ⇒ table format dictionary.
+2. A backend ⇒ kwargs dictionary (for styles/crayons).
+
 Accepts `nothing`, a table format object, an alias `Symbol`, `NamedTuple`, or any `AbstractDict`.
 """
-function _normalize_table_format(spec)
+function _process_table_format(spec)
+    formats = default_table_formats()
+    backend_kwargs = Dict{Symbol, Any}()
+    
+    # Initialize backend_kwargs with empty dicts
+    for backend in _MODEL_SUMMARIES_BACKENDS
+        backend_kwargs[backend] = Dict{Symbol, Any}()
+    end
+
     if spec === nothing
-        return default_table_formats()
+        return formats, backend_kwargs
     elseif spec isa NamedTuple
-        return _normalize_table_format(Dict(spec))
+        return _process_table_format(Dict(spec))
     elseif spec isa Pair
-        return _normalize_table_format(Dict(spec))
-    elseif spec isa AbstractDict
-        formats = default_table_formats()
-        for (k, v) in spec
-            backend = Symbol(k)
-            backend in _MODEL_SUMMARIES_BACKENDS || throw(ArgumentError("Unsupported backend $backend in table_format keyword."))
+        return _process_table_format(Dict(spec))
+    end
+    
+    # Handle direct table format object (apply to all compatible backends? No, assume it's for text/auto)
+    if !(spec isa AbstractDict)
+        # If it's a single format object, we try to apply it where it fits, or just return default behavior
+        # But previously _normalize returned a Dict.
+        # Let's check previous behavior. It coerced for all backends.
+        # That seems wrong if the format is specific.
+        # We will assume user passes a Dict if they want specificity.
+        # If they pass a single object, we try to use it for all backends (coercion will fail if mismatched types).
+        for backend in _MODEL_SUMMARIES_BACKENDS
+             # Try/Catch or just let coerce handle it
+             try
+                 formats[backend] = _coerce_table_format_value(spec, backend)
+             catch
+                 # If coercion fails, stick to default
+             end
+        end
+        return formats, backend_kwargs
+    end
+
+    # Handle Dict
+    for (k, v) in spec
+        backend = Symbol(k)
+        if backend == :extra_kwargs
+            continue # specific key for modelsummary options, ignore here
+        end
+        
+        backend in _MODEL_SUMMARIES_BACKENDS || throw(ArgumentError("Unsupported backend $backend in table_format keyword."))
+        
+        if v isa AbstractDict && (haskey(v, :table_format) || haskey(v, :pretty_kwargs))
+            if haskey(v, :table_format)
+                formats[backend] = _coerce_table_format_value(v[:table_format], backend)
+            end
+            if haskey(v, :pretty_kwargs)
+                backend_kwargs[backend] = v[:pretty_kwargs]
+            end
+        else
             formats[backend] = _coerce_table_format_value(v, backend)
         end
-        return formats
-    else
-        formats = Dict{Symbol, Any}()
-        for backend in _MODEL_SUMMARIES_BACKENDS
-            formats[backend] = _coerce_table_format_value(spec, backend)
-        end
-        return formats
     end
+    return formats, backend_kwargs
 end
 
 # Convenience constructor for simple matrices
@@ -393,9 +428,20 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
 
     # PrettyTables configuration based on backend
     kwargs = copy(rt.pretty_kwargs)
+    
+    # Merge backend-specific kwargs (e.g. from theme)
+    if haskey(rt.backend_kwargs, backend)
+        merge!(kwargs, rt.backend_kwargs[backend])
+    end
 
     if backend == :text
         # Text backend uses default TextTableFormat (Unicode box-drawing)
+        if !haskey(kwargs, :table_format)
+            val = get(rt.table_format, backend, default_table_format(backend))
+            if val !== nothing
+                kwargs[:table_format] = val
+            end
+        end
         kwargs[:backend] = :text
         kwargs[:alignment] = alignment
         kwargs[:column_label_alignment] = rt.header_align
@@ -571,7 +617,8 @@ function ModelSummary(
     colwidths::Vector{Int}=Int[];
     backend::Union{Symbol, Nothing}=nothing,
     stars::Bool=true,
-    table_format=nothing
+    table_format=nothing,
+    backend_kwargs=nothing
 ) where {T<:AbstractRenderType}
     # Convert DataRow vector to matrix format
     nrows = length(data)
@@ -615,7 +662,7 @@ function ModelSummary(
 
     # Convert rows to flat vectors (expanding multicolumn cells)
     function expand_row(row::DataRow, ncols::Int)
-        result = fill("", ncols)
+        result = Vector{Any}(fill("", ncols))
         col = 1
         for item in row.data
             if isa(item, Pair)
@@ -690,7 +737,8 @@ function ModelSummary(
         body_align;
         hlines=adjusted_breaks,
         backend=backend,
-        table_format=table_format
+        table_format=table_format,
+        backend_kwargs=backend_kwargs
     )
 
     return rt
