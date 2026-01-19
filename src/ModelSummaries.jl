@@ -26,11 +26,7 @@ module ModelSummaries
     using StatsModels
     using Statistics
     using StatsAPI
-    import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs
-
-    # Import VcovSpec and vcov from CovarianceMatricesBase
-    using CovarianceMatricesBase
-    import CovarianceMatricesBase: VcovSpec, vcov
+    import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs, vcov
 
     using Distributions
     using Format
@@ -60,7 +56,6 @@ module ModelSummaries
     export Themes
 
     export make_estim_decorator
-    export vcov
 
 
     ##############################################################################

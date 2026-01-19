@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Giuseppe Ragusa <giuseppe.ragusa@luiss.it>"]
 
 [deps]
-CovarianceMatricesBase = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 Crayons = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Format = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
@@ -22,8 +21,8 @@ CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 
 [sources]
-CovarianceMatricesBase = {path = "../CovarianceMatricesBase.jl"}
-Regress = {url = "https://github.com/gragusa/Regress.jl"}
+CovarianceMatrices = {path = "../CovarianceMatrices.jl"}
+Regress = {path = "../Regress.jl"}
 
 [extensions]
 ModelSummariesCovarianceMatricesExt = "CovarianceMatrices"
@@ -34,7 +33,6 @@ ModelSummariesRegressExt = "Regress"
 [compat]
 Aqua = "0.8"
 CovarianceMatrices = "0.30.3"
-CovarianceMatricesBase = "0.1"
 Crayons = "4.1.1"
 DataFrames = "1.8.1"
 Distributions = "0.25"

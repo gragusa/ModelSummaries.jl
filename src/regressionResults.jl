@@ -7,31 +7,13 @@ within an extension, it is possible to define the necessary function.
 
 ##############################################################################
 ##
-## Custom covariance specifications
+## Basic regression model interface functions
 ##
-## VcovSpec is imported from CovarianceMatricesBase.
-## This module provides:
-## - RegressionModelWithVcov: wrapper that attaches vcov to a model
-## - materialize_vcov: computes the actual covariance matrix
-## - + operator: model + vcov(spec) syntax
+## Note: VcovSpec and RegressionModelWithVcov are defined in the
+## CovarianceMatrices extension (ModelSummariesCovarianceMatricesExt).
+## The model + vcov() syntax only works when CovarianceMatrices is loaded.
 ##
 ##############################################################################
-
-"""
-    struct RegressionModelWithVcov{M,S} <: RegressionModel
-
-Wraps a regression model together with a covariance specification. Standard errors, `vcov`, and statistics
-derived from them now draw from the attached specification, while all other queries are delegated to `model`.
-Construct these via `rr + vcov(spec)`.
-"""
-struct RegressionModelWithVcov{M<:RegressionModel,T} <: RegressionModel
-    model::M
-    spec::VcovSpec{T}
-    cache::Base.RefValue{Union{Nothing, AbstractMatrix}}
-    function RegressionModelWithVcov(model::M, spec::VcovSpec{T}) where {M<:RegressionModel,T}
-        new{M,T}(model, spec, Ref{Union{Nothing, AbstractMatrix}}(nothing))
-    end
-end
 
 """
     _formula(x::RegressionModel)
@@ -44,7 +26,6 @@ and [`ModelSummarys._coefnames`](@ref) functions. Therefore, if the `RegressionM
 uses those two functions without using `formula`, this function is not necessary.
 """
 _formula(x::RegressionModel) = formula(x)
-_formula(x::RegressionModelWithVcov) = _formula(x.model)
 
 """
     _responsename(x::RegressionModel)
@@ -64,7 +45,6 @@ function _responsename(x::RegressionModel)
     end
     out
 end
-_responsename(x::RegressionModelWithVcov) = _responsename(x.model)
 
 """
     _coefnames(x::RegressionModel)
@@ -84,124 +64,6 @@ function _coefnames(x::RegressionModel)
     end
     out
 end
-_coefnames(x::RegressionModelWithVcov) = _coefnames(x.model)
-
-##############################################################################
-##
-## materialize_vcov - Compute variance-covariance matrix from VcovSpec
-##
-##############################################################################
-
-# Dispatch on VcovSpec based on source type
-materialize_vcov(spec::VcovSpec{<:AbstractMatrix}, model) = spec.source
-
-function materialize_vcov(spec::VcovSpec{<:Function}, model)
-    f = spec.source
-    if applicable(f, model)
-        return f(model)
-    elseif applicable(f)
-        return f()
-    else
-        throw(ArgumentError("Provided covariance function does not accept zero or one argument."))
-    end
-end
-
-# For external estimators, unwrap and dispatch on the estimator type itself
-materialize_vcov(spec::VcovSpec{T}, model) where {T} = materialize_vcov(spec.source, model)
-
-"""
-    materialize_vcov(estimator, model::RegressionModel)
-
-Produce the variance–covariance matrix for `model` given an estimator object.
-This is the extension point for third-party estimators: define a method that
-returns the desired matrix and `ModelSummaries` will cache and reuse it.
-
-For example, to integrate with CovarianceMatrices.jl, define:
-```julia
-function ModelSummaries.materialize_vcov(estimator::CovarianceMatrices.RobustVariance, model)
-    return StatsBase.vcov(estimator, model)
-end
-```
-"""
-function materialize_vcov(estimator, model)
-    throw(ArgumentError("""
-        No method to compute a covariance matrix for $(typeof(estimator)).
-
-        If this is from CovarianceMatrices.jl, ensure the package is loaded with `using CovarianceMatrices`.
-        Otherwise, define: `ModelSummaries.materialize_vcov(::$(typeof(estimator)), model::RegressionModel)`
-        """))
-end
-
-function _validate_vcov_dimensions(model, Σ)
-    ncoef = length(_coef(model))
-    m, n = size(Σ)
-
-    # Check dimensions match number of coefficients
-    if m != ncoef || n != ncoef
-        throw(ArgumentError("Custom covariance matrix must be $(ncoef)×$(ncoef). Got size $(size(Σ))."))
-    end
-
-    # Check matrix is square (redundant but explicit)
-    if m != n
-        throw(ArgumentError("Covariance matrix must be square. Got size $(size(Σ))."))
-    end
-
-    # Check for symmetry (covariance matrices should be symmetric)
-    # Use isapprox instead of issymmetric to handle floating-point rounding errors
-    if !isapprox(Σ, transpose(Σ))
-        @warn "Covariance matrix is not symmetric. This may indicate an error in computation."
-    end
-end
-
-function _custom_vcov(rr::RegressionModelWithVcov)
-    Σ = rr.cache[]
-    if Σ === nothing
-        Σ = materialize_vcov(rr.spec, rr.model)
-        if !(Σ isa AbstractMatrix)
-            throw(ArgumentError("Custom covariance specification must return an AbstractMatrix. Got $(typeof(Σ))."))
-        end
-        _validate_vcov_dimensions(rr.model, Σ)
-        rr.cache[] = Σ
-    end
-    Σ
-end
-
-function _custom_stderror(rr::RegressionModelWithVcov)
-    Σ = _custom_vcov(rr)
-    sqrt.(map(i -> Σ[i, i], axes(Σ, 1)))
-end
-
-import Base: +
-
-function +(rr::RegressionModel, spec::VcovSpec)
-    RegressionModelWithVcov(rr, spec)
-end
-
-function +(rr::StatsModels.TableRegressionModel, spec::VcovSpec)
-    RegressionModelWithVcov(rr, spec)
-end
-
-function +(spec::VcovSpec, rr::RegressionModel)
-    rr + spec
-end
-
-function +(rr::RegressionModelWithVcov, spec::VcovSpec)
-    RegressionModelWithVcov(rr.model, spec)
-end
-
-function +(spec::VcovSpec, rr::RegressionModelWithVcov)
-    rr + spec
-end
-
-# delegate StatsAPI methods to the wrapped model, except for vcov/stderror which use the custom specification
-coef(x::RegressionModelWithVcov) = coef(x.model)
-stderror(x::RegressionModelWithVcov) = _custom_stderror(x)
-dof_residual(x::RegressionModelWithVcov) = dof_residual(x.model)
-responsename(x::RegressionModelWithVcov) = responsename(x.model)
-coefnames(x::RegressionModelWithVcov) = coefnames(x.model)
-islinear(x::RegressionModelWithVcov) = islinear(x.model)
-nobs(x::RegressionModelWithVcov) = nobs(x.model)
-vcov(x::RegressionModelWithVcov) = _custom_vcov(x)
 
 """
     _coef(x::RegressionModel)
@@ -210,7 +72,6 @@ Returns a vector of the coefficients in the regression model.
 By default, is just a passthrough for the `coef` function from the `StatsModels` package.
 """
 _coef(x::RegressionModel) = coef(x)
-_coef(x::RegressionModelWithVcov) = _coef(x.model)
 
 """
     _stderror(x::RegressionModel)
@@ -219,7 +80,6 @@ Returns a vector of the standard errors of the coefficients in the regression mo
 By default, is just a passthrough for the `stderror` function from the `StatsModels` package.
 """
 _stderror(x::RegressionModel) = stderror(x)
-_stderror(x::RegressionModelWithVcov) = _custom_stderror(x)
 
 """
     _dof_residual(x::RegressionModel)
@@ -228,7 +88,6 @@ Returns the degrees of freedom of the residuals in the regression model.
 By default, is just a passthrough for the `dof_residual` function from the `StatsModels` package.
 """
 _dof_residual(x::RegressionModel) = dof_residual(x)
-_dof_residual(x::RegressionModelWithVcov) = _dof_residual(x.model)
 
 """
     _pvalue(x::RegressionModel)
@@ -246,7 +105,6 @@ end
 Returns a boolean indicating whether the regression model is linear.
 """
 _islinear(x::RegressionModel) = islinear(x)
-_islinear(x::RegressionModelWithVcov) = _islinear(x.model)
 
 """
     can_standardize(x::RegressionModel)
@@ -265,7 +123,6 @@ function can_standardize(x::T) where {T<:RegressionModel}
     @warn "standardize_coef is not possible for $T"
     false
 end
-can_standardize(x::RegressionModelWithVcov) = can_standardize(x.model)
 
 """
     standardize_coef_values(std_X, std_Y, val)
@@ -308,7 +165,6 @@ replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_di
 replace_name(s::Nothing, args...) = s
 
 RegressionType(x::RegressionModel) = _islinear(x) ? RegressionType(Normal()) : RegressionType("NL")
-RegressionType(x::RegressionModelWithVcov) = RegressionType(x.model)
 
 make_reg_stats(rr, stat::Type{<:AbstractRegressionStatistic}) = stat(rr)
 make_reg_stats(rr, stat) = stat
@@ -323,7 +179,6 @@ statistics in the table. This is customizable for each `RegressionModel` type. T
 is to return a vector of `Nobs` and `R2`.
 """
 default_regression_statistics(rr::RegressionModel) = [Nobs, R2]
-default_regression_statistics(rr::RegressionModelWithVcov) = default_regression_statistics(rr.model)
 
 
 """
@@ -335,32 +190,16 @@ clusters in those two, or Random Effects in a MixedModel. For other regressions,
 returns `nothing`.
 """
 other_stats(x::RegressionModel, s::Symbol) = nothing
-other_stats(x::RegressionModelWithVcov, s::Symbol) = other_stats(x.model, s)
 
+"""
+    VcovType(x::RegressionModel)
+
+Returns a VcovType object indicating the type of variance-covariance estimator used.
+For models with custom vcov (RegressionModelWithVcov), the type is determined by
+the CovarianceMatrices extension. For other models, this checks for vcov_type property
+or returns "IID" as default.
+"""
 function VcovType(x::RegressionModel)
-    # Logic to detect vcov type
-    if x isa RegressionModelWithVcov
-        source = x.spec.source
-        if source isa AbstractMatrix
-            return VcovType("Custom")
-        elseif source isa Function
-            return VcovType("Function")
-        else
-            # Try to get the name of the estimator type (e.g., HC3)
-            # CovarianceMatrices.jl uses HR0, HR1, etc. Map them to HC0, HC1...
-            s = string(typeof(source))
-            # Strip module name if present
-            if occursin(".", s)
-                s = split(s, ".")[end]
-            end
-
-            if startswith(s, "HR") && length(s) == 3 && isdigit(s[3])
-                return VcovType("HC" * s[3:end])
-            end
-            return VcovType(s)
-        end
-    end
-
     # Check for vcov_type property (common in FixedEffectModels.jl)
     if hasproperty(x, :vcov_type)
         s = string(x.vcov_type)
@@ -380,7 +219,7 @@ end
 
 ##############################################################################
 ##
-## Display methods for RegressionModelWithVcov
+## vcov_type_name - helper for display
 ##
 ##############################################################################
 
@@ -394,19 +233,22 @@ vcov_type_name(v) = string(typeof(v).name.name)
 vcov_type_name(::AbstractMatrix) = "Custom"
 vcov_type_name(::Function) = "Function"
 
-# Show method - delegates to wrapped model, adds vcov note
-function Base.show(io::IO, m::RegressionModelWithVcov)
-    print(io, "RegressionModelWithVcov(")
-    print(io, typeof(m.model).name.name)
-    print(io, ", vcov=", vcov_type_name(m.spec.source))
-    print(io, ")")
-end
+##############################################################################
+##
+## materialize_vcov - stub for extension point
+##
+## The actual implementation is in the CovarianceMatrices extension.
+##
+##############################################################################
 
-function Base.show(io::IO, mime::MIME"text/plain", m::RegressionModelWithVcov)
-    # Display the wrapped model
-    show(io, mime, m.model)
-    # Add vcov note
-    vcov_name = vcov_type_name(m.spec.source)
-    println(io)
-    println(io, "Std. errors: ", vcov_name)
-end
+"""
+    materialize_vcov(estimator, model::RegressionModel)
+
+Produce the variance–covariance matrix for `model` given an estimator object.
+This is the extension point for third-party estimators: define a method that
+returns the desired matrix.
+
+The actual implementation for CovarianceMatrices.jl estimators is provided
+by the ModelSummariesCovarianceMatricesExt extension.
+"""
+function materialize_vcov end
