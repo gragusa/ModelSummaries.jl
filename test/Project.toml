@@ -22,3 +22,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 CovarianceMatricesBase = {path = "../../CovarianceMatricesBase.jl"}
 Regress = {path = "../../Regress.jl"}
 ModelSummaries = {path = ".."}
+
+[compat]
+Aqua = "0.8"
