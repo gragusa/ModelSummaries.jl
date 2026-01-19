@@ -21,8 +21,7 @@ CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 
 [sources]
-CovarianceMatrices = {path = "../CovarianceMatrices.jl"}
-Regress = {path = "../Regress.jl"}
+Regress = {url= "https://gituh.com/gragusa/Regress.jl"}
 
 [extensions]
 ModelSummariesCovarianceMatricesExt = "CovarianceMatrices"
@@ -32,7 +31,7 @@ ModelSummariesRegressExt = "Regress"
 
 [compat]
 Aqua = "0.8"
-CovarianceMatrices = "0.30.3"
+CovarianceMatrices = "0.30.4"
 Crayons = "4.1.1"
 DataFrames = "1.8.1"
 Distributions = "0.25"
