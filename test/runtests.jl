@@ -1,24 +1,9 @@
 using RDatasets
 using ModelSummaries
-using FixedEffectModels, GLM, Documenter, Aqua
+using FixedEffectModels, GLM, Documenter
 using Test
 
-##
-
-#=
-ambiguities is tested separately since it defaults to recursive=true
-but there are packages that have ambiguities that will cause the test
-to fail
-
-piracies is disabled because vcov(spec) causes type piracy - this is
-intentional and will be moved to CovarianceMatrices.jl in the future
-
-stale_deps is disabled because extension trigger packages (CovarianceMatrices,
-FixedEffectModels, GLM, DataFrames) are in [deps] for extensions but appear
-"stale" to Aqua since the main module doesn't directly use them
-=#
-Aqua.test_ambiguities(ModelSummaries; recursive=false)
-Aqua.test_all(ModelSummaries; ambiguities=true, piracies=false, stale_deps=true)
+include("Aqua.jl")
 
 tests = [
         "default_changes.jl",
