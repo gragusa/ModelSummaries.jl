@@ -1,7 +1,7 @@
 name = "ModelSummaries"
 uuid = "69480e08-b3d8-4e45-a1a7-f96c93f12f9d"
 version = "0.1.0"
-authors = ["Giuseppe Ragusa <giuseppe.ragusa@luiss.it>"]
+authors = ["Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"]
 
 [deps]
 Crayons = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"

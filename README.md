@@ -1,5 +1,7 @@
 # ModelSummaries.jl
 
+[![CI](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml) [![codecov.io](http://codecov.io/github/gragusa/ModelSummaries.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/ModelSummaries.jl?branch=master) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826) ![lifecycle](https://img.shields.io/badge/lifecycle-maturing-blue.svg)
+
 [![][docs-stable-img]][docs-stable-url] [![][docs-dev-img]][docs-dev-url]
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg

@@ -8,14 +8,24 @@ using Distributions
 using LinearAlgebra
 
 ModelSummaries.default_regression_statistics(rr::LinearModel) = [Nobs, R2]
-ModelSummaries.default_regression_statistics(rr::StatsModels.TableRegressionModel{T}) where {T<:GLM.AbstractGLM} = [Nobs, R2McFadden]
+function ModelSummaries.default_regression_statistics(rr::StatsModels.TableRegressionModel{T}) where {T <:
+                                                                                                      GLM.AbstractGLM}
+    [Nobs, R2McFadden]
+end
 
-ModelSummaries.RegressionType(x::StatsModels.TableRegressionModel{T}) where {T<:GLM.AbstractGLM} = RegressionType(x.model)
-ModelSummaries.RegressionType(x::StatsModels.TableRegressionModel{T}) where {T<:LinearModel} = RegressionType(x.model)
+function ModelSummaries.RegressionType(x::StatsModels.TableRegressionModel{T}) where {T <:
+                                                                                      GLM.AbstractGLM}
+    RegressionType(x.model)
+end
+function ModelSummaries.RegressionType(x::StatsModels.TableRegressionModel{T}) where {T <:
+                                                                                      LinearModel}
+    RegressionType(x.model)
+end
 
 # k is which coefficient or standard error to standardize
-ModelSummaries.standardize_coef_values(x::StatsModels.TableRegressionModel, val, k) =
+function ModelSummaries.standardize_coef_values(x::StatsModels.TableRegressionModel, val, k)
     ModelSummaries.standardize_coef_values(std(modelmatrix(x)[:, k]), std(response(x)), val)
+end
 
 ModelSummaries.can_standardize(x::StatsModels.TableRegressionModel) = true
 
@@ -57,10 +67,12 @@ function ModelSummaries.FStatPValue(model::LinearModel)
 end
 
 # F-statistic for TableRegressionModel wrapping LinearModel
-ModelSummaries.FStat(model::StatsModels.TableRegressionModel{<:LinearModel}) =
+function ModelSummaries.FStat(model::StatsModels.TableRegressionModel{<:LinearModel})
     ModelSummaries.FStat(model.model)
-ModelSummaries.FStatPValue(model::StatsModels.TableRegressionModel{<:LinearModel}) =
+end
+function ModelSummaries.FStatPValue(model::StatsModels.TableRegressionModel{<:LinearModel})
     ModelSummaries.FStatPValue(model.model)
+end
 
 # Note: F-statistic for RegressionModelWithVcov is handled in ModelSummariesCovarianceMatricesExt
 # when CovarianceMatrices is loaded. The robust F-statistic methods are defined there.

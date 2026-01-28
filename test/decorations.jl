@@ -1,8 +1,8 @@
-deco_tight    = make_estim_decorator([0.001, 0.01, 0.05]) # the default
+deco_tight = make_estim_decorator([0.001, 0.01, 0.05]) # the default
 deco_standard = make_estim_decorator([0.01, 0.05, 0.1])
-deco_latex    = make_estim_decorator([0.01, 0.05, 0.1],
-                                     wrapper=s -> "^\\sym{$s}")
-deco_1pc      = make_estim_decorator([0.01])
+deco_latex = make_estim_decorator([0.01, 0.05, 0.1],
+    wrapper = s -> "^\\sym{$s}")
+deco_1pc = make_estim_decorator([0.01])
 
 @testset "decorations" begin
     @testset "deco_tight" begin

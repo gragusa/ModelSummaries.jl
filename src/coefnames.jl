@@ -16,7 +16,7 @@ AbstractCoefName simply acts as a parent type to the other types. The other type
 Using the function [`get_coefname`](@ref) will return the appropriate type for the term.
 """
 abstract type AbstractCoefName end
-(::Type{T})(x::T) where {T<:AbstractCoefName} = x
+(::Type{T})(x::T) where {T <: AbstractCoefName} = x
 Base.broadcastable(x::AbstractCoefName) = Ref(x)
 
 """
@@ -62,7 +62,6 @@ Base.replace(x::CoefName, r::Pair) = CoefName(replace(value(x), r))
 get_coefname(x::AbstractString) = CoefName(String(x))
 get_coefname(x::AbstractVector) = CoefName.(String.(x))
 
-
 """
     struct InteractedCoefName <: AbstractCoefName
         names::Vector
@@ -103,7 +102,9 @@ end
 value(x::InteractedCoefName) = x.names
 Base.string(x::InteractedCoefName) = join(string.(x.names), " & ")
 Base.hash(x::InteractedCoefName, h::UInt) = hash(sort(string.(value(x))), h)
-Base.:(==)(x::InteractedCoefName, y::InteractedCoefName) = sort(string.(value(x))) == sort(string.(value(y)))
+function Base.:(==)(x::InteractedCoefName, y::InteractedCoefName)
+    sort(string.(value(x))) == sort(string.(value(y)))
+end
 function Base.get(x::Dict{String, String}, val::InteractedCoefName, def::InteractedCoefName)
     # if the interaction exactly matches what would be in StatsModels, just return that
     # otherwise, go through each term in the interactionterm and see if the dict contains those pieces
@@ -113,12 +114,15 @@ function Base.get(x::Dict{String, String}, val::InteractedCoefName, def::Interac
         InteractedCoefName(get.(Ref(x), value(val), value(def)))
     end
 end
-get_coefname(x::InteractionTerm) = 
+function get_coefname(x::InteractionTerm)
     StatsModels.kron_insideout(
         (args...) -> InteractedCoefName(collect(args)),
         (StatsModels.vectorize(get_coefname.(x.terms)))...
     )
-Base.replace(x::InteractedCoefName, r::Pair) = InteractedCoefName(replace.(value(x), Ref(r)))
+end
+function Base.replace(x::InteractedCoefName, r::Pair)
+    InteractedCoefName(replace.(value(x), Ref(r)))
+end
 
 """
     struct CategoricalCoefName <: AbstractCoefName
@@ -146,12 +150,16 @@ Base.repr(render::AbstractRenderType, x::ModelSummarys.CategoricalCoefName; args
 struct CategoricalCoefName <: AbstractCoefName
     name::String
     level::String
-    CategoricalCoefName(name::AbstractString, level::AbstractString) = new(String(name), String(level))
+    function CategoricalCoefName(name::AbstractString, level::AbstractString)
+        new(String(name), String(level))
+    end
 end
 
 value(x::CategoricalCoefName) = x.name
 Base.string(x::CategoricalCoefName) = "$(value(x)): $(x.level)"
-get_coefname(x::CategoricalTerm) = [CategoricalCoefName(string(x.sym), string(n)) for n in x.contrasts.coefnames]
+function get_coefname(x::CategoricalTerm)
+    [CategoricalCoefName(string(x.sym), string(n)) for n in x.contrasts.coefnames]
+end
 function Base.get(x::Dict{String, String}, val::CategoricalCoefName, def::CategoricalCoefName)
     # similar to interactioncoefname, if the categorical term exactly matches what would be in StatsModels, just return that
     if haskey(x, string(val))
@@ -184,7 +192,9 @@ struct InterceptCoefName <: AbstractCoefName end
 
 Base.string(x::InterceptCoefName) = "(Intercept)"
 get_coefname(x::InterceptTerm{H}) where {H} = H ? InterceptCoefName() : []
-Base.get(x::Dict{String, String}, val::InterceptCoefName, def::InterceptCoefName) = get(x, string(val), def)
+function Base.get(x::Dict{String, String}, val::InterceptCoefName, def::InterceptCoefName)
+    get(x, string(val), def)
+end
 function Base.replace(x::InterceptCoefName, r::Pair)
     v = string(x)
     out = replace(v, r)
@@ -211,8 +221,9 @@ end
 
 value(x::FixedEffectCoefName) = x.name
 Base.string(x::FixedEffectCoefName) = string(x.name)
-Base.get(x::Dict{String, String}, val::FixedEffectCoefName, def::FixedEffectCoefName) =
+function Base.get(x::Dict{String, String}, val::FixedEffectCoefName, def::FixedEffectCoefName)
     FixedEffectCoefName(get(x, val.name, def.name))
+end
 
 Base.replace(x::FixedEffectCoefName, r::Pair) = FixedEffectCoefName(replace(x.name, r))
 
@@ -225,8 +236,9 @@ ClusterCoefName(x::String) = ClusterCoefName(CoefName(x))
 
 value(x::ClusterCoefName) = x.name
 Base.string(x::ClusterCoefName) = string(x.name)
-Base.get(x::Dict{String, String}, val::ClusterCoefName, def::ClusterCoefName) =
+function Base.get(x::Dict{String, String}, val::ClusterCoefName, def::ClusterCoefName)
     ClusterCoefName(get(x, val.name, def.name))
+end
 
 Base.replace(x::ClusterCoefName, r::Pair) = ClusterCoefName(replace(x.name, r))
 
@@ -246,11 +258,11 @@ FirstStageCoefName(x::String) = FirstStageCoefName(CoefName(x))
 
 value(x::FirstStageCoefName) = x.name
 Base.string(x::FirstStageCoefName) = string(x.name)
-Base.get(x::Dict{String, String}, val::FirstStageCoefName, def::FirstStageCoefName) =
+function Base.get(x::Dict{String, String}, val::FirstStageCoefName, def::FirstStageCoefName)
     FirstStageCoefName(get(x, val.name, def.name))
+end
 
 Base.replace(x::FirstStageCoefName, r::Pair) = FirstStageCoefName(replace(x.name, r))
-
 
 """
     struct RandomEffectCoefName <: AbstractCoefName
@@ -271,7 +283,7 @@ end
 
 value(x::RandomEffectCoefName) = x
 Base.string(x::RandomEffectCoefName) = string(x.rhs) * " | " * string(x.lhs)
-Base.hash(x::RandomEffectCoefName, h::UInt) = hash(string(x),h)
+Base.hash(x::RandomEffectCoefName, h::UInt) = hash(string(x), h)
 Base.:(==)(x::RandomEffectCoefName, y::RandomEffectCoefName) = string(x) == string(y)
 function Base.get(x::Dict{String, String}, val::RandomEffectCoefName, def::RandomEffectCoefName)
     rhs = get(x, val.rhs, def.rhs)

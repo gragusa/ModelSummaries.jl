@@ -4,12 +4,10 @@ using Test
 
 @testset "Horizontal lines across backends" begin
     # Create a simple table
-    body = Any[
-        "(Intercept)" 1.0;
-        "" "(0.1)";
-        "x" 2.0;
-        "" "(0.2)";
-    ]
+    body = Any["(Intercept)" 1.0;
+               "" "(0.1)";
+               "x" 2.0;
+               "" "(0.2)";]
 
     ms = ModelSummary(["", "Model 1"], body)
 
@@ -44,14 +42,12 @@ using Test
 end
 
 @testset "Horizontal lines - multiple lines" begin
-    body = Any[
-        "(Intercept)" 1.0;
-        "" "(0.1)";
-        "x" 2.0;
-        "" "(0.2)";
-        "z" 3.0;
-        "" "(0.3)";
-    ]
+    body = Any["(Intercept)" 1.0;
+               "" "(0.1)";
+               "x" 2.0;
+               "" "(0.2)";
+               "z" 3.0;
+               "" "(0.3)";]
 
     ms = ModelSummary(["", "Model 1"], body)
 
@@ -94,10 +90,8 @@ end
 end
 
 @testset "Direct pretty_kwargs access" begin
-    body = Any[
-        "(Intercept)" 1.0;
-        "" "(0.1)";
-    ]
+    body = Any["(Intercept)" 1.0;
+               "" "(0.1)";]
 
     ms = ModelSummary(["", "Model 1"], body)
 
@@ -106,7 +100,7 @@ end
     @test ms.pretty_kwargs[:title] == "My Table"
 
     # Test merge_kwargs!
-    merge_kwargs!(ms; title_alignment=:c, crop_num_lines_at_end=10)
+    merge_kwargs!(ms; title_alignment = :c, crop_num_lines_at_end = 10)
     @test ms.pretty_kwargs[:title_alignment] == :c
     @test ms.pretty_kwargs[:crop_num_lines_at_end] == 10
 
@@ -115,13 +109,11 @@ end
 end
 
 @testset "Backend and theme interaction" begin
-    body = Any[
-        "(Intercept)" 1.0;
-        "" "(0.1)";
-    ]
+    body = Any["(Intercept)" 1.0;
+               "" "(0.1)";]
 
     # Create table with specific backend
-    ms = ModelSummary(["", "Model 1"], body; backend=:latex)
+    ms = ModelSummary(["", "Model 1"], body; backend = :latex)
 
     @test ms.backend == :latex
 
@@ -135,10 +127,8 @@ end
 end
 
 @testset "Alignment functions" begin
-    body = Any[
-        "(Intercept)" 1.0 2.0;
-        "" "(0.1)" "(0.2)";
-    ]
+    body = Any["(Intercept)" 1.0 2.0;
+               "" "(0.1)" "(0.2)";]
 
     ms = ModelSummary(["", "Model 1", "Model 2"], body)
 
@@ -147,7 +137,7 @@ end
     @test ms.body_align[2] == :c
 
     # Test set_alignment! for header
-    set_alignment!(ms, 3, :l; header=true)
+    set_alignment!(ms, 3, :l; header = true)
     @test ms.header_align[3] == :l
 
     # Invalid alignment should error

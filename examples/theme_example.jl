@@ -14,7 +14,7 @@ df = DataFrame(
     x1 = randn(100),
     x2 = randn(100),
     x3 = randn(100),
-    z = repeat(1:2, inner=50)
+    z = repeat(1:2, inner = 50)
 )
 
 # Fit multiple models
@@ -112,7 +112,7 @@ ms = modelsummary(m1, m2, m3;
 add_hline!(ms, 3)
 
 # Add custom title via PrettyTables kwargs
-merge_kwargs!(ms; title="Regression Results", title_alignment=:c)
+merge_kwargs!(ms; title = "Regression Results", title_alignment = :c)
 
 display(ms)
 

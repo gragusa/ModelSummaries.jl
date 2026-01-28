@@ -119,7 +119,7 @@ either of these, then this function should return `false`.
 
 See also [`ModelSummarys.standardize_coef_values`](@ref).
 """
-function can_standardize(x::T) where {T<:RegressionModel}
+function can_standardize(x::T) where {T <: RegressionModel}
     @warn "standardize_coef is not possible for $T"
     false
 end
@@ -160,17 +160,27 @@ function transformer(s, repl_dict::AbstractDict)
     return s
 end
 
-replace_name(s::Union{AbstractString, AbstractCoefName}, exact_dict, repl_dict) = get(exact_dict, s, transformer(s, repl_dict))
-replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict) = (replace_name(s[1], exact_dict, repl_dict), s[2])
+function replace_name(s::Union{AbstractString, AbstractCoefName}, exact_dict, repl_dict)
+    get(exact_dict, s, transformer(s, repl_dict))
+end
+function replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict)
+    (replace_name(s[1], exact_dict, repl_dict), s[2])
+end
 replace_name(s::Nothing, args...) = s
 
-RegressionType(x::RegressionModel) = _islinear(x) ? RegressionType(Normal()) : RegressionType("NL")
+function RegressionType(x::RegressionModel)
+    _islinear(x) ? RegressionType(Normal()) : RegressionType("NL")
+end
 
 make_reg_stats(rr, stat::Type{<:AbstractRegressionStatistic}) = stat(rr)
 make_reg_stats(rr, stat) = stat
-make_reg_stats(rr, stat::Pair{<:Any, <:AbstractString}) = make_reg_stats(rr, first(stat)) => last(stat)
+function make_reg_stats(rr, stat::Pair{<:Any, <:AbstractString})
+    make_reg_stats(rr, first(stat)) => last(stat)
+end
 
-default_regression_statistics(x::AbstractRenderType, rr::RegressionModel) = default_regression_statistics(rr)
+function default_regression_statistics(x::AbstractRenderType, rr::RegressionModel)
+    default_regression_statistics(rr)
+end
 """
     default_regression_statistics(rr::RegressionModel)
 
@@ -179,7 +189,6 @@ statistics in the table. This is customizable for each `RegressionModel` type. T
 is to return a vector of `Nobs` and `R2`.
 """
 default_regression_statistics(rr::RegressionModel) = [Nobs, R2]
-
 
 """
     other_stats(rr::RegressionModel, s::Symbol)
