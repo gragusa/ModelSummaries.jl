@@ -25,8 +25,12 @@ ModelSummaries.FStatIVPValue(x::OLSEstimator) = FStatIVPValue(nothing)
 ModelSummaries.FStatIVPValue(x::IVEstimator) = FStatIVPValue(x.p_kp)
 
 # Within R²
-ModelSummaries.R2Within(x::OLSEstimator) = has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
-ModelSummaries.R2Within(x::IVEstimator) = has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+function ModelSummaries.R2Within(x::OLSEstimator)
+    has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+end
+function ModelSummaries.R2Within(x::IVEstimator)
+    has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+end
 
 # Regression Type
 ModelSummaries.RegressionType(x::OLSEstimator) = RegressionType(Normal(), false)
@@ -37,8 +41,9 @@ ModelSummaries.RegressionType(x::IVEstimator) = RegressionType(Normal(), true)
 ##############################################################################
 
 # Handle fe() terms from Regress formula
-ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(Regress.fe)}) =
+function ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(Regress.fe)})
     ModelSummaries.CoefName(string(x.exorig.args[end]))
+end
 
 ##############################################################################
 ## Fixed Effects and Clusters for OLSEstimator
@@ -51,7 +56,8 @@ function ModelSummaries.other_stats(rr::OLSEstimator, s::Symbol)
         fe_set = has_fe.(rr.formula.rhs)
         for (i, v) in enumerate(fe_set)
             if v && !isa(fe_set, Bool)
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
+                push!(out,
+                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
             elseif v
                 push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
             end
@@ -61,8 +67,7 @@ function ModelSummaries.other_stats(rr::OLSEstimator, s::Symbol)
         # Check if cluster variables are stored
         hasfield(typeof(rr.fes), :clusters) && !isempty(rr.fes.clusters) || return nothing
         cluster_names = keys(rr.fes.clusters)
-        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=>
-                ModelSummaries.ClusterValue.(length.(unique.(values(rr.fes.clusters)))))
+        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=> ModelSummaries.ClusterValue.(length.(unique.(values(rr.fes.clusters)))))
     elseif s == :first_stage
         # OLS models have no first stage
         nothing
@@ -82,7 +87,8 @@ function ModelSummaries.other_stats(rr::IVEstimator, s::Symbol)
         fe_set = has_fe.(rr.formula.rhs)
         for (i, v) in enumerate(fe_set)
             if v && !isa(fe_set, Bool)
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
+                push!(out,
+                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
             elseif v
                 push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
             end
@@ -93,14 +99,12 @@ function ModelSummaries.other_stats(rr::IVEstimator, s::Symbol)
         cluster_vars = rr.postestimation.cluster_vars
         isempty(cluster_vars) && return nothing
         cluster_names = keys(cluster_vars)
-        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=>
-                ModelSummaries.ClusterValue.(length.(unique.(values(cluster_vars)))))
+        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=> ModelSummaries.ClusterValue.(length.(unique.(values(cluster_vars)))))
     elseif s == :first_stage
         # Return first-stage F-statistic (Kleibergen-Paap) as a section
         isnothing(rr.F_kp) && return nothing
         [
-            ModelSummaries.FirstStageCoefName("F-statistic") =>
-                ModelSummaries.FirstStageValue(rr.F_kp)
+            ModelSummaries.FirstStageCoefName("F-statistic") => ModelSummaries.FirstStageValue(rr.F_kp)
         ]
     else
         nothing

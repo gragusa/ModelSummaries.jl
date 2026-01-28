@@ -18,7 +18,9 @@ julia> repr(LatexTable(), x)
 "1.2346"
 ```
 """
-default_digits(render::AbstractRenderType, x::AbstractRegressionStatistic) = default_digits(render, value(x))
+function default_digits(render::AbstractRenderType, x::AbstractRegressionStatistic)
+    default_digits(render, value(x))
+end
 """
     default_digits(render::AbstractRenderType, x::AbstractUnderStatistic)
 
@@ -39,7 +41,9 @@ julia> repr(LatexTable(), x) # unchanged since the default_digits was only chang
 
 ```
 """
-default_digits(render::AbstractRenderType, x::AbstractUnderStatistic) = default_digits(render, value(x))
+function default_digits(render::AbstractRenderType, x::AbstractUnderStatistic)
+    default_digits(render, value(x))
+end
 """
     default_digits(render::AbstractRenderType, x::.CoefValue)
 
@@ -88,7 +92,11 @@ Default section order for the table, defaults to
 
 `:break` is a special keyword that adds a line break between sections (e.g. between `\\midrule` in Latex)
 """
-default_section_order(render::AbstractRenderType) = [:groups, :depvar, :number_regressions, :break, :coef, :break, :fe, :break, :randomeffects, :break, :clusters, :break, :first_stage, :break, :regtype, :break, :controls, :break, :stats, :extralines]
+function default_section_order(render::AbstractRenderType)
+    [:groups, :depvar, :number_regressions, :break, :coef, :break, :fe,
+        :break, :randomeffects, :break, :clusters, :break, :first_stage,
+        :break, :regtype, :break, :controls, :break, :stats, :extralines]
+end
 
 """
     default_align(render::AbstractRenderType)
@@ -236,10 +244,12 @@ default_backend(rrs) = nothing
 
 # Internal helper to convert backend symbol to render type
 _backend_to_render(backend::Nothing) = AsciiTable()
-_backend_to_render(backend::Symbol) = backend == :latex ? LatexTable() :
-                                       backend == :html ? HtmlTable() :
-                                       backend == :text ? AsciiTable() :
-                                       AsciiTable()
+function _backend_to_render(backend::Symbol)
+    backend == :latex ? LatexTable() :
+    backend == :html ? HtmlTable() :
+    backend == :text ? AsciiTable() :
+    AsciiTable()
+end
 
 """
     default_file(render::AbstractRenderType, rrs)
@@ -290,7 +300,9 @@ Defaults to `true` if more than one type of estimator is used. For example,
 if all regressions are "OLS", then this section will default to `false`, while
 if one regression is "OLS" and another is "IV", then this section will default to `true`.
 """
-default_print_estimator(render::AbstractRenderType, rrs) = length(unique(RegressionType.(rrs))) > 1
+function default_print_estimator(render::AbstractRenderType, rrs)
+    length(unique(RegressionType.(rrs))) > 1
+end
 
 """
     default_print_clusters(render::AbstractRenderType, rrs)
@@ -307,7 +319,9 @@ For example, an "OLS" regression (with no fixed effects) will default to includi
 `[Nobs, R2]`, and a Probit regression will include `[Nobs, PseudoR2]`,
 so the default will be `[Nobs, R2, PseudoR2]`.
 """
-default_regression_statistics(render::AbstractRenderType, rrs::Tuple) = unique(union(default_regression_statistics.(render, rrs)...))
+function default_regression_statistics(render::AbstractRenderType, rrs::Tuple)
+    unique(union(default_regression_statistics.(render, rrs)...))
+end
 
 """
     default_confint_level(render::AbstractRenderType, rrs)
@@ -316,7 +330,6 @@ Defaults to `0.95`, which means the 95% confidence interval is printed below the
 """
 default_confint_level(render::AbstractRenderType, rrs) = default_confint_level()
 default_confint_level() = 0.95 # to maintain better backwards compatibility with v0.6.x
-
 
 """
     default_use_relabeled_values(render::AbstractRenderType, rrs) = true
@@ -373,47 +386,47 @@ modelsummary(regressionResult1, regressionResult2; backend=:latex, file="myoutfi
 See the full argument list for details.
 """
 function modelsummary(
-    rrs::RegressionModel...;
-    backend::Union{Symbol,Nothing} = default_backend(rrs),
-    keep::Vector = Vector{Any}(),
-    drop::Vector = Vector{Any}(),
-    order::Vector = Vector{Any}(),
-    fixedeffects::Vector = Vector{String}(),
-    labels::Dict{String,String} = Dict{String,String}(),
-    align::Symbol = :r,
-    header_align::Symbol = :c,
-    below_statistic = StdError,
-    stat_below::Bool = true,
-    regression_statistics = [Nobs, R2],
-    groups = nothing,
-    print_depvar::Bool = true,
-    number_regressions::Bool = length(rrs) > 1,
-    print_estimator_section = false,
-    print_fe_section = true,
-    print_first_stage_section = false,
-    file = nothing,
-    transform_labels::Union{Dict,Symbol} = Dict{String,String}(),
-    extralines = nothing,
-    section_order = nothing,
-    print_fe_suffix = true,
-    print_control_indicator = true,
-    standardize_coef = false,
-    print_clusters = false,
-    print_randomeffects = false,
-    digits=nothing,
-    digits_stats=nothing,
-    estimformat=nothing,
-    statisticformat=nothing,
-    below_decoration::Union{Nothing, Function}=nothing,
-    number_regressions_decoration::Union{Nothing, Function}=nothing,
-    estim_decoration::Union{Nothing, Function}=nothing,
-    use_relabeled_values = false,
-    confint_level = 0.95,
-    extra_space::Bool=false,
-    stars::Bool=false,
-    theme::Union{Symbol, AbstractDict, NamedTuple, Nothing} = nothing,
-    table_format=nothing,
-    kwargs...
+        rrs::RegressionModel...;
+        backend::Union{Symbol, Nothing} = default_backend(rrs),
+        keep::Vector = Vector{Any}(),
+        drop::Vector = Vector{Any}(),
+        order::Vector = Vector{Any}(),
+        fixedeffects::Vector = Vector{String}(),
+        labels::Dict{String, String} = Dict{String, String}(),
+        align::Symbol = :r,
+        header_align::Symbol = :c,
+        below_statistic = StdError,
+        stat_below::Bool = true,
+        regression_statistics = [Nobs, R2],
+        groups = nothing,
+        print_depvar::Bool = true,
+        number_regressions::Bool = length(rrs) > 1,
+        print_estimator_section = false,
+        print_fe_section = true,
+        print_first_stage_section = false,
+        file = nothing,
+        transform_labels::Union{Dict, Symbol} = Dict{String, String}(),
+        extralines = nothing,
+        section_order = nothing,
+        print_fe_suffix = true,
+        print_control_indicator = true,
+        standardize_coef = false,
+        print_clusters = false,
+        print_randomeffects = false,
+        digits = nothing,
+        digits_stats = nothing,
+        estimformat = nothing,
+        statisticformat = nothing,
+        below_decoration::Union{Nothing, Function} = nothing,
+        number_regressions_decoration::Union{Nothing, Function} = nothing,
+        estim_decoration::Union{Nothing, Function} = nothing,
+        use_relabeled_values = false,
+        confint_level = 0.95,
+        extra_space::Bool = false,
+        stars::Bool = false,
+        theme::Union{Symbol, AbstractDict, NamedTuple, Nothing} = nothing,
+        table_format = nothing,
+        kwargs...
 )
     # Convert backend to internal render type for compatibility with existing formatting code
     render = _backend_to_render(backend)
@@ -427,7 +440,7 @@ function modelsummary(
             @warn "Both `theme` and `table_format` specified. Using `theme` and ignoring `table_format`."
         end
         theme_dict = Themes.get_theme(theme)
-        
+
         if haskey(theme_dict, :extra_kwargs)
             merge!(extra_kwargs, theme_dict[:extra_kwargs])
         end
@@ -436,19 +449,20 @@ function modelsummary(
     else
         table_format_map, backend_kwargs_map = _process_table_format(table_format)
     end
-    
+
     # Process extra_kwargs
     fe_symbol = get(extra_kwargs, :fe_symbol, "Yes")
     fe_empty = get(extra_kwargs, :fe_empty, "")
     fe_suffix = get(extra_kwargs, :fe_suffix, " Fixed Effects")
-    
+
     if get(extra_kwargs, :add_vcov_stat, false)
         # Check if we can safely add it (regression_statistics is a Vector)
         if regression_statistics isa Vector
             if VcovType ∉ regression_statistics
                 # Add Spacer before VcovType if requested
-                if get(extra_kwargs, :spacer_before_vcov, true) && Spacer ∉ regression_statistics
-                     push!(regression_statistics, Spacer)
+                if get(extra_kwargs, :spacer_before_vcov, true) &&
+                   Spacer ∉ regression_statistics
+                    push!(regression_statistics, Spacer)
                 end
                 push!(regression_statistics, VcovType)
             end
@@ -457,7 +471,7 @@ function modelsummary(
             stats_vec = collect(regression_statistics)
             if VcovType ∉ stats_vec
                 if get(extra_kwargs, :spacer_before_vcov, true) && Spacer ∉ stats_vec
-                     push!(stats_vec, Spacer)
+                    push!(stats_vec, Spacer)
                 end
                 push!(stats_vec, VcovType)
             end
@@ -466,14 +480,15 @@ function modelsummary(
     end
 
     if get(extra_kwargs, :significance_decoration, false) && estim_decoration === nothing
-         estim_decoration = (s, p) -> begin
-             if p < 0.1 # Using 0.1 as threshold for "significant" to apply color
-                 # Use AnsiTextCell to prevent double escaping by PrettyTables
-                 return AnsiTextCell(string(Crayon(foreground=:dark_gray), s, Crayon(reset=true)))
-             else
-                 return s
-             end
-         end
+        estim_decoration = (s,
+            p) -> begin
+            if p < 0.1 # Using 0.1 as threshold for "significant" to apply color
+                # Use AnsiTextCell to prevent double escaping by PrettyTables
+                return AnsiTextCell(string(Crayon(foreground = :dark_gray), s, Crayon(reset = true)))
+            else
+                return s
+            end
+        end
     end
 
     if section_order === nothing
@@ -515,7 +530,7 @@ function modelsummary(
         :p => FStatPValue,
         :f_kp => FStatIV,
         :p_kp => FStatIVPValue,
-        :dof => DOF,
+        :dof => DOF
     )
     sections = []
     for (i, s) in enumerate(section_order)
@@ -539,7 +554,7 @@ function modelsummary(
             if print_fe_section
                 push!(sections, :fe)
             end
-        elseif s == :extralines 
+        elseif s == :extralines
             if extralines !== nothing
                 push!(sections, extralines)
             end
@@ -578,7 +593,8 @@ function modelsummary(
     wdths=fill(0, length(rrs)+1)
 
     nms = if use_relabeled_values
-        union([replace_name.(_coefnames(rr), Ref(labels), Ref(transform_labels)) for rr in rrs]...) |> unique
+        union([replace_name.(_coefnames(rr), Ref(labels), Ref(transform_labels))
+               for rr in rrs]...) |> unique
     else
         union([_coefnames(rr) for rr in rrs]...) |> unique
     end
@@ -604,9 +620,10 @@ function modelsummary(
         for (j, nm) in enumerate(nms)
             k = findfirst(cur_nms .== nm)
             k === nothing && continue
-            coefvalues[j, i] = CoefValue(rr, k; standardize=standardize_coef[i])
+            coefvalues[j, i] = CoefValue(rr, k; standardize = standardize_coef[i])
             if below_statistic !== nothing
-                coefbelow[j, i] = below_statistic(rr, k; standardize=standardize_coef[i], level=confint_level[i])
+                coefbelow[j, i] = below_statistic(
+                    rr, k; standardize = standardize_coef[i], level = confint_level[i])
             end
         end
     end
@@ -620,7 +637,7 @@ function modelsummary(
             if digits !== nothing
                 coefvalues = repr.(render, coefvalues; digits, stars)
             elseif estimformat !== nothing
-                coefvalues = repr.(render, coefvalues; str_format=estimformat, stars)
+                coefvalues = repr.(render, coefvalues; str_format = estimformat, stars)
             end
         else
             # @warn("estim_decoration is deprecated. Set the breaks desired globally by running")
@@ -630,30 +647,30 @@ function modelsummary(
             if digits !== nothing
                 temp_coef = repr.(render, value.(coefvalues); digits)
             elseif estimformat !== nothing
-                temp_coef = repr.(render, value.(coefvalues); str_format=estimformat)
+                temp_coef = repr.(render, value.(coefvalues); str_format = estimformat)
             else
-                temp_coef = repr.(render, value.(coefvalues); commas=false)
+                temp_coef = repr.(render, value.(coefvalues); commas = false)
             end
             coefvalues = estim_decoration.(temp_coef, coalesce.(value_pvalue.(coefvalues), 1.0))# coalesce to 1.0 since if missing then it should be insignificant
         end
     end
-    
+
     if digits !== nothing || statisticformat !== nothing || below_decoration !== nothing
         if below_decoration === nothing
             if digits_stats !== nothing
-                coefbelow = repr.(render, coefbelow; digits=digits_stats)
+                coefbelow = repr.(render, coefbelow; digits = digits_stats)
             elseif statisticformat !== nothing
-                coefbelow = repr.(render, coefbelow; str_format=statisticformat)
+                coefbelow = repr.(render, coefbelow; str_format = statisticformat)
             end
         else
             # @warn("below_decoration is deprecated. Set the below decoration globally by running")
             # @warn("ModelSummarys.below_decoration(render::AbstractRenderType, s) = \"(\$s)\"")
             if digits_stats !== nothing
-                temp_coef = repr.(render, value.(coefbelow); digits=digits_stats)
+                temp_coef = repr.(render, value.(coefbelow); digits = digits_stats)
             elseif statisticformat !== nothing
-                temp_coef = repr.(render, value.(coefbelow); str_format=statisticformat)
+                temp_coef = repr.(render, value.(coefbelow); str_format = statisticformat)
             else
-                temp_coef = repr.(render, value.(coefbelow); commas=false)
+                temp_coef = repr.(render, value.(coefbelow); commas = false)
             end
             coefbelow = [x == "" ? x : below_decoration(x) for x in temp_coef]
         end
@@ -663,31 +680,34 @@ function modelsummary(
     header_align='l' * join(fill(header_align, length(rrs)), "")
     in_header = true
     for (i, s) in enumerate(sections)
-
         if isa(s, Pair)
             v = first(s)
-            push_DataRow!(out, DataRow(vcat([last(s)], fill("", length(rrs)))), align, wdths, false, render)
+            push_DataRow!(out, DataRow(vcat([last(s)], fill("", length(rrs)))),
+                align, wdths, false, render)
         else
             v = s
         end
         if !isa(v, Symbol)
             al = in_header ? header_align : align
-            push_DataRow!(out, v, al, wdths, in_header, render; combine_equals=in_header)
+            push_DataRow!(out, v, al, wdths, in_header, render; combine_equals = in_header)
             continue
         end
         if v == :break
             push!(breaks, length(out))
         elseif v == :depvar
-            underlines = i + 1 < length(sections) && sections[i+1] != :break
+            underlines = i + 1 < length(sections) && sections[i + 1] != :break
             y_name = replace_name.(_responsename.(rrs), Ref(labels), Ref(transform_labels))
-            push_DataRow!(out, collect(y_name), header_align, wdths, underlines, render; combine_equals=true)
+            push_DataRow!(out, collect(y_name), header_align, wdths,
+                underlines, render; combine_equals = true)
         elseif v == :number_regressions
             if number_regressions_decoration !== nothing
                 # @warn("number_regressions_decoration is deprecated, specify decoration globally by running")
                 # @warn("ModelSummarys.number_regression_decoration(render::AbstractRenderType, s) = \"(\$s)\"")
-                push_DataRow!(out, number_regressions_decoration.(1:length(rrs)), align, wdths, false, render; combine_equals=false)
+                push_DataRow!(out, number_regressions_decoration.(1:length(rrs)),
+                    align, wdths, false, render; combine_equals = false)
             else
-                push_DataRow!(out, RegressionNumbers.(1:length(rrs)), align, wdths, false, render; combine_equals=false)
+                push_DataRow!(out, RegressionNumbers.(1:length(rrs)), align,
+                    wdths, false, render; combine_equals = false)
             end
         elseif v == :coef
             in_header = false
@@ -697,7 +717,8 @@ function modelsummary(
                     for i in 1:size(temp, 1)
                         push_DataRow!(out, temp[i, :], align, wdths, false, render)
                         if i != size(temp, 1)
-                            push_DataRow!(out, fill("", size(temp, 2)), align, wdths, false, render)
+                            push_DataRow!(
+                                out, fill("", size(temp, 2)), align, wdths, false, render)
                         end
                     end
                 else
@@ -710,7 +731,8 @@ function modelsummary(
                         push_DataRow!(out, temp[i, :], align, wdths, false, render)
                         push_DataRow!(out, coefbelow[i, :], align, wdths, false, render)
                         if extra_space && i != size(temp, 1)
-                            push_DataRow!(out, fill("", size(temp, 2)), align, wdths, false, render)
+                            push_DataRow!(
+                                out, fill("", size(temp, 2)), align, wdths, false, render)
                         end
                     end
                 else
@@ -720,7 +742,8 @@ function modelsummary(
                         for i in 1:size(temp, 1)
                             push_DataRow!(out, temp[i, :], align, wdths, false, render)
                             if i != size(temp, 1)
-                                push_DataRow!(out, fill("", size(temp, 2)), align, wdths, false, render)
+                                push_DataRow!(out, fill("", size(temp, 2)),
+                                    align, wdths, false, render)
                             end
                         end
                     else
@@ -738,9 +761,9 @@ function modelsummary(
         elseif v == :stats
             stats = combine_statistics(rrs, regression_statistics)
             if digits_stats !== nothing
-                stats = repr.(render, stats; digits=digits_stats)
+                stats = repr.(render, stats; digits = digits_stats)
             elseif statisticformat !== nothing
-                stats = repr.(render, stats; str_format=statisticformat)
+                stats = repr.(render, stats; str_format = statisticformat)
             end
             push_DataRow!(out, stats, align, wdths, false, render)
         elseif v == :controls
@@ -760,11 +783,14 @@ function modelsummary(
             end
             i = findfirst(!isnothing, temp)
             fill_val = fill_missing(last(first(temp[i])))# first element of vector, last value of pair
-            st = combine_other_statistics(temp; fill_val, print_fe_suffix, fixedeffects, labels, transform_labels, fe_symbol, fe_empty, fe_suffix, kwargs...)
+            st = combine_other_statistics(
+                temp; fill_val, print_fe_suffix, fixedeffects, labels,
+                transform_labels, fe_symbol, fe_empty, fe_suffix, kwargs...)
             if !isnothing(st)
                 push_DataRow!(out, st, align, wdths, false, render)
                 if get(extra_kwargs, :spacer_after_fe, false)
-                    push_DataRow!(out, fill("", length(rrs) + 1), align, wdths, false, render)
+                    push_DataRow!(
+                        out, fill("", length(rrs) + 1), align, wdths, false, render)
                 end
             end
         end
@@ -772,16 +798,15 @@ function modelsummary(
     if length(breaks) == 0
         breaks = [length(out)]
     end
-    
+
     f = ModelSummary(
         out,
         align,
         breaks;
-        backend=backend,
-        stars=stars,
-        table_format=table_format_map,
-        backend_kwargs=backend_kwargs_map,
-        #colwidths added automatically
+        backend = backend,
+        stars = stars,
+        table_format = table_format_map,
+        backend_kwargs = backend_kwargs_map        #colwidths added automatically
     )
     if file !== nothing
         write(file, f)
@@ -825,16 +850,16 @@ of the pairs and the rest of the matrix is the last value of the pairs organized
    arguments for truly custom type naming.
 """
 function combine_other_statistics(
-    stats;
-    fill_val=missing,
-    print_fe_suffix=true,
-    fixedeffects=Vector{String}(),
-    labels=Dict{String, String}(),
-    transform_labels=Dict{String, String}(),
-    fe_symbol="Yes",
-    fe_empty="",
-    fe_suffix=" Fixed Effects",
-    kwargs...
+        stats;
+        fill_val = missing,
+        print_fe_suffix = true,
+        fixedeffects = Vector{String}(),
+        labels = Dict{String, String}(),
+        transform_labels = Dict{String, String}(),
+        fe_symbol = "Yes",
+        fe_empty = "",
+        fe_suffix = " Fixed Effects",
+        kwargs...
 )
     nms = []
     for s in stats
@@ -869,7 +894,7 @@ function combine_other_statistics(
         for (j, nm) in enumerate(nms)
             k = findfirst(string(nm) .== string.(val_nms))
             if k === nothing
-                 if fill_val isa FixedEffectValue
+                if fill_val isa FixedEffectValue
                     mat[j, i] = fill_val.val ? fe_symbol : fe_empty
                 else
                     mat[j, i] = fill_val
@@ -884,7 +909,7 @@ function combine_other_statistics(
             end
         end
     end
-    
+
     # Format names - preserve CoefName types so rendering uses correct suffixes
     if print_fe_suffix
         # Build display names with appropriate suffix based on CoefName type
@@ -936,16 +961,25 @@ function push_DataRow!(data::Vector{<:DataRow}, vals::Matrix, args...; vargs...)
         push_DataRow!(data, vals[i, :], args...; vargs...)
     end
 end
-function push_DataRow!(data::Vector{<:DataRow}, vals::Vector{<:AbstractVector}, align, colwidths, print_underlines::Bool, render::AbstractRenderType; combine_equals=print_underlines)
+function push_DataRow!(data::Vector{<:DataRow}, vals::Vector{<:AbstractVector},
+        align, colwidths, print_underlines::Bool,
+        render::AbstractRenderType; combine_equals = print_underlines)
     for v in vals
         push_DataRow!(data, v, align, colwidths, print_underlines, render; combine_equals)
     end
 end
-push_DataRow!(data::Vector{DataRow{T}}, val::DataRow, args...; vargs...) where {T<:AbstractRenderType} = push!(data, T(val))
-function push_DataRow!(data::Vector{<:DataRow}, vals::Vector, align, colwidths, print_underlines::Bool, render::AbstractRenderType; combine_equals=print_underlines)
+function push_DataRow!(
+        data::Vector{DataRow{T}}, val::DataRow, args...; vargs...) where {T <:
+                                                                          AbstractRenderType}
+    push!(data, T(val))
+end
+function push_DataRow!(
+        data::Vector{<:DataRow}, vals::Vector, align, colwidths, print_underlines::Bool,
+        render::AbstractRenderType; combine_equals = print_underlines)
     if all(isa.(vals, DataRow) .|| isa.(vals, AbstractVector))
         for v in vals
-            push_DataRow!(data, v, align, colwidths, print_underlines, render; combine_equals)
+            push_DataRow!(
+                data, v, align, colwidths, print_underlines, render; combine_equals)
         end
         return data
     elseif any(isa.(vals, DataRow) .|| isa.(vals, AbstractVector))
@@ -977,7 +1011,7 @@ function push_DataRow!(data::Vector{<:DataRow}, vals::Vector, align, colwidths, 
             colwidths,
             vcat([false], fill(print_underlines, length(vals) - 1)), # don't print underline under the leftmost column
             render;
-            combine_equals=combine_equals
+            combine_equals = combine_equals
         )
     )
 end
@@ -1141,7 +1175,7 @@ julia> value_pos(nms, (:end, 2))
 """
 function value_pos(nms, x::Tuple{Symbol, Int})
     if x[1] == :last
-        value_pos(nms, length(nms) - x[2] + 1 : length(nms))
+        value_pos(nms, (length(nms) - x[2] + 1):length(nms))
     elseif x[1] == :end
         value_pos(nms, length(nms) - x[2])
     else
@@ -1218,7 +1252,7 @@ end
 Checks whether any of the coefficients in `table` are not in `coefs`,
 returns `true` if so, `false` otherwise.
 """
-function missing_vars(table::RegressionModel, coefs::Vector; labels=Dict(), transform_labels=Dict())
+function missing_vars(table::RegressionModel, coefs::Vector; labels = Dict(), transform_labels = Dict())
     table_coefs = string.(replace_name.(_coefnames(table), Ref(labels), Ref(transform_labels)))
     coefs = string.(coefs)
     for x in table_coefs

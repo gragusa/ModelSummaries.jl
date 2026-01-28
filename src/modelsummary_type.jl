@@ -67,20 +67,20 @@ mutable struct ModelSummary
     backend_kwargs::Dict{Symbol, Any} # Backend-specific kwargs
 
     function ModelSummary(
-        data::Matrix{Any},
-        header::Vector{Vector{String}},
-        header_align::Vector{Symbol},
-        body_align::Vector{Symbol};
-        hlines::Vector{Int}=Int[],
-        formatters::Vector=[],
-        highlighters::Vector=[],
-        backend::Union{Symbol, Nothing}=nothing,
-        pretty_kwargs::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-        table_format=nothing,
-        backend_kwargs=nothing # Optional manual override
+            data::Matrix{Any},
+            header::Vector{Vector{String}},
+            header_align::Vector{Symbol},
+            body_align::Vector{Symbol};
+            hlines::Vector{Int} = Int[],
+            formatters::Vector = [],
+            highlighters::Vector = [],
+            backend::Union{Symbol, Nothing} = nothing,
+            pretty_kwargs::Dict{Symbol, Any} = Dict{Symbol, Any}(),
+            table_format = nothing,
+            backend_kwargs = nothing # Optional manual override
     )
         tf_map, bk_map = _process_table_format(table_format)
-        
+
         # If manual backend_kwargs provided, merge them
         if backend_kwargs !== nothing
             merge!(bk_map, backend_kwargs)
@@ -116,7 +116,7 @@ function _ascii_table_format()
         '+', '+', '+', '+', '+',  # down, right, left, cross, up
         '|', '-'  # vertical, horizontal
     )
-    return PrettyTables.TextTableFormat(; borders=ascii_borders)
+    return PrettyTables.TextTableFormat(; borders = ascii_borders)
 end
 
 """
@@ -177,7 +177,8 @@ end
 function _coerce_table_format_value(val, backend::Symbol)
     if val === nothing || val === :default
         return default_table_format(backend)
-    elseif val isa Union{PrettyTables.LatexTableFormat, PrettyTables.TextTableFormat, PrettyTables.MarkdownTableFormat, PrettyTables.HtmlTableFormat}
+    elseif val isa Union{PrettyTables.LatexTableFormat, PrettyTables.TextTableFormat,
+        PrettyTables.MarkdownTableFormat, PrettyTables.HtmlTableFormat}
         return val
     elseif val isa Symbol
         # Try to resolve known symbols
@@ -203,7 +204,7 @@ Accepts `nothing`, a table format object, an alias `Symbol`, `NamedTuple`, or an
 function _process_table_format(spec)
     formats = default_table_formats()
     backend_kwargs = Dict{Symbol, Any}()
-    
+
     # Initialize backend_kwargs with empty dicts
     for backend in _MODEL_SUMMARIES_BACKENDS
         backend_kwargs[backend] = Dict{Symbol, Any}()
@@ -216,7 +217,7 @@ function _process_table_format(spec)
     elseif spec isa Pair
         return _process_table_format(Dict(spec))
     end
-    
+
     # Handle direct table format object (apply to all compatible backends? No, assume it's for text/auto)
     if !(spec isa AbstractDict)
         # If it's a single format object, we try to apply it where it fits, or just return default behavior
@@ -226,12 +227,12 @@ function _process_table_format(spec)
         # We will assume user passes a Dict if they want specificity.
         # If they pass a single object, we try to use it for all backends (coercion will fail if mismatched types).
         for backend in _MODEL_SUMMARIES_BACKENDS
-             # Try/Catch or just let coerce handle it
-             try
-                 formats[backend] = _coerce_table_format_value(spec, backend)
-             catch
-                 # If coercion fails, stick to default
-             end
+            # Try/Catch or just let coerce handle it
+            try
+                formats[backend] = _coerce_table_format_value(spec, backend)
+            catch
+                # If coercion fails, stick to default
+            end
         end
         return formats, backend_kwargs
     end
@@ -242,9 +243,10 @@ function _process_table_format(spec)
         if backend == :extra_kwargs
             continue # specific key for modelsummary options, ignore here
         end
-        
-        backend in _MODEL_SUMMARIES_BACKENDS || throw(ArgumentError("Unsupported backend $backend in table_format keyword."))
-        
+
+        backend in _MODEL_SUMMARIES_BACKENDS ||
+            throw(ArgumentError("Unsupported backend $backend in table_format keyword."))
+
         if v isa AbstractDict && (haskey(v, :table_format) || haskey(v, :pretty_kwargs))
             if haskey(v, :table_format)
                 formats[backend] = _coerce_table_format_value(v[:table_format], backend)
@@ -261,12 +263,12 @@ end
 
 # Convenience constructor for simple matrices
 function ModelSummary(
-    header::Vector{String},
-    body::Matrix{Any};
-    header_align::Union{Vector{Symbol}, Nothing}=nothing,
-    body_align::Union{Vector{Symbol}, Nothing}=nothing,
-    table_format=nothing,
-    kwargs...
+        header::Vector{String},
+        body::Matrix{Any};
+        header_align::Union{Vector{Symbol}, Nothing} = nothing,
+        body_align::Union{Vector{Symbol}, Nothing} = nothing,
+        table_format = nothing,
+        kwargs...
 )
     ncols = length(header)
     @assert size(body, 2) == ncols "Header and body must have same number of columns"
@@ -284,7 +286,7 @@ function ModelSummary(
         [header],
         header_align,
         body_align;
-        table_format=table_format,
+        table_format = table_format,
         kwargs...
     )
 end
@@ -319,7 +321,7 @@ end
 Set the alignment for a specific column.
 Set `header=true` to change header alignment instead of body alignment.
 """
-function set_alignment!(rt::ModelSummary, col::Int, align::Symbol; header::Bool=false)
+function set_alignment!(rt::ModelSummary, col::Int, align::Symbol; header::Bool = false)
     @assert align in (:l, :c, :r) "Alignment must be :l, :c, or :r"
     if header
         rt.header_align[col] = align
@@ -428,7 +430,7 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
 
     # PrettyTables configuration based on backend
     kwargs = copy(rt.pretty_kwargs)
-    
+
     # Merge backend-specific kwargs (e.g. from theme)
     if haskey(rt.backend_kwargs, backend)
         merge!(kwargs, rt.backend_kwargs[backend])
@@ -500,16 +502,16 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
     if !isempty(rt.highlighters)
         kwargs[:highlighters] = tuple(rt.highlighters...)
     end
-    
+
     ## Organize header rows
     column_header = build_column_labels(rt.header)
-    column_header = [column_header, rt.data[1,:]]
-    
+    column_header = [column_header, rt.data[1, :]]
+
     # Render using PrettyTables
     PrettyTables.pretty_table(
         io,
         rt.data[2:end, :];
-        column_labels=column_header,
+        column_labels = column_header,
         merge_column_label_cells = :auto,
         kwargs...
     )
@@ -525,7 +527,7 @@ function build_column_labels(header::Vector{Vector{String}})
 
     labels = Any[] # can contain both String and MultiColumn
     push!(labels, "")  # first cell is empty for row labels
-       
+
     i = 1
     while i <= length(row)
         label = row[i]
@@ -557,8 +559,6 @@ function build_column_labels(header::Vector{Vector{String}})
 
     return labels
 end
-
-
 
 # MIME-based display methods
 function Base.show(io::IO, ::MIME"text/plain", rt::ModelSummary)
@@ -611,15 +611,15 @@ Constructor that converts DataRow-based tables to PrettyTables-based format.
 This allows modelsummary() to build tables using the DataRow system internally.
 """
 function ModelSummary(
-    data::Vector{DataRow{T}},
-    align::String,
-    breaks::Vector{Int}=Int[],
-    colwidths::Vector{Int}=Int[];
-    backend::Union{Symbol, Nothing}=nothing,
-    stars::Bool=true,
-    table_format=nothing,
-    backend_kwargs=nothing
-) where {T<:AbstractRenderType}
+        data::Vector{DataRow{T}},
+        align::String,
+        breaks::Vector{Int} = Int[],
+        colwidths::Vector{Int} = Int[];
+        backend::Union{Symbol, Nothing} = nothing,
+        stars::Bool = true,
+        table_format = nothing,
+        backend_kwargs = nothing
+) where {T <: AbstractRenderType}
     # Convert DataRow vector to matrix format
     nrows = length(data)
     if nrows == 0
@@ -672,7 +672,7 @@ function ModelSummary(
                 # Put value in first column of span
                 result[col] = value
                 # Mark other columns as part of multicolumn (we'll handle in PrettyTables)
-                for j in 1:(span-1)
+                for j in 1:(span - 1)
                     result[col + j] = ""  # Empty for now, PrettyTables will handle merging
                 end
                 col += span
@@ -735,10 +735,10 @@ function ModelSummary(
         header_vecs,
         header_align,
         body_align;
-        hlines=adjusted_breaks,
-        backend=backend,
-        table_format=table_format,
-        backend_kwargs=backend_kwargs
+        hlines = adjusted_breaks,
+        backend = backend,
+        table_format = table_format,
+        backend_kwargs = backend_kwargs
     )
 
     return rt

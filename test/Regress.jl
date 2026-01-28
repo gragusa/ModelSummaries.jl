@@ -64,7 +64,7 @@ using Test
     @testset "First Stage Section" begin
         # Test that first-stage F-statistic appears when enabled
         m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
-        ms = modelsummary(m; print_first_stage_section=true)
+        ms = modelsummary(m; print_first_stage_section = true)
 
         buf = IOBuffer()
         show(IOContext(buf, :limit => false), MIME("text/plain"), ms)
@@ -153,7 +153,7 @@ using Test
         m_hc3 = m + vcov(HC3())
 
         # Test first-stage section with custom vcov (uses recomputed F_kp)
-        ms = modelsummary(m_hc3; print_first_stage_section=true)
+        ms = modelsummary(m_hc3; print_first_stage_section = true)
 
         buf = IOBuffer()
         show(IOContext(buf, :limit => false), MIME("text/plain"), ms)

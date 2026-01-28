@@ -2,7 +2,6 @@ abstract type AbstractRegressionData end
 
 Base.broadcastable(x::AbstractRegressionData) = Ref(x)
 
-
 """
 AbstractRegressionStatistic encapsulates all regression statistics
 (e.g., number of observations, ``R^2``, etc.). In most cases, the individual regression
@@ -35,7 +34,6 @@ ModelSummarys.label(render::AbstractRenderType, x::Type{YMean}) = "Mean of Y"
 """
 abstract type AbstractRegressionStatistic <: AbstractRegressionData end
 
-
 """
     abstract type AbstractR2 <: AbstractRegressionStatistic end
 
@@ -58,11 +56,12 @@ abstract type AbstractR2 <: AbstractRegressionStatistic end
 struct Nobs <: AbstractRegressionStatistic
     val::Union{Int, Nothing}
 end
-Nobs(x::RegressionModel) = try
-    Nobs(nobs(x))
-catch
-    Nobs(nothing)
-end
+Nobs(x::RegressionModel) =
+    try
+        Nobs(nobs(x))
+    catch
+        Nobs(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{Nobs}) = "N"
@@ -84,11 +83,12 @@ label(render::AbstractRenderType, x::Type{Nobs}) = "N"
 struct R2 <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2(x::RegressionModel) = try
-    R2(r2(x))
-catch
-    R2(nothing)
-end
+R2(x::RegressionModel) =
+    try
+        R2(r2(x))
+    catch
+        R2(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{R2}) = "R2"
@@ -107,11 +107,12 @@ Labels default to:
 struct R2McFadden <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2McFadden(x::RegressionModel) = try
-    R2McFadden(r2(x, :McFadden))
-catch
-    R2McFadden(nothing)
-end
+R2McFadden(x::RegressionModel) =
+    try
+        R2McFadden(r2(x, :McFadden))
+    catch
+        R2McFadden(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{R2McFadden}) = "Pseudo " * label(render, R2)
@@ -132,11 +133,12 @@ const PseudoR2 = R2McFadden
 struct R2CoxSnell <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2CoxSnell(x::RegressionModel) = try
-    R2CoxSnell(r2(x, :CoxSnell))
-catch
-    R2CoxSnell(nothing)
-end
+R2CoxSnell(x::RegressionModel) =
+    try
+        R2CoxSnell(r2(x, :CoxSnell))
+    catch
+        R2CoxSnell(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{R2CoxSnell}) = "Cox-Snell " * label(render, R2)
@@ -152,11 +154,12 @@ label(render::AbstractRenderType, x::Type{R2CoxSnell}) = "Cox-Snell " * label(re
 struct R2Nagelkerke <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2Nagelkerke(x::RegressionModel) = try
-    R2Nagelkerke(r2(x, :Nagelkerke))
-catch
-    R2Nagelkerke(nothing)
-end
+R2Nagelkerke(x::RegressionModel) =
+    try
+        R2Nagelkerke(r2(x, :Nagelkerke))
+    catch
+        R2Nagelkerke(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{R2Nagelkerke}) = "Nagelkerke " * label(render, R2)
@@ -172,11 +175,12 @@ label(render::AbstractRenderType, x::Type{R2Nagelkerke}) = "Nagelkerke " * label
 struct R2Deviance <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2Deviance(x::RegressionModel) = try
-    R2Deviance(r2(x, :devianceratio))
-catch
-    R2Deviance(nothing)
-end
+R2Deviance(x::RegressionModel) =
+    try
+        R2Deviance(r2(x, :devianceratio))
+    catch
+        R2Deviance(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{R2Deviance}) = "Deviance " * label(render, R2)
@@ -192,11 +196,12 @@ label(render::AbstractRenderType, x::Type{R2Deviance}) = "Deviance " * label(ren
 struct AdjR2 <: AbstractR2
     val::Union{Float64, Nothing}
 end
-AdjR2(x::RegressionModel) = try
-    AdjR2(adjr2(x))
-catch
-    AdjR2(nothing)
-end
+AdjR2(x::RegressionModel) =
+    try
+        AdjR2(adjr2(x))
+    catch
+        AdjR2(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{AdjR2}) = "Adjusted " * label(render, R2)
@@ -213,11 +218,12 @@ to as the Pseudo Adjusted ``R^2``). Labels default to:
 struct AdjR2McFadden <: AbstractR2
     val::Union{Float64, Nothing}
 end
-AdjR2McFadden(x::RegressionModel) = try
-    AdjR2McFadden(adjr2(x, :McFadden))
-catch
-    AdjR2McFadden(nothing)
-end
+AdjR2McFadden(x::RegressionModel) =
+    try
+        AdjR2McFadden(adjr2(x, :McFadden))
+    catch
+        AdjR2McFadden(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{AdjR2McFadden}) = "Pseudo " * label(render, AdjR2)
@@ -238,16 +244,19 @@ const AdjPseudoR2 = AdjR2McFadden
 struct AdjR2Deviance <: AbstractR2
     val::Union{Float64, Nothing}
 end
-AdjR2Deviance(x::RegressionModel) = try
-    AdjR2Deviance(adjr2(x, :devianceratio))
-catch
-    AdjR2Deviance(nothing)
-end
+AdjR2Deviance(x::RegressionModel) =
+    try
+        AdjR2Deviance(adjr2(x, :devianceratio))
+    catch
+        AdjR2Deviance(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{AdjR2Deviance}) = "Deviance " * label(render, AdjR2)
 """
-label(render::AbstractRenderType, x::Type{AdjR2Deviance}) = "Deviance " * label(render, AdjR2)
+function label(render::AbstractRenderType, x::Type{AdjR2Deviance})
+    "Deviance " * label(render, AdjR2)
+end
 
 """
 `DOF` is the remaining degrees of freedom in the regression. Labels default to 
@@ -256,11 +265,12 @@ label(render::AbstractRenderType, x::Type{AdjR2Deviance}) = "Deviance " * label(
 struct DOF <: AbstractRegressionStatistic
     val::Union{Int, Nothing}
 end
-DOF(x::RegressionModel) = try
-    DOF(dof_residual(x))
-catch
-    DOF(nothing)
-end
+DOF(x::RegressionModel) =
+    try
+        DOF(dof_residual(x))
+    catch
+        DOF(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{DOF}) = "Degrees of Freedom"
@@ -274,11 +284,12 @@ label(render::AbstractRenderType, x::Type{DOF}) = "Degrees of Freedom"
 struct LogLikelihood <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-LogLikelihood(x::RegressionModel) = try
-    LogLikelihood(loglikelihood(x))
-catch
-    LogLikelihood(nothing)
-end
+LogLikelihood(x::RegressionModel) =
+    try
+        LogLikelihood(loglikelihood(x))
+    catch
+        LogLikelihood(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{LogLikelihood}) = "Log Likelihood"
@@ -292,11 +303,12 @@ label(render::AbstractRenderType, x::Type{LogLikelihood}) = "Log Likelihood"
 struct AIC <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-AIC(x::RegressionModel) = try
-    AIC(aic(x))
-catch
-    AIC(nothing)
-end
+AIC(x::RegressionModel) =
+    try
+        AIC(aic(x))
+    catch
+        AIC(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{AIC}) = "AIC"
@@ -310,11 +322,12 @@ label(render::AbstractRenderType, x::Type{AIC}) = "AIC"
 struct AICC <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-AICC(x::RegressionModel) = try
-    AICC(aicc(x))
-catch
-    AICC(nothing)
-end
+AICC(x::RegressionModel) =
+    try
+        AICC(aicc(x))
+    catch
+        AICC(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{AICC}) = "AICC"
@@ -328,11 +341,12 @@ label(render::AbstractRenderType, x::Type{AICC}) = "AICC"
 struct BIC <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-BIC(x::RegressionModel) = try
-    BIC(bic(x))
-catch
-    BIC(nothing)
-end
+BIC(x::RegressionModel) =
+    try
+        BIC(bic(x))
+    catch
+        BIC(nothing)
+    end
 
 """
     label(render::AbstractRenderType, x::Type{BIC}) = "BIC"
@@ -377,7 +391,9 @@ FStatPValue(r::RegressionModel) = FStatPValue(nothing)
 """
     label(render::AbstractRenderType, x::Type{FStatPValue}) = label(render, FStat) * "-test " * label_p(render) * " value"
 """
-label(render::AbstractRenderType, x::Type{FStatPValue}) = label(render, FStat) * "-test " * label_p(render) *" value"
+function label(render::AbstractRenderType, x::Type{FStatPValue})
+    label(render, FStat) * "-test " * label_p(render) * " value"
+end
 
 """
 `FStatIV` is the first-stage F-statistic of an IV regression. Since the StatsAPI.jl
@@ -395,7 +411,9 @@ FStatIV(r::RegressionModel) = FStatIV(nothing)
 """
     label(render::AbstractRenderType, x::Type{FStatIV}) = "First-stage " * label(render, FStat) * " statistic"
 """
-label(render::AbstractRenderType, x::Type{FStatIV}) = "First-stage " * label(render, FStat) * " statistic"
+function label(render::AbstractRenderType, x::Type{FStatIV})
+    "First-stage " * label(render, FStat) * " statistic"
+end
 
 """
 `FStatIVPValue` is the p-value of the first-stage F-statistic of an IV regression. Since the StatsAPI.jl
@@ -413,7 +431,9 @@ FStatIVPValue(r::RegressionModel) = FStatIVPValue(nothing)
 """
     label(render::AbstractRenderType, x::Type{FStatIVPValue}) = "First-stage " * label_p(render) * " value"
 """
-label(render::AbstractRenderType, x::Type{FStatIVPValue}) = "First-stage " * label_p(render) * " value"
+function label(render::AbstractRenderType, x::Type{FStatIVPValue})
+    "First-stage " * label_p(render) * " value"
+end
 
 """
 `R2Within` is the within R-squared of a fixed effects regression. Since the StatsAPI.jl
@@ -462,7 +482,6 @@ value(s::AbstractRegressionStatistic) = s.val
 Base.show(io::IO, s::AbstractRegressionStatistic) = show(io, value(s))
 Base.print(io::IO, s::AbstractRegressionStatistic) = print(io, value(s))
 
-
 """
     abstract type AbstractUnderStatistic end
 
@@ -503,7 +522,7 @@ The standard error of a coefficient.
 struct StdError <: AbstractUnderStatistic
     val::Float64
 end
-function StdError(rr::RegressionModel, k::Int; standardize=false, vargs...)
+function StdError(rr::RegressionModel, k::Int; standardize = false, vargs...)
     if standardize
         StdError(standardize_coef_values(rr, _stderror(rr)[k], k))
     else
@@ -525,7 +544,7 @@ struct ConfInt <: AbstractUnderStatistic
     val::Tuple{Float64, Float64}
 end
 
-function ConfInt(rr::RegressionModel, k::Int; level=0.95, standardize=false, vargs...)
+function ConfInt(rr::RegressionModel, k::Int; level = 0.95, standardize = false, vargs...)
     @assert 0 < level < 1 "Confidence level must be between 0 and 1"
     c_int = confint(rr; level)[k, :] |> Tuple
     if standardize
@@ -535,7 +554,6 @@ function ConfInt(rr::RegressionModel, k::Int; level=0.95, standardize=false, var
 end
 
 value(x::AbstractUnderStatistic) = x.val
-
 
 """
     struct CoefValue
@@ -549,7 +567,7 @@ struct CoefValue <: AbstractRegressionData
     val::Float64
     pvalue::Float64
 end
-function CoefValue(rr::RegressionModel, k::Int; standardize=false, vargs...)
+function CoefValue(rr::RegressionModel, k::Int; standardize = false, vargs...)
     val = _coef(rr)[k]
     p = _pvalue(rr)[k]
     if standardize
@@ -586,10 +604,14 @@ Base.repr(render::AbstractRenderType, x::\$Distribution; args...) = \$Name
 struct RegressionType{T} <: AbstractRegressionData
     val::T
     is_iv::Bool
-    RegressionType(x::T, is_iv::Bool=false) where {T<:UnivariateDistribution} = new{T}(x, is_iv)
-    RegressionType(x::T, is_iv::Bool=false) where {T<:AbstractString} = new{T}(x, is_iv)
+    function RegressionType(x::T, is_iv::Bool = false) where {T <: UnivariateDistribution}
+        new{T}(x, is_iv)
+    end
+    RegressionType(x::T, is_iv::Bool = false) where {T <: AbstractString} = new{T}(x, is_iv)
 end
-RegressionType(x::Type{D}, is_iv::Bool=false) where {D <: UnivariateDistribution} = RegressionType(Base.typename(D).wrapper(), is_iv)
+function RegressionType(x::Type{D}, is_iv::Bool = false) where {D <: UnivariateDistribution}
+    RegressionType(Base.typename(D).wrapper(), is_iv)
+end
 value(x::RegressionType) = x.val
 
 """
@@ -671,7 +693,6 @@ struct RandomEffectValue <: AbstractRegressionData
 end
 
 value(x::RandomEffectValue) = x.val
-
 
 """
     struct ClusterValue

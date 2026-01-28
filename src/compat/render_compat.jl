@@ -3,15 +3,17 @@
 # This file contains constructors and repr methods for the render system
 
 DataRow(x::DataRow) = x
-(::Type{T})(x::DataRow) where {T<:AbstractRenderType} = DataRow(x.data, x.align, x.print_underlines, T())
+function (::Type{T})(x::DataRow) where {T <: AbstractRenderType}
+    DataRow(x.data, x.align, x.print_underlines, T())
+end
 
 function DataRow(
-    data::Vector;
-    align="l" * "r" ^ (length(data) - 1),
-    print_underlines=zeros(Bool, length(data)),
-    render::AbstractRenderType=AsciiTable(),
-    combine_equals=false,
-    colwidths=nothing
+        data::Vector;
+        align = "l" * "r" ^ (length(data) - 1),
+        print_underlines = zeros(Bool, length(data)),
+        render::AbstractRenderType = AsciiTable(),
+        combine_equals = false,
+        colwidths = nothing
 )
     if isa(print_underlines, Bool)
         print_underlines = fill(print_underlines, length(data))
@@ -34,7 +36,7 @@ function DataRow(
             else
                 # Find consecutive equal values
                 j = i
-                while j < length(data) && data[j+1] == val && val != ""
+                while j < length(data) && data[j + 1] == val && val != ""
                     j += 1
                 end
 
@@ -78,7 +80,10 @@ random_effect_separator(render::AbstractRenderType) = " | "
 label_ols(render::AbstractRenderType) = "OLS"
 label_iv(render::AbstractRenderType) = "IV"
 
-label_distribution(render::AbstractRenderType, d::D) where {D <: UnivariateDistribution} = string(Base.typename(D).wrapper)
+function label_distribution(render::AbstractRenderType, d::D) where {D <:
+                                                                     UnivariateDistribution}
+    string(Base.typename(D).wrapper)
+end
 label_distribution(render::AbstractRenderType, d::NegativeBinomial) = "Negative Binomial"
 label_distribution(render::AbstractRenderType, d::InverseGaussian) = "Inverse Gaussian"
 
@@ -92,14 +97,15 @@ fe_value(render::AbstractRenderType, v) = v ? "Yes" : ""
 # Base.repr implementations for compatibility
 Base.repr(render::AbstractRenderType, x; args...) = "$x"
 Base.repr(render::AbstractRenderType, x::Pair; args...) = repr(render, first(x); args...)
-Base.repr(render::AbstractRenderType, x::Int; args...) = format(x, commas=true)
+Base.repr(render::AbstractRenderType, x::Int; args...) = format(x, commas = true)
 
-function Base.repr(render::AbstractRenderType, x::Float64; digits=nothing, commas=true, str_format=nothing, args...)
+function Base.repr(render::AbstractRenderType, x::Float64; digits = nothing,
+        commas = true, str_format = nothing, args...)
     actual_digits = digits === nothing ? default_digits(render, x) : digits
     if str_format !== nothing
         cfmt(str_format, x)
     else
-        format(x; precision=actual_digits, commas)
+        format(x; precision = actual_digits, commas)
     end
 end
 
@@ -109,7 +115,7 @@ Base.repr(render::AbstractRenderType, x::AbstractString; args...) = String(x)
 Base.repr(render::AbstractRenderType, x::Bool; args...) = x ? "Yes" : ""
 
 # LaTeX-specific repr for multicolumn
-function Base.repr(render::AbstractLatex, val::Pair; align="c", args...)
+function Base.repr(render::AbstractLatex, val::Pair; align = "c", args...)
     s = repr(render, first(val); args...)
     if length(s) == 0 && length(last(val)) == 1
         s
@@ -119,7 +125,7 @@ function Base.repr(render::AbstractLatex, val::Pair; align="c", args...)
 end
 
 # HTML-specific repr for colspan
-function Base.repr(render::AbstractHtml, val::Pair; align="c", args...)
+function Base.repr(render::AbstractHtml, val::Pair; align = "c", args...)
     s = repr(render, first(val); args...)
     if length(s) == 0
         s
@@ -148,36 +154,43 @@ lineend(::AbstractRenderType) = ""
 # These are placeholders - full implementations are in the included files
 
 # For regression statistics - use default_digits when digits not specified
-function Base.repr(render::AbstractRenderType, x::AbstractRegressionStatistic; digits=nothing, args...)
+function Base.repr(render::AbstractRenderType, x::AbstractRegressionStatistic; digits = nothing, args...)
     actual_digits = digits === nothing ? default_digits(render, x) : digits
-    repr(render, value(x); digits=actual_digits, args...)
+    repr(render, value(x); digits = actual_digits, args...)
 end
 
-function Base.repr(render::AbstractRenderType, x::AbstractR2; digits=nothing, args...)
+function Base.repr(render::AbstractRenderType, x::AbstractR2; digits = nothing, args...)
     actual_digits = digits === nothing ? default_digits(render, x) : digits
-    repr(render, value(x); digits=actual_digits, args...)
+    repr(render, value(x); digits = actual_digits, args...)
 end
 
-function Base.repr(render::AbstractRenderType, x::AbstractUnderStatistic; digits=nothing, args...)
+function Base.repr(render::AbstractRenderType, x::AbstractUnderStatistic; digits = nothing, args...)
     actual_digits = digits === nothing ? default_digits(render, x) : digits
-    below_decoration(render, repr(render, value(x); digits=actual_digits, commas=false, args...))
+    below_decoration(render, repr(
+        render, value(x); digits = actual_digits, commas = false, args...))
 end
 
-function Base.repr(render::AbstractRenderType, x::ConfInt; digits=nothing, args...)
+function Base.repr(render::AbstractRenderType, x::ConfInt; digits = nothing, args...)
     actual_digits = digits === nothing ? default_digits(render, x) : digits
-    below_decoration(render, repr(render, value(x)[1]; digits=actual_digits) * ", " * repr(render, value(x)[2]; digits=actual_digits))
+    below_decoration(render,
+        repr(render, value(x)[1]; digits = actual_digits) * ", " *
+        repr(render, value(x)[2]; digits = actual_digits))
 end
 
-function Base.repr(render::AbstractRenderType, x::CoefValue; digits=nothing, stars=true, args...)
+function Base.repr(
+        render::AbstractRenderType, x::CoefValue; digits = nothing, stars = true, args...)
     actual_digits = digits === nothing ? default_digits(render, x) : digits
     if stars
-        estim_decorator(render, repr(render, value(x); digits=actual_digits, commas=false, args...), x.pvalue)
+        estim_decorator(
+            render, repr(render, value(x); digits = actual_digits, commas = false, args...),
+            x.pvalue)
     else
-        repr(render, value(x); digits=actual_digits, commas=false, args...)
+        repr(render, value(x); digits = actual_digits, commas = false, args...)
     end
 end
 
-function Base.repr(render::AbstractRenderType, x::Type{V}; args...) where {V <: AbstractRegressionStatistic}
+function Base.repr(render::AbstractRenderType, x::Type{V}; args...) where {V <:
+                                                                           AbstractRegressionStatistic}
     label(render, V)
 end
 
@@ -234,7 +247,8 @@ function Base.repr(render::AbstractRenderType, x::RegressionType; args...)
     x.is_iv ? label_iv(render) : repr(render, value(x); args...)
 end
 
-function Base.repr(render::AbstractRenderType, x::D; args...) where {D <: UnivariateDistribution}
+function Base.repr(render::AbstractRenderType, x::D; args...) where {D <:
+                                                                     UnivariateDistribution}
     string(Base.typename(D).wrapper)
 end
 
@@ -251,7 +265,8 @@ function Base.repr(render::AbstractRenderType, x::Normal; args...)
 end
 
 function Base.repr(render::AbstractRenderType, x::RandomEffectCoefName; args...)
-    repr(render, x.rhs; args...) * random_effect_separator(render) * repr(render, x.lhs; args...)
+    repr(render, x.rhs; args...) * random_effect_separator(render) *
+    repr(render, x.lhs; args...)
 end
 
 function Base.repr(render::AbstractRenderType, x::FixedEffectValue; args...)
@@ -262,8 +277,8 @@ function Base.repr(render::AbstractRenderType, x::ClusterValue; args...)
     repr(render, value(x) > 0; args...)
 end
 
-function Base.repr(render::AbstractRenderType, x::FirstStageValue; digits=default_digits(render, x), args...)
-    isnothing(value(x)) ? "" : repr(render, value(x); digits, commas=true)
+function Base.repr(render::AbstractRenderType, x::FirstStageValue; digits = default_digits(render, x), args...)
+    isnothing(value(x)) ? "" : repr(render, value(x); digits, commas = true)
 end
 
 function Base.repr(render::AbstractRenderType, x::RandomEffectValue; args...)

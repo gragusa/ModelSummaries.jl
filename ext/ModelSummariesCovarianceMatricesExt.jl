@@ -42,12 +42,13 @@ model_hc3 = model + vcov(HC3())
 modelsummary(model_hc3)
 ```
 """
-struct RegressionModelWithVcov{M<:RegressionModel,T} <: RegressionModel
+struct RegressionModelWithVcov{M <: RegressionModel, T} <: RegressionModel
     model::M
     spec::VcovSpec{T}
     cache::Base.RefValue{Union{Nothing, AbstractMatrix}}
-    function RegressionModelWithVcov(model::M, spec::VcovSpec{T}) where {M<:RegressionModel,T}
-        new{M,T}(model, spec, Ref{Union{Nothing, AbstractMatrix}}(nothing))
+    function RegressionModelWithVcov(model::M, spec::VcovSpec{T}) where {
+            M <: RegressionModel, T}
+        new{M, T}(model, spec, Ref{Union{Nothing, AbstractMatrix}}(nothing))
     end
 end
 
@@ -171,16 +172,28 @@ vcov(x::RegressionModelWithVcov) = _custom_vcov(x)
 ##############################################################################
 
 ModelSummaries._formula(x::RegressionModelWithVcov) = ModelSummaries._formula(x.model)
-ModelSummaries._responsename(x::RegressionModelWithVcov) = ModelSummaries._responsename(x.model)
+function ModelSummaries._responsename(x::RegressionModelWithVcov)
+    ModelSummaries._responsename(x.model)
+end
 ModelSummaries._coefnames(x::RegressionModelWithVcov) = ModelSummaries._coefnames(x.model)
 ModelSummaries._coef(x::RegressionModelWithVcov) = ModelSummaries._coef(x.model)
 ModelSummaries._stderror(x::RegressionModelWithVcov) = _custom_stderror(x)
-ModelSummaries._dof_residual(x::RegressionModelWithVcov) = ModelSummaries._dof_residual(x.model)
+function ModelSummaries._dof_residual(x::RegressionModelWithVcov)
+    ModelSummaries._dof_residual(x.model)
+end
 ModelSummaries._islinear(x::RegressionModelWithVcov) = ModelSummaries._islinear(x.model)
-ModelSummaries.can_standardize(x::RegressionModelWithVcov) = ModelSummaries.can_standardize(x.model)
-ModelSummaries.RegressionType(x::RegressionModelWithVcov) = ModelSummaries.RegressionType(x.model)
-ModelSummaries.default_regression_statistics(x::RegressionModelWithVcov) = ModelSummaries.default_regression_statistics(x.model)
-ModelSummaries.other_stats(x::RegressionModelWithVcov, s::Symbol) = ModelSummaries.other_stats(x.model, s)
+function ModelSummaries.can_standardize(x::RegressionModelWithVcov)
+    ModelSummaries.can_standardize(x.model)
+end
+function ModelSummaries.RegressionType(x::RegressionModelWithVcov)
+    ModelSummaries.RegressionType(x.model)
+end
+function ModelSummaries.default_regression_statistics(x::RegressionModelWithVcov)
+    ModelSummaries.default_regression_statistics(x.model)
+end
+function ModelSummaries.other_stats(x::RegressionModelWithVcov, s::Symbol)
+    ModelSummaries.other_stats(x.model, s)
+end
 
 # VcovType for RegressionModelWithVcov - detect type from the spec
 function ModelSummaries.VcovType(x::RegressionModelWithVcov)
@@ -264,8 +277,8 @@ modelsummary(model + vcov(CR0(:id)))
 ```
 """
 function ModelSummaries.materialize_vcov(
-    estimator::AbstractAsymptoticVarianceEstimator,
-    model::StatsAPI.RegressionModel
+        estimator::AbstractAsymptoticVarianceEstimator,
+        model::StatsAPI.RegressionModel
 )
     return StatsBase.vcov(estimator, model)
 end
@@ -300,7 +313,7 @@ function ModelSummaries.vcov_type_name(v::CovarianceMatrices.HAC{<:CovarianceMat
     if bw_val == floor(bw_val)
         return string(typename, "(", Int(bw_val), ")")
     else
-        return string(typename, "(", round(bw_val, digits=2), ")")
+        return string(typename, "(", round(bw_val, digits = 2), ")")
     end
 end
 
@@ -311,7 +324,7 @@ function ModelSummaries.vcov_type_name(v::CovarianceMatrices.HAC)
         # Bandwidth not yet computed
         return string(typename, "(auto)")
     else
-        return string(typename, "(auto), bw: ", round(bw_val, digits=2))
+        return string(typename, "(auto), bw: ", round(bw_val, digits = 2))
     end
 end
 

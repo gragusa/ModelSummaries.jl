@@ -35,13 +35,14 @@ And to change the cutoffs run
 ModelSummarys.default_symbol(::AbstractLatex) = "x" # or whatever you want
 ```
 """
-function estim_decorator(render::AbstractRenderType, s, pval; breaks=default_breaks(render), sym=default_symbol(render))
+function estim_decorator(render::AbstractRenderType, s, pval;
+        breaks = default_breaks(render), sym = default_symbol(render))
     @assert issorted(breaks)
     (pval >= 0 || isnan(pval)) || @error "p value = $pval, but it needs to be non-negative"
 
     i0 = findfirst(pval .<= breaks)
     i = isnothing(i0) ? length(breaks) + 1 : i0
-      
+
     deco = sym^(length(breaks) - (i - 1))
     if deco != ""
         deco = wrapper(render, deco)
@@ -50,7 +51,7 @@ function estim_decorator(render::AbstractRenderType, s, pval; breaks=default_bre
     repr(render, s)*deco
 end
 
-function make_estim_decorator(breaks=[0.01, 0.05, 0.1], sym='*'; wrapper=identity)
+function make_estim_decorator(breaks = [0.01, 0.05, 0.1], sym = '*'; wrapper = identity)
     @assert issorted(breaks)
     # @warn("`make_estim_decorator` is deprecated, set breaks by running `ModelSummarys.default_breaks(::AbstractRenderType) = $breaks`,")
     # @warn("set symbol by running `ModelSummarys.default_symbol(::AbstractRenderType) = \"$sym\"`,")
@@ -58,7 +59,8 @@ function make_estim_decorator(breaks=[0.01, 0.05, 0.1], sym='*'; wrapper=identit
     #     @warn("and set wrapper by running `ModelSummarys.wrapper(::AbstractRenderType, deco) = $(string(wrapper))(deco)`")
     # end
     function estim_decorator(s, pval)
-        (pval >= 0 || isnan(pval)) || @error "p value = $pval, but it needs to be non-negative"
+        (pval >= 0 || isnan(pval)) ||
+            @error "p value = $pval, but it needs to be non-negative"
 
         i0 = findfirst(pval .<= breaks)
         i = isnothing(i0) ? length(breaks) + 1 : i0

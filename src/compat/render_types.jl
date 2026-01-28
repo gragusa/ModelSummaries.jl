@@ -32,32 +32,32 @@ struct HtmlTable <: AbstractHtml end
 Compatibility type for old DataRow system.
 Used internally during table construction.
 """
-mutable struct DataRow{T<:AbstractRenderType}
+mutable struct DataRow{T <: AbstractRenderType}
     data::Vector
     align::String
     print_underlines::Vector{Bool}
     render::T
 
     function DataRow(
-        data::Vector,
-        align,
-        print_underlines,
-        render::T;
-        kwargs...
-    ) where {T<:AbstractRenderType}
+            data::Vector,
+            align,
+            print_underlines,
+            render::T;
+            kwargs...
+    ) where {T <: AbstractRenderType}
         new{T}(data, align, print_underlines, render)
     end
 
     # Constructor that accepts colwidths as positional arg (but doesn't use it)
     # This is for backward compatibility with regtable.jl call sites
     function DataRow(
-        data::Vector,
-        align,
-        colwidths,  # accepted but not stored
-        print_underlines,
-        render::T;
-        kwargs...
-    ) where {T<:AbstractRenderType}
+            data::Vector,
+            align,
+            colwidths,  # accepted but not stored
+            print_underlines,
+            render::T;
+            kwargs...
+    ) where {T <: AbstractRenderType}
         new{T}(data, align, print_underlines, render)
     end
 end

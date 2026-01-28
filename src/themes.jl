@@ -57,8 +57,9 @@ Best for: Journal articles, dissertations, academic papers.
 """
 const ACADEMIC = Dict{Symbol, Any}(
     :text => PrettyTables.TextTableFormat(),  # Default unicode box-drawing
-    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
-              (b -> PrettyTables.TextTableFormat(; borders=b)),
+    :ascii => PrettyTables.TextTableBorders(
+        '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+              (b -> PrettyTables.TextTableFormat(; borders = b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -80,9 +81,10 @@ const MODERN = Dict{Symbol, Any}(
         '╮', '╭', '╰', '╯',  # Rounded corners
         '┬', '├', '┤', '┼', '┴',
         '│', '─'
-    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
-    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
-              (b -> PrettyTables.TextTableFormat(; borders=b)),
+    ) |> (b -> PrettyTables.TextTableFormat(; borders = b)),
+    :ascii => PrettyTables.TextTableBorders(
+        '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+              (b -> PrettyTables.TextTableFormat(; borders = b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -105,16 +107,17 @@ const MINIMAL = Dict{Symbol, Any}(
         '┬', '├', '┤', '┼', '┴',
         '│', '─'
     ) |> (b -> PrettyTables.TextTableFormat(;
-        borders=b,
-        horizontal_line_at_beginning=false,
-        horizontal_line_after_data_rows=false
+        borders = b,
+        horizontal_line_at_beginning = false,
+        horizontal_line_after_data_rows = false
     )),
-    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+    :ascii => PrettyTables.TextTableBorders(
+        '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
               (b -> PrettyTables.TextTableFormat(;
-                  borders=b,
-                  horizontal_line_at_beginning=false,
-                  horizontal_line_after_data_rows=false
-              )),
+        borders = b,
+        horizontal_line_at_beginning = false,
+        horizontal_line_after_data_rows = false
+    )),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -133,11 +136,12 @@ Best for: Large tables, space-constrained outputs.
 """
 const COMPACT = Dict{Symbol, Any}(
     :text => PrettyTables.text_table_format__matrix,
-    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
+    :ascii => PrettyTables.TextTableBorders(
+        '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
               (b -> PrettyTables.TextTableFormat(;
-                  borders=b,
-                  vertical_lines_at_data_columns=:none
-              )),
+        borders = b,
+        vertical_lines_at_data_columns = :none
+    )),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -166,9 +170,10 @@ const UNICODE = Dict{Symbol, Any}(
         '╗', '╔', '╚', '╝',  # Double-line corners
         '╦', '╠', '╣', '╬', '╩',
         '║', '═'
-    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
-    :ascii => PrettyTables.TextTableBorders('+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '=') |>
-              (b -> PrettyTables.TextTableFormat(; borders=b)),
+    ) |> (b -> PrettyTables.TextTableFormat(; borders = b)),
+    :ascii => PrettyTables.TextTableBorders(
+        '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '=') |>
+              (b -> PrettyTables.TextTableFormat(; borders = b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs
@@ -190,12 +195,12 @@ const STARGAZER = Dict{Symbol, Any}(
         '─', '─', '─', '─',  # corners (all horizontal lines)
         '─', '─', '─', '─', '─',  # junctions (all horizontal lines)
         ' ', '─'  # vertical (space), horizontal (line)
-    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
+    ) |> (b -> PrettyTables.TextTableFormat(; borders = b)),
     :ascii => PrettyTables.TextTableBorders(
         '-', '-', '-', '-',
         '-', '-', '-', '-', '-',
         ' ', '-'
-    ) |> (b -> PrettyTables.TextTableFormat(; borders=b)),
+    ) |> (b -> PrettyTables.TextTableFormat(; borders = b)),
     :markdown => PrettyTables.MarkdownTableFormat(),
     :html => PrettyTables.HtmlTableFormat(),
     :latex => PrettyTables.latex_table_format__booktabs,

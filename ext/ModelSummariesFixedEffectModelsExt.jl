@@ -9,14 +9,22 @@ ModelSummaries.FStat(x::FixedEffectModel) = FStat(x.F)
 ModelSummaries.FStatPValue(x::FixedEffectModel) = FStatPValue(x.p)
 
 ModelSummaries.FStatIV(x::FixedEffectModel) = has_iv(x) ? FStatIV(x.F_kp) : FStatIV(nothing)
-ModelSummaries.FStatIVPValue(x::FixedEffectModel) = has_iv(x) ? FStatIVPValue(x.p_kp) : FStatIVPValue(nothing)
+function ModelSummaries.FStatIVPValue(x::FixedEffectModel)
+    has_iv(x) ? FStatIVPValue(x.p_kp) : FStatIVPValue(nothing)
+end
 
-ModelSummaries.R2Within(x::FixedEffectModel) = has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+function ModelSummaries.R2Within(x::FixedEffectModel)
+    has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+end
 
 ModelSummaries.RegressionType(x::FixedEffectModel) = RegressionType(Normal(), has_iv(x))
 
-ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(FixedEffectModels.fe)}) = ModelSummaries.CoefName(string(x.exorig.args[end]))
-ModelSummaries.get_coefname(x::FixedEffectModels.FixedEffectTerm) = ModelSummaries.CoefName(string(x.x))
+function ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(FixedEffectModels.fe)})
+    ModelSummaries.CoefName(string(x.exorig.args[end]))
+end
+function ModelSummaries.get_coefname(x::FixedEffectModels.FixedEffectTerm)
+    ModelSummaries.CoefName(string(x.x))
+end
 
 """
     ModelSummaries.other_stats(rr::FixedEffectModel; fixedeffects=String[], fe_suffix="Fixed Effects")
@@ -25,7 +33,6 @@ Return a vector of fixed effects terms. If `fixedeffects` is not empty, only the
 """
 function ModelSummaries.other_stats(rr::FixedEffectModel, s::Symbol)
     if s == :fe
-
         out = []
         if !isdefined(rr, :formula)
             return Dict{Symbol, Vector{Pair}}()
@@ -33,7 +40,8 @@ function ModelSummaries.other_stats(rr::FixedEffectModel, s::Symbol)
         fe_set = has_fe.(rr.formula.rhs)
         for (i, v) in enumerate(fe_set)
             if v && !isa(fe_set, Bool)
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
+                push!(out,
+                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
             elseif v
                 push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
             end
