@@ -26,7 +26,8 @@ using ModelSummaries.Themes
                 # Stargazer should not have vertical lines '|' usually, but depends on impl.
                 # Our impl uses ' ' for vertical.
                 @test !occursin("|", out)
-                @test occursin("-", out)
+                # Stargazer uses box-drawing horizontal line character (─) not ASCII hyphen (-)
+                @test occursin("─", out)
             elseif theme_name == :modern
                 # Modern uses rounded corners
                 @test occursin("╭", out) || occursin("╮", out)

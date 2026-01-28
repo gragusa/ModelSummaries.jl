@@ -21,7 +21,7 @@ CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 
 [sources]
-Regress = {url= "https://gituh.com/gragusa/Regress.jl"}
+Regress = {url= "https://gituh.com/gragusa/Regress.jl", rev = "main"}
 
 [extensions]
 ModelSummariesCovarianceMatricesExt = "CovarianceMatrices"
