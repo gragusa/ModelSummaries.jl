@@ -15,13 +15,13 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 
 [weakdeps]
-Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
-FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
 CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
+FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
 
 [sources]
-Regress = {url= "https://gituh.com/gragusa/Regress.jl", rev = "main"}
+Regress = {rev = "main", url = "https://gituh.com/gragusa/Regress.jl"}
 
 [extensions]
 ModelSummariesCovarianceMatricesExt = "CovarianceMatrices"
@@ -31,6 +31,7 @@ ModelSummariesRegressExt = "Regress"
 
 [compat]
 Aqua = "0.8"
+CategoricalArrays = "1.0.2"
 CovarianceMatrices = "0.30.4"
 Crayons = "4.1.1"
 DataFrames = "1.8.1"
@@ -50,9 +51,10 @@ julia = "1.11"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
-Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
 RDatasets = "ce6b1742-4840-55fa-b093-852dadbb1d8b"
+Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"

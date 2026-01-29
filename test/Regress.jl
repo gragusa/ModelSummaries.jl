@@ -3,7 +3,7 @@ using Regress
 using Regress: fe  # Explicitly use fe from Regress to avoid ambiguity
 using DataFrames
 using Test
-
+using CategoricalArrays
 @testset "Regress Extension" begin
     # Create test data
     df = DataFrame(
@@ -11,7 +11,7 @@ using Test
         x1 = randn(100),
         x2 = randn(100),
         z = randn(100),  # instrument
-        group = rand(1:5, 100)
+        group = categorical(rand(1:5, 100))
     )
 
     @testset "OLS without FE" begin
