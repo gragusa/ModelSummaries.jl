@@ -18,7 +18,6 @@ abstract type AbstractHtml <: AbstractRenderType end
 
 struct AsciiTable <: AbstractAscii end
 struct LatexTable <: AbstractLatex end
-struct LatexTableStar <: AbstractLatex end
 struct HtmlTable <: AbstractHtml end
 
 # DataRow compatibility type

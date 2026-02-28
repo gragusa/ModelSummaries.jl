@@ -73,7 +73,6 @@ interaction_combine(render::AbstractRenderType) = " & "
 interaction_combine(render::AbstractLatex) = " \$\\times\$ "
 interaction_combine(render::AbstractHtml) = " &times; "
 
-extra_cell_space(::AbstractRenderType) = 0
 categorical_equal(render::AbstractRenderType) = ":"
 random_effect_separator(render::AbstractRenderType) = " | "
 
@@ -84,8 +83,6 @@ function label_distribution(render::AbstractRenderType, d::D) where {D <:
                                                                      UnivariateDistribution}
     string(Base.typename(D).wrapper)
 end
-label_distribution(render::AbstractRenderType, d::NegativeBinomial) = "Negative Binomial"
-label_distribution(render::AbstractRenderType, d::InverseGaussian) = "Inverse Gaussian"
 
 below_decoration(render::AbstractRenderType, s) = "($s)"
 number_regressions_decoration(render::AbstractRenderType, s) = "($s)"
@@ -134,19 +131,6 @@ function Base.repr(render::AbstractHtml, val::Pair; align = "c", args...)
         s
     end
 end
-
-# Default functions
-colsep(::AbstractRenderType) = "   "
-colsep(::AbstractLatex) = " & "
-colsep(::AbstractHtml) = ""
-
-tablestart(::AbstractRenderType) = ""
-tableend(::AbstractRenderType) = ""
-toprule(::AbstractRenderType) = ""
-midrule(::AbstractRenderType) = ""
-bottomrule(::AbstractRenderType) = ""
-linestart(::AbstractRenderType) = ""
-lineend(::AbstractRenderType) = ""
 
 # Note: default_align and default_header_align are defined in regtable.jl
 

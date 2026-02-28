@@ -19,8 +19,6 @@ module ModelSummaries
 ##
 ##############################################################################
 
-#using DataFrames
-
 using StatsBase
 using StatsModels
 using Statistics

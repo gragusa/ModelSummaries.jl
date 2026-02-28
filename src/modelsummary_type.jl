@@ -218,20 +218,16 @@ function _process_table_format(spec)
         return _process_table_format(Dict(spec))
     end
 
-    # Handle direct table format object (apply to all compatible backends? No, assume it's for text/auto)
+    # Single format object: apply to backends where coercion succeeds
     if !(spec isa AbstractDict)
-        # If it's a single format object, we try to apply it where it fits, or just return default behavior
-        # But previously _normalize returned a Dict.
-        # Let's check previous behavior. It coerced for all backends.
-        # That seems wrong if the format is specific.
-        # We will assume user passes a Dict if they want specificity.
-        # If they pass a single object, we try to use it for all backends (coercion will fail if mismatched types).
         for backend in _MODEL_SUMMARIES_BACKENDS
-            # Try/Catch or just let coerce handle it
-            try
-                formats[backend] = _coerce_table_format_value(spec, backend)
+            coerced = try
+                _coerce_table_format_value(spec, backend)
             catch
-                # If coercion fails, stick to default
+                nothing  # coercion failed, keep default
+            end
+            if coerced !== nothing
+                formats[backend] = coerced
             end
         end
         return formats, backend_kwargs
@@ -398,19 +394,6 @@ function Base.setindex!(rt::ModelSummary, val, i::Int, j::Int)
     rt
 end
 
-# Helper functions to convert alignment symbols to PrettyTables format
-function _pt_alignment(align::Vector{Symbol})
-    return align
-end
-
-function _convert_alignment_char(c::Char)
-    c == 'l' ? :l : (c == 'c' ? :c : :r)
-end
-
-function _convert_alignment_string(s::String)
-    [_convert_alignment_char(c) for c in s]
-end
-
 # Main printing function using PrettyTables
 """
     _render_table(io::IO, rt::ModelSummary, backend::Symbol)
@@ -436,62 +419,18 @@ function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
         merge!(kwargs, rt.backend_kwargs[backend])
     end
 
-    if backend == :text
-        # Text backend uses default TextTableFormat (Unicode box-drawing)
-        if !haskey(kwargs, :table_format)
-            val = get(rt.table_format, backend, default_table_format(backend))
-            if val !== nothing
-                kwargs[:table_format] = val
-            end
-        end
-        kwargs[:backend] = :text
-        kwargs[:alignment] = alignment
-        kwargs[:column_label_alignment] = rt.header_align
-        # Note: Text backend doesn't support body_hlines via keyword
-        # Horizontal lines must be configured in the TextTableFormat object
+    # Map our backend symbol to PrettyTables backend (:text and :ascii both use :text)
+    pt_backend = (backend == :ascii) ? :text : backend
 
-    elseif backend == :ascii
-        # ASCII backend uses text backend with ASCII-only table format
-        if !haskey(kwargs, :table_format)
-            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
+    if !haskey(kwargs, :table_format)
+        val = get(rt.table_format, backend, default_table_format(backend))
+        if val !== nothing
+            kwargs[:table_format] = val
         end
-        kwargs[:backend] = :text
-        kwargs[:alignment] = alignment
-        kwargs[:column_label_alignment] = rt.header_align
-        # Note: Text backend doesn't support body_hlines via keyword
-        # Horizontal lines must be configured in the TextTableFormat object
-
-    elseif backend == :markdown
-        # Set table format for markdown (PrettyTables 3.x uses table_format keyword, not tf)
-        if !haskey(kwargs, :table_format)
-            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
-        end
-        kwargs[:backend] = :markdown
-        kwargs[:alignment] = alignment
-        kwargs[:column_label_alignment] = rt.header_align
-        # Note: Markdown backend in PrettyTables 3.x doesn't support body_hlines
-
-    elseif backend == :html
-        # Set table format for HTML
-        if !haskey(kwargs, :table_format)
-            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
-        end
-        kwargs[:backend] = :html
-        kwargs[:alignment] = alignment
-        kwargs[:column_label_alignment] = rt.header_align
-        # HTML backend doesn't support body_hlines directly either
-
-    elseif backend == :latex
-        # Set table format for LaTeX
-        if !haskey(kwargs, :table_format)
-            kwargs[:table_format] = get(rt.table_format, backend, default_table_format(backend))
-        end
-        kwargs[:backend] = :latex
-        kwargs[:alignment] = alignment
-        kwargs[:column_label_alignment] = rt.header_align
-        # Note: LaTeX backend doesn't support body_hlines via keyword in PrettyTables 3.x
-        # Horizontal lines must be configured in the LatexTableFormat object
     end
+    kwargs[:backend] = pt_backend
+    kwargs[:alignment] = alignment
+    kwargs[:column_label_alignment] = rt.header_align
 
     # Add formatters if any
     if !isempty(rt.formatters)
