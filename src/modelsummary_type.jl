@@ -102,7 +102,7 @@ mutable struct ModelSummary
     end
 end
 
-const _MODEL_SUMMARIES_BACKENDS = (:text, :ascii, :markdown, :html, :latex)
+const _MODEL_SUMMARIES_BACKENDS = (:text, :ascii, :markdown, :html, :latex, :typst)
 
 """
     _ascii_table_format()
@@ -123,7 +123,7 @@ end
     default_table_format(backend::Symbol)
 
 Return the default table format for the given backend when no explicit
-`table_format` is provided. Supported backends are `:text`, `:ascii`, `:markdown`, `:html`, and `:latex`.
+`table_format` is provided. Supported backends are `:text`, `:ascii`, `:markdown`, `:html`, `:latex`, and `:typst`.
 """
 function default_table_format(backend::Symbol)
     if backend == :text
@@ -138,8 +138,11 @@ function default_table_format(backend::Symbol)
         return PrettyTables.HtmlTableFormat()
     elseif backend == :latex
         return PrettyTables.latex_table_format__booktabs
+    elseif backend == :typst
+        # Let PrettyTables choose its default Typst rendering style unless users override it.
+        return nothing
     else
-        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :ascii, :markdown, :html, or :latex."))
+        throw(ArgumentError("Unsupported backend $backend. Valid options are :text, :ascii, :markdown, :html, :latex, or :typst."))
     end
 end
 
@@ -163,7 +166,8 @@ function _table_format_from_symbol(sym::Symbol)
         Symbol("latex_table_format__$(sym)"),
         Symbol("text_table_format__$(sym)"),
         Symbol("markdown_table_format__$(sym)"),
-        Symbol("html_table_format__$(sym)")
+        Symbol("html_table_format__$(sym)"),
+        Symbol("typst_table_format__$(sym)")
     ]
 
     for candidate in candidates
@@ -174,11 +178,20 @@ function _table_format_from_symbol(sym::Symbol)
     throw(ArgumentError("Unknown table_format alias :$sym. In PrettyTables 3.x, use format constructors directly (e.g., LatexTableFormat(), MarkdownTableFormat()) or specific constants like :booktabs."))
 end
 
+function _is_pretty_table_format_object(val)
+    format_type_name = string(nameof(typeof(val)))
+    return endswith(format_type_name, "TableFormat")
+end
+
 function _coerce_table_format_value(val, backend::Symbol)
     if val === nothing || val === :default
         return default_table_format(backend)
     elseif val isa Union{PrettyTables.LatexTableFormat, PrettyTables.TextTableFormat,
         PrettyTables.MarkdownTableFormat, PrettyTables.HtmlTableFormat}
+        return val
+    elseif _is_pretty_table_format_object(val)
+        # Accept newer PrettyTables format objects (e.g., TypstTableFormat) without
+        # hard-coding concrete types that may vary across PrettyTables versions.
         return val
     elseif val isa Symbol
         # Try to resolve known symbols
@@ -188,7 +201,7 @@ function _coerce_table_format_value(val, backend::Symbol)
             return _table_format_from_symbol(val)
         end
     else
-        throw(ArgumentError("table_format entries must be table format objects (LatexTableFormat, TextTableFormat, MarkdownTableFormat, HtmlTableFormat), `:default`, or a supported alias symbol."))
+        throw(ArgumentError("table_format entries must be table format objects (e.g., LatexTableFormat, TextTableFormat, MarkdownTableFormat, HtmlTableFormat, TypstTableFormat), `:default`, or a supported alias symbol."))
     end
 end
 
@@ -342,7 +355,7 @@ end
     set_backend!(rt::ModelSummary, backend::Symbol)
 
 Set the rendering backend.
-Valid backends: :text, :ascii, :markdown, :html, :latex, or :auto (nothing) for automatic detection.
+Valid backends: :text, :ascii, :markdown, :html, :latex, :typst, or :auto (nothing) for automatic detection.
 
 Note: :text backend uses PrettyTables text backend (customization via kwargs),
 :ascii backend is like :text but forces ASCII-only characters,
@@ -350,7 +363,7 @@ while :markdown uses markdown backend with MarkdownTableFormat.
 """
 function set_backend!(rt::ModelSummary, backend::Union{Symbol, Nothing})
     if backend !== nothing
-        @assert backend in (:text, :ascii, :markdown, :html, :latex) "Backend must be :text, :ascii, :markdown, :html, :latex, or nothing"
+        @assert backend in (:text, :ascii, :markdown, :html, :latex, :typst) "Backend must be :text, :ascii, :markdown, :html, :latex, :typst, or nothing"
     end
     rt.backend = backend
     rt
@@ -401,15 +414,8 @@ end
 Internal function to render the table using PrettyTables.jl.
 """
 function _render_table(io::IO, rt::ModelSummary, backend::Symbol)
-    # Prepare the full data matrix (header + body)
-    nheader = length(rt.header)
-
     # Build alignment vector (header uses header_align, body uses body_align)
     alignment = rt.body_align
-
-    # Adjust hlines to account for PrettyTables' header handling
-    # PrettyTables puts an automatic line after headers, so we need to adjust our hlines
-    hlines_adjusted = copy(rt.hlines)
 
     # PrettyTables configuration based on backend
     kwargs = copy(rt.pretty_kwargs)
@@ -531,6 +537,8 @@ function Base.write(filename::String, rt::ModelSummary)
                 backend = :latex
             elseif ext in (".html", ".htm")
                 backend = :html
+            elseif ext == ".typ"
+                backend = :typst
             else
                 backend = :text
             end

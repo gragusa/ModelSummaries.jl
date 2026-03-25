@@ -121,6 +121,10 @@ end
     set_backend!(ms, :html)
     @test ms.backend == :html
 
+    # Typst backend is supported
+    set_backend!(ms, :typst)
+    @test ms.backend == :typst
+
     # Reset to auto-detect
     set_backend!(ms, nothing)
     @test ms.backend === nothing
