@@ -31,6 +31,9 @@ using ModelSummaries.Themes
             elseif theme_name == :modern
                 # Modern uses rounded corners
                 @test occursin("╭", out) || occursin("╮", out)
+            elseif theme_name == :academic
+                # Academic style should avoid vertical separators in text output.
+                @test !occursin("│", out)
             end
         end
     end

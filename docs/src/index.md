@@ -35,6 +35,13 @@ For most users, start with a theme:
 modelsummary(m1, m2; theme=:modern)
 ```
 
+For economics/journal-style output, use:
+
+```julia
+modelsummary(m1, m2; theme=:academic, backend=:latex, file="table.tex")
+modelsummary(m1, m2; theme=:academic, backend=:typst, file="table.typ")
+```
+
 Then customize only what you need with `table_format`:
 
 ```julia

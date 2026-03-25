@@ -97,6 +97,17 @@ modelsummary(m1, m2; theme=:unicode)
 
 Available themes: `:academic`, `:modern`, `:minimal`, `:compact`, `:unicode`, `:default`
 
+`theme=:academic` now aims to mimic a journal-style table aesthetic:
+- minimal rules in text output (no vertical separators),
+- `booktabs` in LaTeX,
+- sensible Typst defaults through PrettyTables.
+
+```julia
+# Journal-like output
+modelsummary(m1, m2; theme=:academic, backend=:latex, file="table.tex")
+modelsummary(m1, m2; theme=:academic, backend=:typst, file="table.typ")
+```
+
 For fine-grained control, use the `table_format` keyword:
 
 ```julia

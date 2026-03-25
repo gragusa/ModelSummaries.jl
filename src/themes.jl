@@ -2,7 +2,8 @@
 Theme presets for ModelSummaries.jl
 
 This module provides pre-configured theme presets that combine table formats
-for different backends (text, HTML, LaTeX) with beautiful, consistent styling.
+for different backends (text, markdown, HTML, LaTeX, Typst) with beautiful,
+consistent styling.
 
 # Available Themes
 
@@ -47,22 +48,48 @@ using Crayons
 """
     ACADEMIC
 
-Professional academic publication style using booktabs aesthetics.
+Professional academic publication style inspired by economics-journal tables
+(booktabs-like rules, minimal ink, no vertical separators).
 Best for: Journal articles, dissertations, academic papers.
 
-- Text: Unicode box-drawing with full borders
-- Markdown: Standard markdown table
-- HTML: Clean HTML table
+- Text: Minimal horizontal rules (no vertical separators)
+- Markdown: Clean markdown with standard alignment
+- HTML: Clean HTML table (minimal style)
 - LaTeX: Classic booktabs style
+- Typst: PrettyTables default Typst style (customizable)
 """
 const ACADEMIC = Dict{Symbol, Any}(
-    :text => PrettyTables.TextTableFormat(),  # Default unicode box-drawing
+    :text => PrettyTables.TextTableBorders(
+        '─', '─', '─', '─',
+        '─', '─', '─', '─', '─',
+        ' ', '─'
+    ) |> (b -> PrettyTables.TextTableFormat(;
+        borders = b,
+        horizontal_line_at_beginning = true,
+        horizontal_line_after_column_labels = true,
+        horizontal_line_after_data_rows = true,
+        vertical_lines_at_data_columns = :none,
+        vertical_lines_at_header_columns = :none
+    )),
     :ascii => PrettyTables.TextTableBorders(
         '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
-              (b -> PrettyTables.TextTableFormat(; borders = b)),
-    :markdown => PrettyTables.MarkdownTableFormat(),
-    :html => PrettyTables.HtmlTableFormat(),
-    :latex => PrettyTables.latex_table_format__booktabs
+              (b -> PrettyTables.TextTableFormat(;
+        borders = b,
+        vertical_lines_at_data_columns = :none,
+        vertical_lines_at_header_columns = :none
+    )),
+    :markdown => Dict(
+        :table_format => PrettyTables.MarkdownTableFormat()
+    ),
+    :html => Dict(
+        :table_format => PrettyTables.HtmlTableFormat()
+    ),
+    :latex => Dict(
+        :table_format => PrettyTables.latex_table_format__booktabs
+    ),
+    :typst => Dict(
+        :table_format => :default
+    )
 )
 
 """
