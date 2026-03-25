@@ -66,17 +66,14 @@ const ACADEMIC = Dict{Symbol, Any}(
     ) |> (b -> PrettyTables.TextTableFormat(;
         borders = b,
         horizontal_line_at_beginning = true,
-        horizontal_line_after_column_labels = true,
         horizontal_line_after_data_rows = true,
-        vertical_lines_at_data_columns = :none,
-        vertical_lines_at_header_columns = :none
+        vertical_lines_at_data_columns = :none
     )),
     :ascii => PrettyTables.TextTableBorders(
         '+', '+', '+', '+', '+', '+', '+', '+', '+', '|', '-') |>
               (b -> PrettyTables.TextTableFormat(;
         borders = b,
-        vertical_lines_at_data_columns = :none,
-        vertical_lines_at_header_columns = :none
+        vertical_lines_at_data_columns = :none
     )),
     :markdown => Dict(
         :table_format => PrettyTables.MarkdownTableFormat()
