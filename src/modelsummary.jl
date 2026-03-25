@@ -937,8 +937,8 @@ The `stats` argument can also be a pair of `AbstractRegressionStatistic => Strin
 uses the second value as the name of the statistic in the final table.
 """
 function combine_statistics(tables, stats)
-    types_strings = display_val.(stats)
-    type_f = f_val.(stats)
+    types_strings = collect(display_val.(stats))
+    type_f = collect(f_val.(stats))
     mat = Matrix{Any}(missing, length(types_strings), length(tables))
     for (i, t) in enumerate(tables)
         for (j, s) in enumerate(type_f)
