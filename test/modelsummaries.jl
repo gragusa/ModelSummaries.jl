@@ -353,9 +353,11 @@ end
 
     @testset "Integration with modelsummary" begin
         # Test that modelsummary works with custom vcov
-        tab = modelsummary(lm1 + vcov(HC3()), backend = :text,
-            file = joinpath(dirname(@__FILE__), "tables", "reghc31.txt"))
-        @test tab !== nothing
+        mktempdir() do tmpdir
+            tab = modelsummary(lm1 + vcov(HC3()), backend = :text,
+                file = joinpath(tmpdir, "reghc31.txt"))
+            @test tab !== nothing
+        end
         # Just ensure it doesn't error - visual output testing is beyond scope
     end
 end
