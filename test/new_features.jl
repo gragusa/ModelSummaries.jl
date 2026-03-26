@@ -1,4 +1,5 @@
 using ModelSummaries
+using ModelSummaries.Themes
 using PrettyTables
 using Test
 
@@ -66,27 +67,50 @@ end
     @test ms.hlines == [4]
 end
 
-# NOTE: Theme system tests are skipped until the Themes module is implemented.
-# The theme system is documented in CLAUDE.md but not yet fully implemented.
-
 @testset "Theme system - preset themes" begin
-    @test_skip "Theme system not yet implemented"
+    for name in Themes.THEME_NAMES
+        theme = Themes.get_theme(name)
+        @test theme isa Dict{Symbol, Any}
+        @test haskey(theme, :text)
+    end
 end
 
 @testset "Theme system - academic theme specifics" begin
-    @test_skip "Theme system not yet implemented"
+    theme = Themes.get_theme(:academic)
+    @test haskey(theme, :text)
+    @test haskey(theme, :latex)
+    @test haskey(theme, :html)
+    @test Themes.ACADEMIC === Themes.DEFAULT
 end
 
 @testset "Theme system - unknown theme" begin
-    @test_skip "Theme system not yet implemented"
+    @test_throws ArgumentError Themes.get_theme(:nonexistent)
 end
 
 @testset "Theme system - custom theme" begin
-    @test_skip "Theme system not yet implemented"
+    custom = Dict{Symbol, Any}(:text => PrettyTables.text_table_format__matrix)
+    @test Themes.get_theme(custom) === custom
+
+    custom_nt = (; text = PrettyTables.text_table_format__matrix)
+    result = Themes.get_theme(custom_nt)
+    @test result isa Dict{Symbol, Any}
+    @test haskey(result, :text)
 end
 
 @testset "Theme system - list_themes" begin
-    @test_skip "Theme system not yet implemented"
+    @test :academic in Themes.THEME_NAMES
+    @test :modern in Themes.THEME_NAMES
+    @test :stargazer in Themes.THEME_NAMES
+    @test length(Themes.THEME_NAMES) == 7
+    # list_themes() prints without error
+    mktemp() do path, io
+        redirect_stdout(io) do
+            Themes.list_themes()
+        end
+        flush(io)
+        output = read(path, String)
+        @test occursin("academic", output)
+    end
 end
 
 @testset "Direct pretty_kwargs access" begin

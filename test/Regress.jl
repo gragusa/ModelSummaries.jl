@@ -48,9 +48,9 @@ using CategoricalArrays
         @test size(ms, 2) == 4  # rownames + 3 models
     end
 
-    @testset "IV model (TSLS)" begin
+    @testset "IV model (Regress.TSLS)" begin
         # Simple IV: x2 is endogenous, z is instrument
-        m = Regress.iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         ms = modelsummary(m)
         @test size(ms, 2) == 2
 
@@ -63,7 +63,7 @@ using CategoricalArrays
 
     @testset "First Stage Section" begin
         # Test that first-stage F-statistic appears when enabled
-        m = Regress.iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         ms = modelsummary(m; print_first_stage_section = true)
 
         buf = IOBuffer()
@@ -83,7 +83,7 @@ using CategoricalArrays
 
     @testset "Mixed OLS and IV" begin
         m1 = Regress.ols(df, @formula(y ~ x1 + x2))
-        m2 = Regress.iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m2 = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
 
         ms = modelsummary(m1, m2)
         @test size(ms, 2) == 3
@@ -132,7 +132,7 @@ using CategoricalArrays
     end
 
     @testset "IV with custom vcov" begin
-        m = Regress.iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_hc3 = m + vcov(HC3())
 
         # Basic table creation
@@ -149,7 +149,7 @@ using CategoricalArrays
     end
 
     @testset "IV first stage section with custom vcov" begin
-        m = Regress.iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_hc3 = m + vcov(HC3())
 
         # Test first-stage section with custom vcov (uses recomputed F_kp)
@@ -165,7 +165,7 @@ using CategoricalArrays
 
     @testset "Mixed model types with custom vcov" begin
         m_ols = Regress.ols(df, @formula(y ~ x1 + x2))
-        m_iv = Regress.iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m_iv = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_ols_hc3 = m_ols + vcov(HC3())
         m_iv_hc3 = m_iv + vcov(HC3())
 
