@@ -6,7 +6,7 @@ include("Aqua.jl")
 tests = [
     "label_transforms.jl",
     "modelsummaries.jl",
-    "new_features.jl",
+    "new_features.jl"
 ]
 
 for test in tests

@@ -59,37 +59,37 @@ end
 
 @testset "Stars" begin
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2; stars=true))
+    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2; stars = true))
     out = String(take!(buf))
     @test occursin("\\textsuperscript{", out)
 end
 
 @testset "Below statistic options" begin
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic=StdError))
+    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic = StdError))
     out = String(take!(buf))
     @test occursin("(0.", out)
 
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic=ConfInt))
+    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic = ConfInt))
     out = String(take!(buf))
     @test occursin(",", out)
 
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic=nothing))
+    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic = nothing))
     out = String(take!(buf))
     @test !occursin("(0.", out)
 end
 
 @testset "Keep, drop, order" begin
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2; keep=["SepalWidth"]))
+    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2; keep = ["SepalWidth"]))
     out = String(take!(buf))
     @test occursin("SepalWidth", out)
     @test !occursin("(Intercept)", out)
 
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2; drop=["(Intercept)"]))
+    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2; drop = ["(Intercept)"]))
     out = String(take!(buf))
     @test !occursin("(Intercept)", out)
     @test occursin("SepalWidth", out)
@@ -98,7 +98,7 @@ end
 @testset "Regression statistics" begin
     buf = IOBuffer()
     show(buf, MIME"text/latex"(), modelsummary(lm1;
-        regression_statistics=[Nobs, R2, AdjR2, AIC, BIC]))
+        regression_statistics = [Nobs, R2, AdjR2, AIC, BIC]))
     out = String(take!(buf))
     @test occursin("N", out)
     @test occursin("Adjusted", out)
@@ -109,7 +109,7 @@ end
 @testset "Labels" begin
     buf = IOBuffer()
     show(buf, MIME"text/latex"(), modelsummary(lm1;
-        labels=Dict("SepalWidth" => "Sepal Width (cm)")))
+        labels = Dict("SepalWidth" => "Sepal Width (cm)")))
     out = String(take!(buf))
     @test occursin("Sepal Width (cm)", out)
 end
@@ -117,7 +117,7 @@ end
 @testset "Groups" begin
     buf = IOBuffer()
     show(buf, MIME"text/latex"(), modelsummary(lm1, lm2;
-        groups=["Base", "Extended"]))
+        groups = ["Base", "Extended"]))
     out = String(take!(buf))
     @test occursin("Base", out)
     @test occursin("Extended", out)
@@ -133,7 +133,7 @@ end
 
 @testset "Estimator section" begin
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(lm1, gm1; print_estimator_section=true))
+    show(buf, MIME"text/latex"(), modelsummary(lm1, gm1; print_estimator_section = true))
     out = String(take!(buf))
     @test occursin("Estimator", out)
     @test occursin("OLS", out)
@@ -143,17 +143,17 @@ end
 @testset "File output" begin
     mktempdir() do dir
         texfile = joinpath(dir, "test.tex")
-        modelsummary(lm1, lm2; file=texfile)
+        modelsummary(lm1, lm2; file = texfile)
         @test isfile(texfile)
         @test occursin("\\begin{table}", read(texfile, String))
 
         htmlfile = joinpath(dir, "test.html")
-        modelsummary(lm1, lm2; file=htmlfile)
+        modelsummary(lm1, lm2; file = htmlfile)
         @test isfile(htmlfile)
         @test occursin("<table", read(htmlfile, String))
 
         typfile = joinpath(dir, "test.typ")
-        modelsummary(lm1, lm2; file=typfile)
+        modelsummary(lm1, lm2; file = typfile)
         @test isfile(typfile)
         @test occursin("#table", read(typfile, String))
     end
@@ -166,15 +166,15 @@ end
 @testset "Extralines" begin
     comments = ["Specification", "Baseline", "Preferred"]
     buf = IOBuffer()
-    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2; extralines=[comments]))
+    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2; extralines = [comments]))
     out = String(take!(buf))
     @test occursin("Specification", out)
     @test occursin("Baseline", out)
 end
 
 @testset "Symbol aliases" begin
-    @test modelsummary(lm1; below_statistic=:se) isa Table
-    @test modelsummary(lm1; below_statistic=:tstat) isa Table
-    @test modelsummary(lm1; below_statistic=:none) isa Table
-    @test modelsummary(lm1; regression_statistics=[:nobs, :r2, :adjr2]) isa Table
+    @test modelsummary(lm1; below_statistic = :se) isa Table
+    @test modelsummary(lm1; below_statistic = :tstat) isa Table
+    @test modelsummary(lm1; below_statistic = :none) isa Table
+    @test modelsummary(lm1; regression_statistics = [:nobs, :r2, :adjr2]) isa Table
 end

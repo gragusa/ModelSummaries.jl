@@ -5,18 +5,18 @@
 
 Format a floating-point number for display in the table.
 """
-format_number(x::Float64; digits=3) = format(x; precision=digits, commas=false)
-format_number(x::Real; digits=3) = format(Float64(x); precision=digits, commas=false)
-format_number(x::Int; digits=3) = format(x, commas=true)
-format_number(::Nothing; digits=3) = ""
-format_number(::Missing; digits=3) = ""
+format_number(x::Float64; digits = 3) = format(x; precision = digits, commas = false)
+format_number(x::Real; digits = 3) = format(Float64(x); precision = digits, commas = false)
+format_number(x::Int; digits = 3) = format(x, commas = true)
+format_number(::Nothing; digits = 3) = ""
+format_number(::Missing; digits = 3) = ""
 
 """
     significance_stars(pval; breaks=[0.001, 0.01, 0.05])
 
 Return significance stars string based on p-value.
 """
-function significance_stars(pval; breaks=[0.001, 0.01, 0.05])
+function significance_stars(pval; breaks = [0.001, 0.01, 0.05])
     @assert issorted(breaks)
     (isnan(pval) || pval < 0) && return ""
     i = findfirst(pval .<= breaks)
@@ -28,7 +28,7 @@ end
 
 Create a Cell for a coefficient value, optionally with significance stars.
 """
-function make_coef_cell(cv::CoefValue; digits=3, stars=false, halign=:right)
+function make_coef_cell(cv::CoefValue; digits = 3, stars = false, halign = :right)
     s = format_number(cv.val; digits)
     if stars
         star_str = significance_stars(cv.pvalue)
@@ -44,18 +44,18 @@ end
 
 Create a Cell for an under-statistic (standard error, t-stat).
 """
-function make_understat_cell(us::AbstractUnderStatistic; digits=3, halign=:right)
+function make_understat_cell(us::AbstractUnderStatistic; digits = 3, halign = :right)
     Cell("(" * format_number(value(us); digits) * ")"; halign)
 end
 
-function make_understat_cell(ci::ConfInt; digits=3, halign=:right)
+function make_understat_cell(ci::ConfInt; digits = 3, halign = :right)
     lo = format_number(value(ci)[1]; digits)
     hi = format_number(value(ci)[2]; digits)
     Cell("($lo, $hi)"; halign)
 end
 
-make_understat_cell(::Missing; digits=3, halign=:right) = Cell(nothing; halign)
-make_understat_cell(::Nothing; digits=3, halign=:right) = Cell(nothing; halign)
+make_understat_cell(::Missing; digits = 3, halign = :right) = Cell(nothing; halign)
+make_understat_cell(::Nothing; digits = 3, halign = :right) = Cell(nothing; halign)
 
 # Display name functions for coefficient names
 
@@ -100,7 +100,7 @@ _distribution_name(x::Normal) = "OLS"
 _distribution_name(x::InverseGaussian) = "Inverse Gaussian"
 _distribution_name(x::NegativeBinomial) = "Negative Binomial"
 _distribution_name(x::AbstractString) = x
-function _distribution_name(x::D) where {D<:UnivariateDistribution}
+function _distribution_name(x::D) where {D <: UnivariateDistribution}
     string(Base.typename(D).wrapper)
 end
 
@@ -111,14 +111,20 @@ end
 
 Format a regression statistic value for display in a cell.
 """
-format_stat_value(x::AbstractRegressionStatistic; digits=3) = format_number(value(x); digits)
-format_stat_value(x::Nobs; digits=3) = value(x) === nothing ? "" : format(value(x), commas=true)
-format_stat_value(x::DOF; digits=3) = value(x) === nothing ? "" : format(value(x), commas=true)
-format_stat_value(x::VcovType; digits=3) = something(value(x), "")
-format_stat_value(::Spacer; digits=3) = ""
-format_stat_value(::Missing; digits=3) = ""
-format_stat_value(::Nothing; digits=3) = ""
-format_stat_value(x::AbstractString; digits=3) = x
+function format_stat_value(x::AbstractRegressionStatistic; digits = 3)
+    format_number(value(x); digits)
+end
+function format_stat_value(x::Nobs; digits = 3)
+    value(x) === nothing ? "" : format(value(x), commas = true)
+end
+function format_stat_value(x::DOF; digits = 3)
+    value(x) === nothing ? "" : format(value(x), commas = true)
+end
+format_stat_value(x::VcovType; digits = 3) = something(value(x), "")
+format_stat_value(::Spacer; digits = 3) = ""
+format_stat_value(::Missing; digits = 3) = ""
+format_stat_value(::Nothing; digits = 3) = ""
+format_stat_value(x::AbstractString; digits = 3) = x
 
 # Format other stat values (FE, clusters, etc.)
 
@@ -127,15 +133,17 @@ format_stat_value(x::AbstractString; digits=3) = x
 
 Format values from combine_other_statistics for display.
 """
-format_other_stat(x; digits=3) = string(x)
-format_other_stat(x::AbstractString; digits=3) = x
-format_other_stat(x::Missing; digits=3) = ""
-format_other_stat(x::ClusterValue; digits=3) = value(x) > 0 ? "Yes" : ""
-format_other_stat(x::RandomEffectValue; digits=3) = format_number(value(x); digits)
-format_other_stat(x::FirstStageValue; digits=3) = value(x) === nothing ? "" : format_number(value(x); digits)
-format_other_stat(x::Float64; digits=3) = format_number(x; digits)
-format_other_stat(x::Int; digits=3) = format(x, commas=true)
-format_other_stat(x::Bool; digits=3) = x ? "Yes" : ""
+format_other_stat(x; digits = 3) = string(x)
+format_other_stat(x::AbstractString; digits = 3) = x
+format_other_stat(x::Missing; digits = 3) = ""
+format_other_stat(x::ClusterValue; digits = 3) = value(x) > 0 ? "Yes" : ""
+format_other_stat(x::RandomEffectValue; digits = 3) = format_number(value(x); digits)
+function format_other_stat(x::FirstStageValue; digits = 3)
+    value(x) === nothing ? "" : format_number(value(x); digits)
+end
+format_other_stat(x::Float64; digits = 3) = format_number(x; digits)
+format_other_stat(x::Int; digits = 3) = format(x, commas = true)
+format_other_stat(x::Bool; digits = 3) = x ? "Yes" : ""
 
 # Stat label helper
 
@@ -159,7 +167,8 @@ _halign(s::Symbol) = s == :l ? :left : s == :r ? :right : s == :c ? :center : s
 function _to_cell_rows(data, ncols, halign, merge_cells)
     if data isa AbstractMatrix
         padded = add_blank(data, ncols)
-        return [_values_to_cell_row(padded[i, :], halign, merge_cells) for i in 1:size(padded, 1)]
+        return [_values_to_cell_row(padded[i, :], halign, merge_cells)
+                for i in 1:size(padded, 1)]
     elseif data isa AbstractVector
         if !isempty(data) && first(data) isa AbstractVector
             cell_rows = Vector{Cell}[]
@@ -187,9 +196,9 @@ function _values_to_cell_row(vals, halign, merge_cells)
     for (i, v) in enumerate(vals)
         s = string(v)
         if i == 1
-            push!(cells, Cell(isempty(s) ? nothing : s; halign=:left))
+            push!(cells, Cell(isempty(s) ? nothing : s; halign = :left))
         elseif merge_cells && !isempty(s)
-            push!(cells, Cell(s; merge=true, border_bottom=true, halign, bold=true))
+            push!(cells, Cell(s; merge = true, border_bottom = true, halign, bold = true))
         else
             push!(cells, Cell(isempty(s) ? nothing : s; halign))
         end

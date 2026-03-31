@@ -131,7 +131,7 @@ function modelsummary(
         fe_indicator::AbstractString = "Yes",
         footnotes::Vector = [],
         estimator_names = nothing,
-        custom_lines::Vector = [],
+        custom_lines::Vector = []
 )
     nreg = length(rrs)
     ncols = 1 + nreg
@@ -274,16 +274,17 @@ function modelsummary(
 
     coef_digits = digits === nothing ? 3 : digits
     below_digits = digits_stats !== nothing ? digits_stats : coef_digits
-    stat_digits = digits_stats !== nothing ? digits_stats : (digits !== nothing ? digits : 3)
+    stat_digits = digits_stats !== nothing ? digits_stats :
+                  (digits !== nothing ? digits : 3)
 
     for s in sections
         # Handle Pair sections (custom label + section)
         v = s
         if s isa Pair
             label_text = string(last(s))
-            row = Cell[Cell(label_text; halign=:left)]
+            row = Cell[Cell(label_text; halign = :left)]
             for _ in 1:nreg
-                push!(row, Cell(nothing; halign=body_halign))
+                push!(row, Cell(nothing; halign = body_halign))
             end
             push!(rows, row)
             v = first(s)
@@ -294,24 +295,25 @@ function modelsummary(
 
         elseif v == :depvar
             y_names = replace_name.(_responsename.(rrs), Ref(labels), Ref(transform_labels))
-            row = Cell[Cell(nothing; halign=:left)]
+            row = Cell[Cell(nothing; halign = :left)]
             for y in y_names
-                push!(row, Cell(display_name(y);
-                    merge=true, bold=true, border_bottom=true, halign=hdr_halign))
+                push!(row,
+                    Cell(display_name(y);
+                        merge = true, bold = true, border_bottom = true, halign = hdr_halign))
             end
             push!(rows, row)
 
         elseif v == :estimator_names
-            row = Cell[Cell(nothing; halign=:left)]
+            row = Cell[Cell(nothing; halign = :left)]
             for (i, nm) in enumerate(estimator_names)
-                push!(row, Cell(string(nm); halign=hdr_halign, merge=true))
+                push!(row, Cell(string(nm); halign = hdr_halign, merge = true))
             end
             push!(rows, row)
 
         elseif v == :number_regressions
-            row = Cell[Cell(nothing; halign=:left)]
+            row = Cell[Cell(nothing; halign = :left)]
             for i in 1:nreg
-                push!(row, Cell("($i)"; halign=hdr_halign))
+                push!(row, Cell("($i)"; halign = hdr_halign))
             end
             push!(rows, row)
 
@@ -321,45 +323,46 @@ function modelsummary(
 
             for j in 1:length(nms)
                 # Coefficient value row
-                row = Cell[Cell(display_name(nms[j]); halign=:left)]
+                row = Cell[Cell(display_name(nms[j]); halign = :left)]
                 for i in 1:nreg
                     cv = coefvalues[j, i]
                     if ismissing(cv)
-                        push!(row, Cell(nothing; halign=body_halign))
+                        push!(row, Cell(nothing; halign = body_halign))
                     else
                         push!(row, make_coef_cell(cv;
-                            digits=coef_digits, stars, halign=body_halign))
+                            digits = coef_digits, stars, halign = body_halign))
                     end
                 end
                 push!(rows, row)
 
                 # Below-statistic row
                 if below_statistic !== nothing && stat_below
-                    brow = Cell[Cell(nothing; halign=:left)]
+                    brow = Cell[Cell(nothing; halign = :left)]
                     for i in 1:nreg
-                        push!(brow, make_understat_cell(coefbelow[j, i];
-                            digits=below_digits, halign=body_halign))
+                        push!(brow,
+                            make_understat_cell(coefbelow[j, i];
+                                digits = below_digits, halign = body_halign))
                     end
                     push!(rows, brow)
                 end
             end
 
         elseif v == :regtype
-            row = Cell[Cell(label(RegressionType); halign=:left)]
+            row = Cell[Cell(label(RegressionType); halign = :left)]
             for rr in rrs
                 rt = RegressionType(rr)
-                push!(row, Cell(display_regtype(rt); halign=body_halign))
+                push!(row, Cell(display_regtype(rt); halign = body_halign))
             end
             push!(rows, row)
 
         elseif v == :stats
             stats_mat = combine_statistics(rrs, regression_statistics)
             for j in 1:size(stats_mat, 1)
-                row = Cell[Cell(stat_label(stats_mat[j, 1]); halign=:left)]
+                row = Cell[Cell(stat_label(stats_mat[j, 1]); halign = :left)]
                 for i in 1:nreg
                     sv = stats_mat[j, i + 1]
-                    push!(row, Cell(format_stat_value(sv; digits=stat_digits);
-                        halign=body_halign))
+                    push!(row, Cell(format_stat_value(sv; digits = stat_digits);
+                        halign = body_halign))
                 end
                 push!(rows, row)
             end
@@ -367,9 +370,9 @@ function modelsummary(
         elseif v == :controls
             ctrl = missing_vars.(rrs, Ref(string.(nms)); labels, transform_labels)
             if any(ctrl)
-                row = Cell[Cell(label(HasControls); halign=:left)]
+                row = Cell[Cell(label(HasControls); halign = :left)]
                 for val in ctrl
-                    push!(row, Cell(val ? fe_indicator : ""; halign=body_halign))
+                    push!(row, Cell(val ? fe_indicator : ""; halign = body_halign))
                 end
                 push!(rows, row)
             end
@@ -378,13 +381,13 @@ function modelsummary(
             for line in custom_lines
                 lname = first(line)
                 lvals = last(line)
-                row = Cell[Cell(string(lname); halign=:left)]
+                row = Cell[Cell(string(lname); halign = :left)]
                 for (i, val) in enumerate(lvals)
-                    push!(row, Cell(string(val); halign=body_halign))
+                    push!(row, Cell(string(val); halign = body_halign))
                 end
                 # Pad if fewer values than models
-                for _ in (length(lvals)+1):nreg
-                    push!(row, Cell(nothing; halign=body_halign))
+                for _ in (length(lvals) + 1):nreg
+                    push!(row, Cell(nothing; halign = body_halign))
                 end
                 push!(rows, row)
             end
@@ -402,11 +405,11 @@ function modelsummary(
                 transform_labels, fe_indicator)
             if st !== nothing
                 for j in 1:size(st, 1)
-                    row = Cell[Cell(string(st[j, 1]); halign=:left)]
+                    row = Cell[Cell(string(st[j, 1]); halign = :left)]
                     for i in 1:nreg
                         val = st[j, i + 1]
-                        push!(row, Cell(format_other_stat(val; digits=stat_digits);
-                            halign=body_halign))
+                        push!(row, Cell(format_other_stat(val; digits = stat_digits);
+                            halign = body_halign))
                     end
                     push!(rows, row)
                 end
@@ -434,7 +437,7 @@ function modelsummary(
         end
     end
 
-    rgaps = Pair{Int,Float64}[p => 8.0
+    rgaps = Pair{Int, Float64}[p => 8.0
                                for p in sort(collect(rowgap_after))
                                if 0 < p < nrow]
 
@@ -442,7 +445,7 @@ function modelsummary(
         header = header_end > 0 ? header_end : nothing,
         rowgaps = rgaps,
         round_mode = nothing,   # we handle rounding ourselves
-        footnotes = footnotes,
+        footnotes = footnotes
     )
 
     if file !== nothing

@@ -34,8 +34,8 @@ end
         ModelSummaries.CategoricalCoefName("species", "setosa")) == "species: setosa"
     @test ModelSummaries.display_name(
         ModelSummaries.InteractedCoefName([
-            ModelSummaries.CoefName("x1"),
-            ModelSummaries.CoefName("x2")])) == "x1 × x2"
+        ModelSummaries.CoefName("x1"),
+        ModelSummaries.CoefName("x2")])) == "x1 × x2"
 end
 
 @testset "Significance stars" begin
