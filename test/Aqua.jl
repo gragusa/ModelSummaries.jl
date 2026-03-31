@@ -13,5 +13,5 @@ using ModelSummaries
     # - stale_deps=false: extension trigger packages (CovarianceMatrices,
     #   FixedEffectModels, GLM) are in [deps] for extensions but appear
     #   "stale" to Aqua since the main module doesn't directly use them
-    Aqua.test_all(ModelSummaries; ambiguities = true, piracies = true, stale_deps = true)
+    Aqua.test_all(ModelSummaries; ambiguities = true, piracies = true, stale_deps = false)
 end

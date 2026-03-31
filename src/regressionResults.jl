@@ -178,9 +178,6 @@ function make_reg_stats(rr, stat::Pair{<:Any, <:AbstractString})
     make_reg_stats(rr, first(stat)) => last(stat)
 end
 
-function default_regression_statistics(x::AbstractRenderType, rr::RegressionModel)
-    default_regression_statistics(rr)
-end
 """
     default_regression_statistics(rr::RegressionModel)
 

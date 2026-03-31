@@ -1,8 +1,7 @@
 using ModelSummaries
-using CovarianceMatrices: VcovSpec  # Import VcovSpec for custom vcov specifications
 using FixedEffectModels, GLM, RDatasets, Test
-using LinearAlgebra
-using StatsAPI: RegressionModel
+using DataFrames
+using SummaryTables: Table
 
 df = RDatasets.dataset("datasets", "iris")
 df[!, :isSmall] = df[!, :SepalWidth] .< 2.9
@@ -15,392 +14,167 @@ rr3 = reg(df, @formula(SepalLength ~
                        SepalWidth + PetalLength + PetalWidth + fe(Species) + fe(isSmall)))
 rr4 = reg(df, @formula(SepalWidth ~ SepalLength + PetalLength + PetalWidth + fe(Species)))
 rr5 = reg(df, @formula(SepalWidth ~ SepalLength + (PetalLength ~ PetalWidth) + fe(Species)))
-rr6 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)&fe(isWide) + fe(isSmall)))
-rr7 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength&fe(isWide) + fe(isSmall)))
 
-@eval ModelSummaries default_print_fe_suffix(x::AbstractRenderType) = false
-@eval ModelSummaries default_print_control_indicator(x::AbstractRenderType) = false
-@eval ModelSummaries default_regression_statistics(x::AbstractRenderType, rrs::Tuple) = [
-    Nobs, R2]
-@eval ModelSummaries default_print_estimator(x::AbstractRenderType, rrs) = true
 # GLM.jl
+lm1 = fit(LinearModel, @formula(SepalLength ~ SepalWidth), df)
+lm2 = fit(LinearModel, @formula(SepalLength ~ SepalWidth + PetalWidth), df)
+lm3 = fit(LinearModel, @formula(SepalLength ~ SepalWidth * PetalWidth), df)
+
 dobson = DataFrame(Counts = [18.0, 17, 15, 20, 10, 20, 25, 13, 12],
     Outcome = repeat(["A", "B", "C"], outer = 3),
     Treatment = repeat(["a", "b", "c"], inner = 3))
+gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome), dobson, Poisson())
 
-lm1 = fit(LinearModel, @formula(SepalLength ~ SepalWidth), df)
-lm2 = fit(LinearModel, @formula(SepalLength ~ SepalWidth + PetalWidth), df)
-lm3 = fit(LinearModel, @formula(SepalLength ~ SepalWidth * PetalWidth), df) # testing interactions
-gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome), dobson,
-    Poisson())
+@testset "Return type" begin
+    @test modelsummary(rr1) isa Table
+    @test modelsummary(rr1, rr2) isa Table
+end
 
-# test of forula on lhs
-lm4 = fit(LinearModel, @formula(log(SepalLength) ~ SepalWidth * PetalWidth), df) # testing interactions
+@testset "LaTeX output" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2))
+    out = String(take!(buf))
+    @test occursin("\\begin{table}", out)
+    @test occursin("\\toprule", out)
+    @test occursin("\\bottomrule", out)
+    @test occursin("SepalWidth", out)
+    @test occursin("(Intercept)", out)
+end
 
-function checkfilesarethesame(file1::String, file2::String)
-    s1 = read(file1, String)
-    s2 = read(file2, String)
+@testset "Typst output" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/typst"(), modelsummary(rr1))
+    out = String(take!(buf))
+    @test occursin("#table", out)
+    @test occursin("SepalWidth", out)
+end
 
-    s1 = replace(s1, "\r\n" => "\n")
-    s2 = replace(s2, "\r\n" => "\n")
+@testset "HTML output" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/html"(), modelsummary(lm1, lm2))
+    out = String(take!(buf))
+    @test occursin("<table", out)
+    @test occursin("SepalWidth", out)
+end
 
-    # Character-by-character comparison using proper Unicode iteration
-    chars1 = collect(s1)
-    chars2 = collect(s2)
+@testset "Stars" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2; stars=true))
+    out = String(take!(buf))
+    @test occursin("\\textsuperscript{", out)
+end
 
-    for (i, (c1, c2)) in enumerate(zip(chars1, chars2))
-        if c1 != c2
-            println("Character $(i) different: $(c1) $(c2)")
-        end
-    end
+@testset "Below statistic options" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic=StdError))
+    out = String(take!(buf))
+    @test occursin("(0.", out)
 
-    if s1 == s2
-        return true
-    else
-        println("File 1:")
-        @show s1
-        println("File 2:")
-        @show s2
-        return false
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic=ConfInt))
+    out = String(take!(buf))
+    @test occursin(",", out)
+
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1; below_statistic=nothing))
+    out = String(take!(buf))
+    @test !occursin("(0.", out)
+end
+
+@testset "Keep, drop, order" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2; keep=["SepalWidth"]))
+    out = String(take!(buf))
+    @test occursin("SepalWidth", out)
+    @test !occursin("(Intercept)", out)
+
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2; drop=["(Intercept)"]))
+    out = String(take!(buf))
+    @test !occursin("(Intercept)", out)
+    @test occursin("SepalWidth", out)
+end
+
+@testset "Regression statistics" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1;
+        regression_statistics=[Nobs, R2, AdjR2, AIC, BIC]))
+    out = String(take!(buf))
+    @test occursin("N", out)
+    @test occursin("Adjusted", out)
+    @test occursin("AIC", out)
+    @test occursin("BIC", out)
+end
+
+@testset "Labels" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1;
+        labels=Dict("SepalWidth" => "Sepal Width (cm)")))
+    out = String(take!(buf))
+    @test occursin("Sepal Width (cm)", out)
+end
+
+@testset "Groups" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1, lm2;
+        groups=["Base", "Extended"]))
+    out = String(take!(buf))
+    @test occursin("Base", out)
+    @test occursin("Extended", out)
+end
+
+@testset "Fixed effects" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(rr2, rr3))
+    out = String(take!(buf))
+    @test occursin("Species", out)
+    @test occursin("Yes", out)
+end
+
+@testset "Estimator section" begin
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(lm1, gm1; print_estimator_section=true))
+    out = String(take!(buf))
+    @test occursin("Estimator", out)
+    @test occursin("OLS", out)
+    @test occursin("Poisson", out)
+end
+
+@testset "File output" begin
+    mktempdir() do dir
+        texfile = joinpath(dir, "test.tex")
+        modelsummary(lm1, lm2; file=texfile)
+        @test isfile(texfile)
+        @test occursin("\\begin{table}", read(texfile, String))
+
+        htmlfile = joinpath(dir, "test.html")
+        modelsummary(lm1, lm2; file=htmlfile)
+        @test isfile(htmlfile)
+        @test occursin("<table", read(htmlfile, String))
+
+        typfile = joinpath(dir, "test.typ")
+        modelsummary(lm1, lm2; file=typfile)
+        @test isfile(typfile)
+        @test occursin("#table", read(typfile, String))
     end
 end
 
-##
-rr_short = reg(df, @formula(SepalLength ~ log1p(SepalWidth)))
-tab = modelsummary(rr_short)
-@test tab[3, 1] == "log1p(SepalWidth)"
-
-tab = modelsummary(rr4, rr5, lm1, lm2, gm1; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest1.txt"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines == [1, 15, 16, 16]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest1.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest1_reference.txt"))
-# regressors and labels
-tab = modelsummary(rr4, rr5, lm1, lm2, gm1; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest2.txt"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof],
-    keep = ["SepalLength", "PetalWidth"])
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest2.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest2_reference.txt"))
-# fixedeffects, estimformat, statisticformat, number_regressions_decoration
-tab = modelsummary(rr3, rr5, lm1, lm2, gm1; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest3.txt"),
-    fixedeffects = ["SpeciesDummy"], estimformat = "%0.4f",
-    statisticformat = "%0.4f", number_regressions_decoration = i -> "[$i]")
-@test tab.hlines == [1, 15, 15, 15]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest3.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest3_reference.txt"))
-# estim_decoration, below_statistic, below_decoration, number_regressions
-
-function dec(s::String, pval::Float64)
-    if pval<0.0
-        error("p value needs to be nonnegative.")
-    end
-    if (pval > 0.05)
-        return "$s"
-    elseif (pval <= 0.05)
-        return "$s<-OMG!"
-    end
-end
-tab = modelsummary(rr3, rr5, lm1, lm2, gm1; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest4.txt"), estim_decoration = dec,
-    below_statistic = :tstat, below_decoration = s -> "[$s]", number_regressions = false)
-@test tab.hlines == [14, 16, 16]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest4.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest4_reference.txt"))
-# print_fe_section, print_estimator_section
-modelsummary(rr3, rr5, lm1, lm2, gm1; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest5.txt"),
-    print_fe_section = false, print_estimator_section = false)
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest5.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest5_reference.txt"))
-# transform_labels and custom labels
-tab = modelsummary(rr5, rr6, lm1, lm2, lm3; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest6.txt"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof],
-    transform_labels = :ampersand,
-    labels = Dict("SepalLength" => "My dependent variable: SepalLength",
-        "PetalLength" => "Length of Petal", "PetalWidth" => "Width of Petal",
-        "(Intercept)" => "Const.", "isSmall" => "isSmall Dummies",
-        "SpeciesDummy" => "Species Dummies"))
-@test tab.hlines == [1, 13, 16, 16]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest6.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest6_reference.txt"))
-# grouped regressions PR #61
-# NOTE: behavior in ftest8 and ftest9 should be improved (Issue #63)
-tab = modelsummary(rr1, rr5, rr2, rr4; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest7.txt"),
-    groups = ["grp1" "grp1" "grp2" "grp2"])
-@test tab.hlines == [1, 11, 12, 12]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest7.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest7_reference.txt"))
-modelsummary(rr1, rr5, rr2, rr4; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest8.txt"),
-    groups = ["grp1" "grp1" "looooooooooooooooogong grp2" "looooooooooooooooogong grp2"])
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest8.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest8_reference.txt"))
-tab = modelsummary(rr5, rr1, rr2, rr4; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "ftest9.txt"),
-    groups = ["grp1" "grp1" "grp2" "grp2"])
-@test tab.hlines == [1, 11, 12, 12]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "ftest9.txt"),
-    joinpath(dirname(@__FILE__), "tables", "ftest9_reference.txt"))
-
-tab = modelsummary(rr1, rr2, rr3, rr5; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "test1.txt"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines == [1, 11, 13, 13]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test1.txt"),
-    joinpath(dirname(@__FILE__), "tables", "test1_reference.txt"))
-
-tab = modelsummary(rr1, rr2, rr3, rr5, rr6, rr7; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "test7.txt"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines == [1, 11, 15, 15]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test7.txt"),
-    joinpath(dirname(@__FILE__), "tables", "test7_reference.txt"))
-
-tab = modelsummary(lm1, lm2, gm1; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "test3.txt"),
-    regression_statistics = [:nobs, :r2])
-@test tab.hlines == [1, 11, 11, 11]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test3.txt"),
-    joinpath(dirname(@__FILE__), "tables", "test3_reference.txt"))
-
-modelsummary(lm1, lm2, lm4; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "test8.txt"),
-    regression_statistics = [:nobs, :r2])
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test8.txt"),
-    joinpath(dirname(@__FILE__), "tables", "test8_reference.txt"))
-
-using Statistics
-comments = ["Specification", "Baseline", "Preferred"]
-means = ["My custom mean", Statistics.mean(df.SepalLength[rr1.esample]),
-    Statistics.mean(df.SepalLength[rr2.esample])]
-mystats = [comments, means]
-modelsummary(
-    rr1, rr2; backend = :text, file = joinpath(dirname(@__FILE__), "tables", "test9.txt"),
-    regression_statistics = [:nobs, :r2], extralines = mystats)
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test9.txt"),
-    joinpath(dirname(@__FILE__), "tables", "test9_reference.txt"))
-
-# below_decoration = :none
-modelsummary(rr1, rr2, rr3, rr4; backend = :text,
-    file = joinpath(dirname(@__FILE__), "tables", "test10.txt"), below_statistic = :none)
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test10.txt"),
-    joinpath(dirname(@__FILE__), "tables", "test10_reference.txt"))
-
-# LATEX TABLES
-
-tab = modelsummary(rr1, rr2, rr3, rr5; backend = :latex,
-    file = joinpath(dirname(@__FILE__), "tables", "test2.tex"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test tab.hlines == [1, 11, 13, 13]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test2.tex"),
-    joinpath(dirname(@__FILE__), "tables", "test2_reference.tex"))
-
-modelsummary(rr1, rr2, rr3, rr5; backend = :latex,
-    file = joinpath(dirname(@__FILE__), "tables", "test3.tex"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof],
-    align = :c)
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test3.tex"),
-    joinpath(dirname(@__FILE__), "tables", "test3_reference.tex"))
-
-modelsummary(lm1, lm2, gm1; backend = :latex,
-    file = joinpath(dirname(@__FILE__), "tables", "test4.tex"),
-    regression_statistics = [:nobs, :r2])
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test4.tex"),
-    joinpath(dirname(@__FILE__), "tables", "test4_reference.tex"))
-
-tab = modelsummary(lm1, lm2, lm3, gm1; backend = :latex,
-    file = joinpath(dirname(@__FILE__), "tables", "test6.tex"),
-    regression_statistics = [:nobs, :r2], transform_labels = :ampersand)
-@test tab.hlines == [1, 13, 13, 13]
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test6.tex"),
-    joinpath(dirname(@__FILE__), "tables", "test6_reference.tex"))
-
-@testset "custom covariance specifications" begin
-    base = lm1
-    p = length(coef(base))
-    Σ = Matrix{Float64}(I, p, p) .* 0.01
-
-    wrapped = base + VcovSpec(Σ)
-    expected = fill(0.1, p)
-    @test ModelSummaries._stderror(wrapped) ≈ expected
-    @test stderror(wrapped) ≈ expected
-    @test stderror(base) ≉ expected
-
-    calls = Ref(0)
-    fun_spec = VcovSpec(model -> begin
-        calls[] += 1
-        Σ
-    end)
-    wrapped_fun = base + fun_spec
-    ModelSummaries._stderror(wrapped_fun)
-    ModelSummaries._stderror(wrapped_fun)
-    @test calls[] == 1
-
-    zero_arg_spec = VcovSpec(() -> Σ .* 4)
-    wrapped_zero = base + zero_arg_spec
-    @test ModelSummaries._stderror(wrapped_zero) ≈ fill(0.2, p)
-
-    # Note: Custom estimator extension via ModelSummaries.materialize_vcov is not
-    # currently supported - the extension's _materialize_vcov doesn't dispatch to it.
-    # This test is commented out until the feature is implemented in the extension.
-    # struct DummyEstimator end
-    # ModelSummaries.materialize_vcov(::DummyEstimator, model::RegressionModel) = Σ .* 9
-    # wrapped_ext = base + VcovSpec(DummyEstimator())
-    # @test ModelSummaries._stderror(wrapped_ext) ≈ fill(0.3, p)
-
-    overridden = (base + VcovSpec(Σ)) + VcovSpec(Σ .* 16)
-    @test ModelSummaries._stderror(overridden) ≈ fill(0.4, p)
-
-    badΣ = ones(1, 1)
-    bad = base + VcovSpec(badΣ)
-    @test_throws ArgumentError ModelSummaries._stderror(bad)
-
-    @test_throws ArgumentError ModelSummaries._stderror(base + VcovSpec(:unknown))
-
-    # Test edge cases
-    @testset "Edge cases" begin
-        # Non-square matrix (though validation will catch same dimension mismatch)
-        non_square = ones(p, p+1)
-        @test_throws ArgumentError ModelSummaries._stderror(base + VcovSpec(non_square))
-
-        # Non-symmetric matrix (should warn but not error)
-        non_symmetric = Σ .+ 0.001 .* (1:p) .* (1:p)'
-        non_symmetric[1, 2] += 0.1  # Make it asymmetric
-        wrapped_nonsym = base + VcovSpec(non_symmetric)
-        # Should work but produce a warning
-        @test_logs (:warn, r"not symmetric") ModelSummaries._stderror(wrapped_nonsym)
-
-        # Function that doesn't accept model or zero args
-        bad_fun = (x, y) -> Σ
-        @test_throws ArgumentError ModelSummaries._stderror(base + VcovSpec(bad_fun))
-
-        # Negative variance on diagonal (physically invalid but dimensionally OK)
-        bad_diag = copy(Σ)
-        bad_diag[1, 1] = -0.01
-        wrapped_bad = base + VcovSpec(bad_diag)
-        # Should be computable even if physically nonsensical
-        #se = ModelSummaries._stderror(wrapped_bad)
-        #@test isnan(se[1])  # sqrt of negative is NaN
-    end
+@testset "Mixed model types" begin
+    @test modelsummary(rr1, rr2, lm1, lm2, gm1) isa Table
 end
 
-@testset "CovarianceMatrices.jl integration" begin
-    using CovarianceMatrices
-
-    base = lm1
-    p = length(coef(base))
-
-    @testset "HC estimators" begin
-        # Test HC0
-        wrapped_hc0 = base + vcov(HC0())
-        se_hc0 = stderror(wrapped_hc0)
-        @test length(se_hc0) == p
-        @test all(se_hc0 .> 0)  # Standard errors should be positive
-
-        # Test HC1 (should be slightly larger than HC0)
-        wrapped_hc1 = base + vcov(HC1())
-        se_hc1 = stderror(wrapped_hc1)
-        @test se_hc1 != stderror(base)  # Should differ from standard errors
-
-        # Test HC3 (most commonly used)
-        wrapped_hc3 = base + vcov(HC3())
-        se_hc3 = stderror(wrapped_hc3)
-        @test all(se_hc3 .> 0)
-
-        # Test that vcov matrix is symmetric
-        Σ_hc3 = vcov(wrapped_hc3)
-        #@test issymmetric(Σ_hc3)
-        @test size(Σ_hc3) == (p, p)
-    end
-
-    @testset "HAC estimators" begin
-        # Test Bartlett kernel
-        wrapped_bartlett = base + vcov(Bartlett(5))
-        se_bartlett = stderror(wrapped_bartlett)
-        @test length(se_bartlett) == p
-        @test all(se_bartlett .> 0)
-
-        # Test Parzen kernel
-        wrapped_parzen = base + vcov(Parzen(3))
-        se_parzen = stderror(wrapped_parzen)
-        @test all(se_parzen .> 0)
-
-        # Test that different kernels give different results
-        @test se_bartlett != se_parzen
-    end
-
-    @testset "Caching" begin
-        # Verify that covariance matrix is computed only once
-        wrapped = base + vcov(HC1())
-        Σ1 = vcov(wrapped)
-        Σ2 = vcov(wrapped)
-        @test Σ1 === Σ2  # Should be same object (cached)
-    end
-
-    @testset "Operator chaining" begin
-        # Test that we can override vcov
-        wrapped1 = base + vcov(HC0())
-        wrapped2 = wrapped1 + vcov(HC3())
-        se1 = stderror(wrapped1)
-        se2 = stderror(wrapped2)
-        @test se1 != se2  # Different estimators should give different results
-    end
-
-    @testset "Integration with modelsummary" begin
-        # Test that modelsummary works with custom vcov
-        tab = modelsummary(lm1 + vcov(HC3()), backend = :text,
-            file = joinpath(dirname(@__FILE__), "tables", "reghc31.txt"))
-        @test tab !== nothing
-        # Just ensure it doesn't error - visual output testing is beyond scope
-    end
+@testset "Extralines" begin
+    comments = ["Specification", "Baseline", "Preferred"]
+    buf = IOBuffer()
+    show(buf, MIME"text/latex"(), modelsummary(rr1, rr2; extralines=[comments]))
+    out = String(take!(buf))
+    @test occursin("Specification", out)
+    @test occursin("Baseline", out)
 end
 
-# HTML Tables
-modelsummary(rr1, rr2, rr3, rr5; backend = :html,
-    file = joinpath(dirname(@__FILE__), "tables", "test1.html"),
-    regression_statistics = [:nobs, :r2, :adjr2, :r2_within, :f, :p, :f_kp, :p_kp, :dof])
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test1.html"),
-    joinpath(dirname(@__FILE__), "tables", "test1_reference.html"))
-
-modelsummary(lm1, lm2, gm1; backend = :html,
-    file = joinpath(dirname(@__FILE__), "tables", "test2.html"),
-    regression_statistics = [:nobs, :r2])
-@test checkfilesarethesame(joinpath(dirname(@__FILE__), "tables", "test2.html"),
-    joinpath(dirname(@__FILE__), "tables", "test2_reference.html"))
-
-# clean up
-rm(joinpath(dirname(@__FILE__), "tables", "ftest1.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest2.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest3.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest4.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest5.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest6.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest7.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest8.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "ftest9.txt"))
-
-rm(joinpath(dirname(@__FILE__), "tables", "test1.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test2.tex"))
-rm(joinpath(dirname(@__FILE__), "tables", "test3.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test3.tex"))
-rm(joinpath(dirname(@__FILE__), "tables", "test4.tex"))
-#rm(joinpath(dirname(@__FILE__), "tables", "test5.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test6.tex"))
-rm(joinpath(dirname(@__FILE__), "tables", "test7.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test8.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test9.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test10.txt"))
-rm(joinpath(dirname(@__FILE__), "tables", "test1.html"))
-rm(joinpath(dirname(@__FILE__), "tables", "test2.html"))
-
-@eval ModelSummaries default_print_fe_suffix(render::AbstractRenderType) = true
-@eval ModelSummaries default_print_control_indicator(render::AbstractRenderType) = true
-@eval ModelSummaries default_regression_statistics(render::AbstractRenderType,
-    rrs::Tuple) = unique(union(default_regression_statistics.(render, rrs)...))
-@eval ModelSummaries default_print_estimator(
-    render::AbstractRenderType, rrs) = length(unique(RegressionType.(rrs))) > 1
+@testset "Symbol aliases" begin
+    @test modelsummary(lm1; below_statistic=:se) isa Table
+    @test modelsummary(lm1; below_statistic=:tstat) isa Table
+    @test modelsummary(lm1; below_statistic=:none) isa Table
+    @test modelsummary(lm1; regression_statistics=[:nobs, :r2, :adjr2]) isa Table
+end

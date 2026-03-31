@@ -1,0 +1,152 @@
+---
+title: "ModelSummaries.jl — Publication-Quality Regression Tables"
+format:
+  html:
+    code-fold: true
+  pdf:
+    documentclass: article
+    geometry: margin=1in
+    keep-tex: true
+execute:
+  echo: true
+  warning: false
+jupyter: julia-1.12
+---
+
+## Setup
+
+```{julia}
+using ModelSummaries
+using SummaryTables: Concat, Superscript
+using GLM, DataFrames, FixedEffectModels, RDatasets, CategoricalArrays
+using Random; Random.seed!(42)
+```
+
+## Basic usage
+
+`modelsummary` takes one or more regression models and returns a
+`SummaryTables.Table` that renders natively to HTML, LaTeX, and Typst.
+
+```{julia}
+df = RDatasets.dataset("datasets", "iris")
+df.isSmall = df.SepalWidth .< 2.9
+
+m1 = lm(@formula(SepalLength ~ SepalWidth), df)
+m2 = lm(@formula(SepalLength ~ SepalWidth + PetalLength), df)
+m3 = lm(@formula(SepalLength ~ SepalWidth + PetalLength + PetalWidth), df)
+
+modelsummary(m1, m2, m3; stars = true)
+```
+
+## Groups, labels, and extra statistics
+
+```{julia}
+modelsummary(m1, m2, m3;
+    stars  = true,
+    groups = ["Parsimonious" "Parsimonious" "Full"],
+    labels = Dict(
+        "SepalWidth"  => "Sepal width",
+        "PetalLength" => "Petal length",
+        "PetalWidth"  => "Petal width",
+    ),
+    regression_statistics = [Nobs, R2, AdjR2, AIC],
+)
+```
+
+## Fixed-effects models with checkmarks
+
+Use `fe_indicator = "✓"` to replace the default `"Yes"`:
+
+```{julia}
+fe1 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)))
+fe2 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength + fe(Species)))
+fe3 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength + fe(Species) + fe(isSmall)))
+
+modelsummary(m1, fe1, fe2, fe3;
+    stars        = true,
+    fe_indicator = "✓",
+    regression_statistics = [Nobs, R2],
+)
+```
+
+## Estimator labels in the header
+
+When columns use different estimators, pass `estimator_names` to get a
+labelled header row. Consecutive equal names merge automatically.
+
+```{julia}
+modelsummary(m1, fe1, fe2, fe3;
+    stars           = true,
+    estimator_names = ["OLS", "FE", "FE", "FE"],
+    fe_indicator    = "✓",
+)
+```
+
+## Publication-quality table
+
+Combine all the features — `estimator_names`, `fe_indicator`, `custom_lines`,
+and `footnotes` — to replicate a complex academic table in a single call,
+with no manual `Cell` construction needed.
+
+```{julia}
+#| code-fold: false
+
+# ── Simulated panel data ──────────────────────────────────────────
+N, T = 30, 20
+panel = DataFrame(
+    country = repeat(1:N, inner = T),
+    year    = repeat(2001:2000+T, outer = N),
+    Δd_HH   = randn(N * T),
+    Δd_F    = randn(N * T),
+    trend   = repeat(1:T, outer = N) ./ T,
+)
+panel.Δy = -0.32 .* panel.Δd_HH .- 0.06 .* panel.Δd_F .+
+           0.4 .* randn(N * T)
+panel.country_cat = categorical(panel.country)
+panel.year_cat    = categorical(panel.year)
+
+# ── Four specifications ───────────────────────────────────────────
+spec1 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + fe(country_cat)))
+spec2 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + fe(country_cat)))
+spec3 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + trend + fe(country_cat)))
+spec4 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + fe(country_cat) + fe(year_cat)))
+
+# ── Build the table ───────────────────────────────────────────────
+modelsummary(spec1, spec2, spec3, spec4;
+    stars           = true,
+    estimator_names = ["OLS", "OLS", "OLS", "OLS"],
+    fe_indicator    = "✓",
+    labels          = Dict(
+        "Δd_HH" => "Δ₃dᴴᴴ",
+        "Δd_F"  => "Δ₃dᶠ",
+    ),
+    regression_statistics = [Nobs, R2],
+    custom_lines = [
+        "Sample"   => ["Nonoverl.", "Nonoverl.", "Full", "Full"],
+    ],
+    footnotes = [
+        "Standard errors in parentheses.",
+        Concat(
+            Superscript("***"), " p<0.01, ",
+            Superscript("**"),  " p<0.05, ",
+            Superscript("*"),   " p<0.1.",
+        ),
+        " All regressions include country fixed effects.",
+    ],
+)
+```
+
+## Writing to a file
+
+```{julia}
+#| eval: false
+
+# LaTeX
+modelsummary(m1, m2, m3; stars = true, file = "table.tex")
+
+# HTML
+modelsummary(m1, m2, m3; stars = true, file = "table.html")
+
+# Typst
+modelsummary(m1, m2, m3; stars = true, file = "table.typ")
+```
