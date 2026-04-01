@@ -30,9 +30,9 @@ struct BackendMath
 end
 
 function BackendMath(; latex::String,
-                       typst::String = _latex_to_typst(latex),
-                       html::String  = _latex_to_html(latex),
-                       text::String  = _latex_to_text(latex))
+        typst::String = _latex_to_typst(latex),
+        html::String = _latex_to_html(latex),
+        text::String = _latex_to_text(latex))
     BackendMath(latex, typst, html, text)
 end
 
@@ -48,46 +48,46 @@ Base.broadcastable(x::BackendMath) = Ref(x)
 
 Base.showable(::MIME"text/latex", ::BackendMath) = true
 Base.showable(::MIME"text/typst", ::BackendMath) = true
-Base.showable(::MIME"text/html",  ::BackendMath) = true
-Base.showable(::MIME"text",       ::BackendMath) = true
+Base.showable(::MIME"text/html", ::BackendMath) = true
+Base.showable(::MIME"text", ::BackendMath) = true
 
 Base.show(io::IO, ::MIME"text/latex", m::BackendMath) = print(io, m.latex)
 Base.show(io::IO, ::MIME"text/typst", m::BackendMath) = print(io, m.typst)
-Base.show(io::IO, ::MIME"text/html",  m::BackendMath) = print(io, m.html)
-Base.show(io::IO, ::MIME"text",       m::BackendMath) = print(io, m.text)
-Base.show(io::IO,                     m::BackendMath) = print(io, m.text)
+Base.show(io::IO, ::MIME"text/html", m::BackendMath) = print(io, m.html)
+Base.show(io::IO, ::MIME"text", m::BackendMath) = print(io, m.text)
+Base.show(io::IO, m::BackendMath) = print(io, m.text)
 
 # ── LaTeX → Unicode (text) conversion ─────────────────────────────────────────
 
-const _GREEK_UNICODE = Dict{String,String}(
-    "alpha"    => "α", "beta"     => "β", "gamma"    => "γ", "delta"    => "δ",
-    "epsilon"  => "ε", "zeta"     => "ζ", "eta"      => "η", "theta"    => "θ",
-    "iota"     => "ι", "kappa"    => "κ", "lambda"   => "λ", "mu"       => "μ",
-    "nu"       => "ν", "xi"       => "ξ", "pi"       => "π", "rho"      => "ρ",
-    "sigma"    => "σ", "tau"      => "τ", "upsilon"  => "υ", "phi"      => "φ",
-    "chi"      => "χ", "psi"      => "ψ", "omega"    => "ω",
-    "Gamma"    => "Γ", "Delta"    => "Δ", "Theta"    => "Θ", "Lambda"   => "Λ",
-    "Xi"       => "Ξ", "Pi"       => "Π", "Sigma"    => "Σ", "Upsilon"  => "Υ",
-    "Phi"      => "Φ", "Psi"      => "Ψ", "Omega"    => "Ω",
+const _GREEK_UNICODE = Dict{String, String}(
+    "alpha" => "α", "beta" => "β", "gamma" => "γ", "delta" => "δ",
+    "epsilon" => "ε", "zeta" => "ζ", "eta" => "η", "theta" => "θ",
+    "iota" => "ι", "kappa" => "κ", "lambda" => "λ", "mu" => "μ",
+    "nu" => "ν", "xi" => "ξ", "pi" => "π", "rho" => "ρ",
+    "sigma" => "σ", "tau" => "τ", "upsilon" => "υ", "phi" => "φ",
+    "chi" => "χ", "psi" => "ψ", "omega" => "ω",
+    "Gamma" => "Γ", "Delta" => "Δ", "Theta" => "Θ", "Lambda" => "Λ",
+    "Xi" => "Ξ", "Pi" => "Π", "Sigma" => "Σ", "Upsilon" => "Υ",
+    "Phi" => "Φ", "Psi" => "Ψ", "Omega" => "Ω"
 )
 
-const _SUPERSCRIPT_UNICODE = Dict{Char,Char}(
+const _SUPERSCRIPT_UNICODE = Dict{Char, Char}(
     '0' => '⁰', '1' => '¹', '2' => '²', '3' => '³', '4' => '⁴',
     '5' => '⁵', '6' => '⁶', '7' => '⁷', '8' => '⁸', '9' => '⁹',
     '+' => '⁺', '-' => '⁻', '=' => '⁼', '(' => '⁽', ')' => '⁾',
-    'n' => 'ⁿ', 'i' => 'ⁱ',
+    'n' => 'ⁿ', 'i' => 'ⁱ'
 )
 
-const _SUBSCRIPT_UNICODE = Dict{Char,Char}(
+const _SUBSCRIPT_UNICODE = Dict{Char, Char}(
     '0' => '₀', '1' => '₁', '2' => '₂', '3' => '₃', '4' => '₄',
     '5' => '₅', '6' => '₆', '7' => '₇', '8' => '₈', '9' => '₉',
     '+' => '₊', '-' => '₋', '=' => '₌', '(' => '₍', ')' => '₎',
     'a' => 'ₐ', 'e' => 'ₑ', 'i' => 'ᵢ', 'j' => 'ⱼ', 'o' => 'ₒ',
-    'r' => 'ᵣ', 'u' => 'ᵤ', 'v' => 'ᵥ', 'x' => 'ₓ',
+    'r' => 'ᵣ', 'u' => 'ᵤ', 'v' => 'ᵥ', 'x' => 'ₓ'
 )
 
 """Convert a short sub/superscript body to Unicode. Returns `nothing` if any char is unmapped."""
-function _to_unicode_script(s::AbstractString, table::Dict{Char,Char})
+function _to_unicode_script(s::AbstractString, table::Dict{Char, Char})
     buf = IOBuffer()
     for c in s
         mapped = get(table, c, nothing)
@@ -120,7 +120,7 @@ function _latex_to_text(s::AbstractString)
             while j <= n && isletter(chars[j])
                 j += 1
             end
-            cmd = String(chars[i+1:j-1])
+            cmd = String(chars[(i + 1):(j - 1)])
             if haskey(_GREEK_UNICODE, cmd)
                 write(out, _GREEK_UNICODE[cmd])
                 i = j
@@ -132,13 +132,15 @@ function _latex_to_text(s::AbstractString)
                 i = j
                 if i <= n && chars[i] == '{'
                     # find closing brace
-                    depth = 1; i += 1; start = i
+                    depth = 1;
+                    i += 1;
+                    start = i
                     while i <= n && depth > 0
                         chars[i] == '{' && (depth += 1)
                         chars[i] == '}' && (depth -= 1)
                         depth > 0 && (i += 1)
                     end
-                    body = _latex_to_text(String(chars[start:i-1]))
+                    body = _latex_to_text(String(chars[start:(i - 1)]))
                     i += 1  # skip '}'
                 elseif i <= n
                     body = string(chars[i])
@@ -157,13 +159,15 @@ function _latex_to_text(s::AbstractString)
             table = c == '^' ? _SUPERSCRIPT_UNICODE : _SUBSCRIPT_UNICODE
             i += 1
             if chars[i] == '{'
-                depth = 1; i += 1; start = i
+                depth = 1;
+                i += 1;
+                start = i
                 while i <= n && depth > 0
                     chars[i] == '{' && (depth += 1)
                     chars[i] == '}' && (depth -= 1)
                     depth > 0 && (i += 1)
                 end
-                body = String(chars[start:i-1])
+                body = String(chars[start:(i - 1)])
                 i += 1  # skip '}'
             else
                 body = string(chars[i])
@@ -189,7 +193,7 @@ end
 
 # ── LaTeX → HTML conversion ──────────────────────────────────────────────────
 
-const _GREEK_HTML = Dict{String,String}(
+const _GREEK_HTML = Dict{String, String}(
     k => "&$k;" for k in keys(_GREEK_UNICODE)
 )
 # HTML entities use the same names as LaTeX for Greek letters
@@ -223,7 +227,7 @@ function _latex_to_html(s::AbstractString)
             while j <= n && isletter(chars[j])
                 j += 1
             end
-            cmd = String(chars[i+1:j-1])
+            cmd = String(chars[(i + 1):(j - 1)])
             if haskey(_GREEK_HTML, cmd)
                 write(out, _GREEK_HTML[cmd])
                 i = j
@@ -232,13 +236,15 @@ function _latex_to_html(s::AbstractString)
                 accent = cmd == "hat" ? "\u0302" : cmd == "tilde" ? "\u0303" : "\u0304"
                 i = j
                 if i <= n && chars[i] == '{'
-                    depth = 1; i += 1; start = i
+                    depth = 1;
+                    i += 1;
+                    start = i
                     while i <= n && depth > 0
                         chars[i] == '{' && (depth += 1)
                         chars[i] == '}' && (depth -= 1)
                         depth > 0 && (i += 1)
                     end
-                    body = _latex_to_html(String(chars[start:i-1]))
+                    body = _latex_to_html(String(chars[start:(i - 1)]))
                     i += 1
                 elseif i <= n
                     body = string(chars[i])
@@ -256,13 +262,15 @@ function _latex_to_html(s::AbstractString)
             tag = c == '^' ? "sup" : "sub"
             i += 1
             if chars[i] == '{'
-                depth = 1; i += 1; start = i
+                depth = 1;
+                i += 1;
+                start = i
                 while i <= n && depth > 0
                     chars[i] == '{' && (depth += 1)
                     chars[i] == '}' && (depth -= 1)
                     depth > 0 && (i += 1)
                 end
-                body = _latex_to_html(String(chars[start:i-1]))
+                body = _latex_to_html(String(chars[start:(i - 1)]))
                 i += 1
             else
                 body = string(chars[i])
@@ -307,7 +315,7 @@ function _latex_to_typst(s::AbstractString)
             # Find the closing $
             j = findnext(==('$'), chars, i + 1)
             if j !== nothing
-                math = String(chars[i+1:j-1])
+                math = String(chars[(i + 1):(j - 1)])
                 write(out, "#mi(\"\$")
                 write(out, math)
                 write(out, "\$\")")
@@ -335,8 +343,8 @@ A backend-adaptive checkmark symbol. Use as `yes_indicator = Checkmark` in `mode
 const Checkmark = BackendMath(
     latex = raw"$\checkmark$",
     typst = "✓",
-    html  = "&#x2713;",
-    text  = "✓",
+    html = "&#x2713;",
+    text = "✓"
 )
 
 # ── R² helper ────────────────────────────────────────────────────────────────

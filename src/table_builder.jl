@@ -4,14 +4,14 @@
 const _PHANTOM_OPEN = BackendMath(
     latex = raw"\phantom{(}",
     typst = "#hide[(]",
-    html  = "<span style=\"visibility:hidden\">(</span>",
-    text  = " ",
+    html = "<span style=\"visibility:hidden\">(</span>",
+    text = " "
 )
 const _PHANTOM_CLOSE = BackendMath(
     latex = raw"\phantom{)}",
     typst = "#hide[)]",
-    html  = "<span style=\"visibility:hidden\">)</span>",
-    text  = " ",
+    html = "<span style=\"visibility:hidden\">)</span>",
+    text = " "
 )
 
 # Invisible superscript stars — keeps SE rows aligned with starred coefficients.
@@ -22,8 +22,8 @@ function _phantom_sup_stars(n::Int)
     phantom = BackendMath(
         latex = "\\phantom{\\textsuperscript{$s}}",
         typst = "#hide[#super[$s]]",
-        html  = "<sup style=\"visibility:hidden\">$s</sup>",
-        text  = "",
+        html = "<sup style=\"visibility:hidden\">$s</sup>",
+        text = ""
     )
     return (phantom,)
 end
@@ -93,8 +93,12 @@ function make_understat_cell(ci::ConfInt; digits = 3, stars = false, halign = :r
     Cell(s; halign)
 end
 
-make_understat_cell(::Missing; digits = 3, stars = false, halign = :right) = Cell(nothing; halign)
-make_understat_cell(::Nothing; digits = 3, stars = false, halign = :right) = Cell(nothing; halign)
+function make_understat_cell(::Missing; digits = 3, stars = false, halign = :right)
+    Cell(nothing; halign)
+end
+function make_understat_cell(::Nothing; digits = 3, stars = false, halign = :right)
+    Cell(nothing; halign)
+end
 
 # Display name functions for coefficient names
 
