@@ -91,7 +91,7 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `stars`: Show significance stars (default `false`).
 * `groups`: Group labels for columns.
 * `estimator_names`: Vector of estimator labels for a header row (e.g., `["OLS", "IV", "OLS"]`).
-* `fe_indicator`: String shown for active fixed effects (default `"Yes"`, use `"✓"` for checkmarks).
+* `yes_indicator`: String shown for active fixed effects (default `"Yes"`, use `"✓"` for checkmarks).
 * `footnotes`: Vector of footnote strings or `SummaryTables.Concat` objects appended below the table.
 * `custom_lines`: Vector of `Pair{String, Vector}` for custom rows (e.g., `["Sample" => ["Full", "Full"]]`).
 * `file`: Save table to file (extension determines format: .tex, .html, .typ).
@@ -128,7 +128,7 @@ function modelsummary(
         use_relabeled_values = false,
         confint_level = 0.95,
         stars::Bool = false,
-        fe_indicator::AbstractString = "Yes",
+        yes_indicator::AbstractString = "Yes",
         footnotes::Vector = [],
         estimator_names = nothing,
         custom_lines::Vector = []
@@ -372,7 +372,7 @@ function modelsummary(
             if any(ctrl)
                 row = Cell[Cell(label(HasControls); halign = :left)]
                 for val in ctrl
-                    push!(row, Cell(val ? fe_indicator : ""; halign = body_halign))
+                    push!(row, Cell(val ? yes_indicator : ""; halign = body_halign))
                 end
                 push!(rows, row)
             end
@@ -402,7 +402,7 @@ function modelsummary(
             fill_val = fill_missing(last(first(temp[i_first])))
             st = combine_other_statistics(
                 temp; fill_val, print_fe_suffix, fixedeffects, labels,
-                transform_labels, fe_indicator)
+                transform_labels, yes_indicator)
             if st !== nothing
                 for j in 1:size(st, 1)
                     row = Cell[Cell(string(st[j, 1]); halign = :left)]
@@ -504,7 +504,7 @@ function combine_other_statistics(
         fixedeffects = Vector{String}(),
         labels = Dict{String, String}(),
         transform_labels = Dict{String, String}(),
-        fe_indicator = "Yes",
+        yes_indicator = "Yes",
         kwargs...
 )
     nms = []
@@ -528,7 +528,7 @@ function combine_other_statistics(
     for (i, s) in enumerate(stats)
         if isnothing(s)
             if fill_val isa FixedEffectValue
-                mat[:, i] .= fill_val.val ? fe_indicator : ""
+                mat[:, i] .= fill_val.val ? yes_indicator : ""
             else
                 mat[:, i] .= fill_val
             end
@@ -540,14 +540,14 @@ function combine_other_statistics(
             k = findfirst(string(nm) .== string.(val_nms))
             if k === nothing
                 if fill_val isa FixedEffectValue
-                    mat[j, i] = fill_val.val ? fe_indicator : ""
+                    mat[j, i] = fill_val.val ? yes_indicator : ""
                 else
                     mat[j, i] = fill_val
                 end
             else
                 val = last(s[k])
                 if val isa FixedEffectValue
-                    mat[j, i] = val.val ? fe_indicator : ""
+                    mat[j, i] = val.val ? yes_indicator : ""
                 else
                     mat[j, i] = val
                 end

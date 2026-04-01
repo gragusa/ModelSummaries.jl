@@ -68,7 +68,7 @@ R2(x::RegressionModel) =
         R2(nothing)
     end
 
-label(::Type{R2}) = "R\u00b2"
+label(::Type{R2}) = Concat("R", Superscript("2"))
 
 """
 `R2McFadden` is the McFadden ``R^2`` (Pseudo-``R^2``).
@@ -83,7 +83,7 @@ R2McFadden(x::RegressionModel) =
         R2McFadden(nothing)
     end
 
-label(::Type{R2McFadden}) = "Pseudo " * label(R2)
+label(::Type{R2McFadden}) = Concat("Pseudo R", Superscript("2"))
 
 const PseudoR2 = R2McFadden
 
@@ -100,7 +100,7 @@ R2CoxSnell(x::RegressionModel) =
         R2CoxSnell(nothing)
     end
 
-label(::Type{R2CoxSnell}) = "Cox-Snell " * label(R2)
+label(::Type{R2CoxSnell}) = Concat("Cox-Snell R", Superscript("2"))
 
 """
 `R2Nagelkerke` is the Nagelkerke ``R^2``.
@@ -115,7 +115,7 @@ R2Nagelkerke(x::RegressionModel) =
         R2Nagelkerke(nothing)
     end
 
-label(::Type{R2Nagelkerke}) = "Nagelkerke " * label(R2)
+label(::Type{R2Nagelkerke}) = Concat("Nagelkerke R", Superscript("2"))
 
 """
 `R2Deviance` is the Deviance ``R^2``.
@@ -130,7 +130,7 @@ R2Deviance(x::RegressionModel) =
         R2Deviance(nothing)
     end
 
-label(::Type{R2Deviance}) = "Deviance " * label(R2)
+label(::Type{R2Deviance}) = Concat("Deviance R", Superscript("2"))
 
 """
 `AdjR2` is the Adjusted ``R^2``.
@@ -145,7 +145,7 @@ AdjR2(x::RegressionModel) =
         AdjR2(nothing)
     end
 
-label(::Type{AdjR2}) = "Adjusted " * label(R2)
+label(::Type{AdjR2}) = Concat("Adjusted R", Superscript("2"))
 
 """
 `AdjR2McFadden` is the McFadden Adjusted ``R^2`` (Pseudo Adjusted ``R^2``).
@@ -160,7 +160,7 @@ AdjR2McFadden(x::RegressionModel) =
         AdjR2McFadden(nothing)
     end
 
-label(::Type{AdjR2McFadden}) = "Pseudo " * label(AdjR2)
+label(::Type{AdjR2McFadden}) = Concat("Pseudo Adjusted R", Superscript("2"))
 
 const AdjPseudoR2 = AdjR2McFadden
 
@@ -177,7 +177,7 @@ AdjR2Deviance(x::RegressionModel) =
         AdjR2Deviance(nothing)
     end
 
-label(::Type{AdjR2Deviance}) = "Deviance " * label(AdjR2)
+label(::Type{AdjR2Deviance}) = Concat("Deviance Adjusted R", Superscript("2"))
 
 """
 `DOF` is the remaining degrees of freedom in the regression.
@@ -302,7 +302,7 @@ struct R2Within <: AbstractR2
 end
 R2Within(r::RegressionModel) = R2Within(nothing)
 
-label(::Type{R2Within}) = "Within-" * label(R2)
+label(::Type{R2Within}) = Concat("Within-R", Superscript("2"))
 
 """
 `VcovType` describes the type of covariance matrix estimator used.

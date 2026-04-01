@@ -14,7 +14,7 @@ using Distributions
 using Format
 using LinearAlgebra: issymmetric
 using SummaryTables
-using SummaryTables: Cell, Table, Concat, Superscript
+using SummaryTables: Cell, Table, Concat, Superscript, Subscript
 
 ##############################################################################
 ## Exported methods and types
