@@ -1,372 +1,171 @@
 # ModelSummaries.jl
 
-[![CI](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml) [![codecov.io](http://codecov.io/github/gragusa/ModelSummaries.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/ModelSummaries.jl?branch=master) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826) ![lifecycle](https://img.shields.io/badge/lifecycle-maturing-blue.svg)
+[![CI](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)
 
-[![][docs-stable-img]][docs-stable-url] [![][docs-dev-img]][docs-dev-url]
+Publication-quality regression tables for Julia, powered by [SummaryTables.jl](https://github.com/PumasAI/SummaryTables.jl).
 
-[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://gragusa.github.io/ModelSummaries.jl/stable
-[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://gragusa.github.io/ModelSummaries.jl/dev
+Tables render natively to **LaTeX**, **HTML**, **Typst**, and **DOCX** — with proper math typesetting in every backend.
 
-Create publication-quality regression tables in Julia with a simple, modern API.
+## Supported models
 
-**ModelSummaries.jl** (formerly RegressionTables2.jl) provides beautiful regression tables for use with [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl), [GLM.jl](https://github.com/JuliaStats/GLM.jl), and any package that implements the [RegressionModel abstraction](https://juliastats.org/StatsBase.jl/latest/statmodels/).
+| Package | Extension loaded automatically |
+|---------|-------------------------------|
+| [GLM.jl](https://github.com/JuliaStats/GLM.jl) | `lm`, `glm` |
+| [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) | `reg` (FE, IV, clusters) |
+| [Regress.jl](https://gragusa.org/gragusa/Regress.jl) | OLS, IV, FE, clusters |
+| [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) | `model + vcov(HC3())` syntax |
+| Any `StatsAPI.RegressionModel` | Basic support out of the box |
 
 ## Installation
 
 ```julia
 using Pkg
-Pkg.add("github.com/gragusa/ModelSummaries.jl")
+Pkg.add(url="https://github.com/gragusa/ModelSummaries.jl")
 ```
 
-## Quick Start
+## Quick start
 
 ```julia
 using ModelSummaries, GLM, DataFrames, RDatasets
 
-# Load data
 df = dataset("datasets", "iris")
-
-# Fit models
 m1 = lm(@formula(SepalLength ~ SepalWidth), df)
 m2 = lm(@formula(SepalLength ~ SepalWidth + PetalLength), df)
 m3 = lm(@formula(SepalLength ~ SepalWidth + PetalLength + PetalWidth), df)
 
-# Create a regression table (auto-detects output format)
-modelsummary(m1, m2, m3)
+modelsummary(m1, m2, m3; stars = true)
 ```
 
-Output:
-```
-|                  | **Model 1** | **Model 2** | **Model 3** |
-|:-----------------|------------:|------------:|------------:|
-| (Intercept)      |       6.526 |       4.191 |       1.856 |
-|                  |      (0.479)|      (0.410)|      (0.251)|
-| SepalWidth       |      -0.223 |      -0.094 |       0.650 |
-|                  |      (0.155)|      (0.132)|      (0.067)|
-| PetalLength      |             |       0.472 |       0.712 |
-|                  |             |      (0.017)|      (0.057)|
-| PetalWidth       |             |             |      -0.556 |
-|                  |             |             |      (0.128)|
-| N                |         150 |         150 |         150 |
-| R²               |       0.014 |       0.759 |       0.837 |
-```
+## Robust and clustered standard errors
 
-## Output Formats
-
-Control output format with the `backend` parameter:
-
-```julia
-# LaTeX output
-modelsummary(m1, m2; backend=:latex, file="table.tex")
-
-# HTML output
-modelsummary(m1, m2; backend=:html, file="table.html")
-
-# Markdown/text output
-modelsummary(m1, m2; backend=:text)
-
-# Auto-detect based on context (default)
-modelsummary(m1, m2)  # Uses markdown in REPL, HTML in Jupyter
-```
-
-### Table Themes
-
-ModelSummaries.jl provides beautiful preset themes for different use cases:
-
-```julia
-# Academic publication style (default)
-modelsummary(m1, m2; theme=:academic)
-
-# Modern style with unicode box-drawing
-modelsummary(m1, m2; theme=:modern)
-
-# Minimalist style
-modelsummary(m1, m2; theme=:minimal)
-
-# Compact style for dense tables
-modelsummary(m1, m2; theme=:compact)
-
-# Clean unicode tables
-modelsummary(m1, m2; theme=:unicode)
-```
-
-Available themes: `:academic`, `:modern`, `:minimal`, `:compact`, `:unicode`, `:default`
-
-For fine-grained control, use the `table_format` keyword:
-
-```julia
-using PrettyTables
-
-modelsummary(m1, m2;
-    table_format = Dict(
-        :text => PrettyTables.tf_unicode_rounded,
-        :html => PrettyTables.tf_html_minimalist,
-        :latex => PrettyTables.tf_latex_booktabs,
-    ),
-)
-```
-
-You can pass a single `TableFormat`, provide a `Dict`/`NamedTuple` keyed by backend, or use PrettyTables aliases such as `:unicode_rounded` and `:latex_booktabs`. Any backend that is not specified falls back to the defaults.
-
-**See [PRETTYTABLES_GUIDE.md](PRETTYTABLES_GUIDE.md) for comprehensive examples of using PrettyTables features.**
-
-## Custom Covariance Matrices
-
-Use robust standard errors with [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl):
+Pair any fitted model with a covariance estimator using `+`:
 
 ```julia
 using CovarianceMatrices
 
-# HC1 robust standard errors
-modelsummary(m1 + vcov(HC1()), m2 + vcov(HC1()))
-
-# Cluster-robust standard errors
-modelsummary(m1 + vcov(CRHC0(cluster_var)))
-
-# HAC standard errors
-modelsummary(m1 + vcov(HAC(NeweyWest, 4)))
-```
-
-Available covariance estimators:
-- `HC0()`, `HC1()`, `HC2()`, `HC3()`, `HC4()`, `HC5()` - Heteroskedasticity-robust
-- `HAC(kernel, bandwidth)` - Heteroskedasticity and autocorrelation consistent
-- `CRHC0(clusters)`, `CRHC1(clusters)`, etc. - Cluster-robust
-
-## Customization
-
-### Statistics and Labels
-
-```julia
-modelsummary(m1, m2, m3;
-    # Select statistics to display
-    regression_statistics = [Nobs, R2, AdjR2, FStat],
-
-    # Custom variable labels
-    labels = Dict(
-        "SepalWidth" => "Sepal Width (cm)",
-        "PetalLength" => "Petal Length (cm)"
-    ),
-
-    # Below-coefficient statistic
-    below_statistic = TStat,  # or StdError, ConfInt
-
-    # Significance levels
-    confint_level = 0.90
+modelsummary(m2, m2 + vcov(HC0()), m2 + vcov(HC3());
+    regression_statistics = [Nobs, R2, AdjR2, VcovType],
 )
 ```
 
-### Alignment and Formatting
+## Math labels with `BackendMath`
+
+Labels can include LaTeX math that renders correctly across all backends.
+Only the `latex` argument is needed — HTML, Typst, and text are derived
+automatically:
 
 ```julia
 modelsummary(m1, m2;
-    align = :c,           # Column alignment: :l, :c, :r
-    header_align = :l,    # Header alignment
-    digits = 4,           # Coefficient precision
-    digits_stats = 2      # Statistics precision
-)
-```
-
-### Variable Selection and Ordering
-
-```julia
-modelsummary(m1, m2, m3;
-    keep = ["SepalWidth", "PetalLength"],  # Only show these
-    drop = ["(Intercept)"],                 # Exclude these
-    order = ["PetalLength", "SepalWidth"]  # Custom order
-)
-```
-
-### Post-Creation Customization
-
-Tables can be modified after creation:
-
-```julia
-# Create table
-ms = modelsummary(m1, m2, m3)
-
-# Add horizontal lines
-add_hline!(ms, 3)  # Add line after row 3
-add_hline!(ms, 6)
-
-# Change backend
-set_backend!(ms, :latex)
-
-# Change column alignment
-set_alignment!(ms, 2, :c)  # Center column 2
-
-# Add custom formatters (uses PrettyTables.jl)
-using PrettyTables
-formatter = ft_printf("%.4f", [2, 3])  # 4 decimals in columns 2-3
-add_formatter!(ms, formatter)
-
-# Pass additional PrettyTables options
-merge_kwargs!(ms;
-    title = "Regression Results",
-    title_alignment = :c
-)
-
-# Save to file
-write("table.tex", ms)
-```
-
-## Complete Example
-
-```julia
-using ModelSummaries, FixedEffectModels, GLM, DataFrames, RDatasets
-
-df = dataset("datasets", "iris")
-
-# Fit various models
-rr1 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)))
-rr2 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength + fe(Species)))
-rr3 = reg(df, @formula(SepalLength ~ SepalWidth * PetalLength + PetalWidth + fe(Species)))
-m4 = lm(@formula(SepalWidth ~ SepalLength + PetalLength + PetalWidth), df)
-
-# Create comprehensive table
-modelsummary(rr1, rr2, rr3, m4;
-    # Output format
-    backend = :latex,
-    file = "results.tex",
-
-    # Variable labels
     labels = Dict(
-        "SepalWidth" => "Sepal Width",
-        "PetalLength" => "Petal Length",
-        "PetalWidth" => "Petal Width"
+        "SepalWidth"  => BackendMath(raw"Sepal width ($\beta_1$)"),
+        "PetalLength" => BackendMath(raw"Petal length ($\beta_2$)"),
     ),
+)
+```
 
-    # Statistics
-    regression_statistics = [
-        Nobs => "Observations",
-        R2 => "R²",
-        R2Within => "Within R²",
-        AdjR2 => "Adjusted R²"
-    ],
+Override any backend explicitly when auto-conversion isn't enough:
 
-    # Formatting
-    below_statistic = StdError,
+```julia
+BackendMath(
+    latex = raw"$\hat{\sigma}^2$",
+    typst = raw"$hat(sigma)^2$",
+    html  = "&sigma;&#x0302;<sup>2</sup>",
+)
+```
+
+## Fixed effects
+
+```julia
+using FixedEffectModels, CategoricalArrays
+
+fe1 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)))
+
+modelsummary(m1, fe1;
+    yes_indicator = Checkmark,   # renders as \checkmark (LaTeX), ✓ (HTML/Typst)
+    labels = Dict("isSmall" => "Small"),
+)
+```
+
+## Key options
+
+```julia
+modelsummary(models...;
+    # Coefficient selection
+    keep = [],  drop = [],  order = [],
+
+    # Labels
+    labels = Dict("var" => "Label"),          # plain strings or BackendMath
+    transform_labels = Dict("old" => "new"),  # regex replacements
+
+    # Header
+    groups = ["G1" "G1" "G2"],
+    estimator_names = ["OLS", "FE", "IV"],
+    depvar_bold = false,
+
+    # Below coefficients
+    below_statistic = StdError,  # or TStat, ConfInt, nothing
+    stars = false,
+
+    # Bottom statistics
+    regression_statistics = [Nobs, R2, AdjR2, AIC, BIC, VcovType],
     digits = 3,
+    digits_stats = 3,
 
     # Fixed effects
-    print_fe_section = true,
-    fixedeffects = ["Species"],
+    yes_indicator = Checkmark,  # or "Yes", or any BackendMath
+    print_fe_suffix = true,
 
-    # Variable ordering
-    order = [r"Int", r" & ", r": "]
+    # Custom rows and footnotes
+    custom_lines = ["Sample" => ["Full", "Full"]],
+    footnotes = ["Note: ..."],
+
+    # Output
+    file = "table.tex",  # .tex, .html, .typ, .docx
 )
 ```
 
-## API Reference
+## Available statistics
 
-### Main Function
+| Type | Label | Notes |
+|------|-------|-------|
+| `Nobs` | N | |
+| `R2` | R² | |
+| `AdjR2` | Adjusted R² | |
+| `R2Within` | Within-R² | FE models |
+| `R2McFadden` | Pseudo R² | GLMs |
+| `AIC`, `BIC`, `AICC` | Information criteria | |
+| `LogLikelihood` | Log Likelihood | |
+| `FStat`, `FStatPValue` | F-statistic | |
+| `FStatIV`, `FStatIVPValue` | First-stage F | IV models |
+| `DOF` | Degrees of Freedom | |
+| `VcovType` | Std. Error | Shows estimator name |
+
+## Defining custom statistics
 
 ```julia
-modelsummary(
-    models::RegressionModel...;
+struct YMean <: ModelSummaries.AbstractRegressionStatistic
+    val::Union{Float64, Nothing}
+end
+YMean(x::RegressionModel) = try YMean(mean(response(x))) catch; YMean(nothing) end
+ModelSummaries.label(::Type{YMean}) = "Mean of Y"
 
-    # Output format
-    backend = nothing,              # :latex, :html, :text, or nothing (auto)
-    file = nothing,                 # Output file path
-
-    # Variable selection
-    keep = [],                      # Variables to include
-    drop = [],                      # Variables to exclude
-    order = [],                     # Variable ordering
-
-    # Labels and formatting
-    labels = Dict{String,String}(), # Variable labels
-    align = :r,                     # Column alignment
-    header_align = :c,              # Header alignment
-    digits = nothing,               # Coefficient digits (default: 3)
-    digits_stats = nothing,         # Statistics digits (default: 3)
-
-    # Statistics
-    below_statistic = StdError,     # TStat, StdError, ConfInt, or nothing
-    regression_statistics = [Nobs, R2],  # Bottom statistics
-    confint_level = 0.95,          # Confidence level
-
-    # Display options
-    print_depvar = true,            # Show dependent variable
-    number_regressions = true,      # Number columns
-    print_fe_section = true,        # Show fixed effects section
-    print_estimator_section = false # Show estimator section
-)
+modelsummary(m1; regression_statistics = [Nobs, R2, YMean])
 ```
 
-### Customization Functions
+## Writing to a file
 
-- `add_hline!(ms, position)` - Add horizontal line
-- `remove_hline!(ms, position)` - Remove horizontal line
-- `set_alignment!(ms, col, align; header=false)` - Change column alignment
-- `set_backend!(ms, backend)` - Change output backend
-- `add_formatter!(ms, formatter)` - Add PrettyTables formatter
-- `merge_kwargs!(ms; kwargs...)` - Add PrettyTables options
+The output format is determined by the file extension:
 
-### Available Statistics
-
-**Goodness of fit**:
-- `Nobs` - Number of observations
-- `R2` - R²
-- `AdjR2` - Adjusted R²
-- `R2Within` - Within R²
-- `PseudoR2` - Pseudo R² (for GLMs)
-
-**Model fit**:
-- `LogLikelihood` - Log-likelihood
-- `AIC` - Akaike information criterion
-- `BIC` - Bayesian information criterion
-- `AICC` - Corrected AIC
-
-**Tests**:
-- `FStat` - F-statistic
-- `FStatPValue` - F-test p-value
-- `DOF` - Degrees of freedom
-
-### Backend Options
-
-| Backend | Format | Use Case |
-|---------|--------|----------|
-| `nothing` | Auto-detect | REPL/Jupyter |
-| `:latex` | LaTeX | Academic papers |
-| `:html` | HTML | Web/notebooks |
-| `:text` | Markdown | Terminal/docs |
-
-## Migration from RegressionTables2.jl
-
-If you're migrating from the old API:
-
-**Old**:
 ```julia
-using RegressionTables2
-regtable(m1, m2; render=LatexTable())
+modelsummary(m1, m2; file = "table.tex")   # LaTeX
+modelsummary(m1, m2; file = "table.html")  # HTML
+modelsummary(m1, m2; file = "table.typ")   # Typst
 ```
 
-**New**:
-```julia
-using ModelSummaries
-modelsummary(m1, m2; backend=:latex)
-```
+## Acknowledgment
 
-See [CHANGELOG.md](CHANGELOG.md) for complete migration guide.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Related Packages
-
-- [RegressionTables.jl](https://github.com/jmboehm/RegressionTables.jl) - Original package
-- [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) - Robust covariance estimators
-- [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) - Fast fixed effects estimation
-- [GLM.jl](https://github.com/JuliaStats/GLM.jl) - Generalized linear models
-- [PrettyTables.jl](https://github.com/ronisbr/PrettyTables.jl) - Table rendering (used internally)
+**Johannes Boehm**, author of [RegressionTables.jl](https://github.com/jmboehm/RegressionTables.jl), should be credited for all the good things here.
 
 ## License
 
-MIT License - see [LICENSE.md](LICENSE.md)
-
-## Aknowledgment
-
-**Johannes Boehm**, author of `RegressionTables.jl`, should be credited for all the good things here. 
+MIT

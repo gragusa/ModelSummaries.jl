@@ -161,7 +161,12 @@ function transformer(s, repl_dict::AbstractDict)
 end
 
 function replace_name(s::Union{AbstractString, AbstractCoefName}, exact_dict, repl_dict)
-    get(exact_dict, s, transformer(s, repl_dict))
+    # Try the value directly, then fall back to its string representation
+    r = get(exact_dict, s, nothing)
+    r !== nothing && return r
+    skey = string(s)
+    skey != s && (r = get(exact_dict, skey, nothing); r !== nothing && return r)
+    transformer(s, repl_dict)
 end
 function replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict)
     (replace_name(s[1], exact_dict, repl_dict), s[2])

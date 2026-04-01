@@ -6,11 +6,17 @@ format:
   pdf:
     documentclass: article
     geometry: margin=1in
+    include-in-header:
+        text: |
+            \usepackage{threeparttable}
+            \usepackage{amssymb}
     keep-tex: true
+  typst:
+    keep-typ: true
 execute:
   echo: true
   warning: false
-jupyter: julia-1.12
+engine: julia
 ---
 
 ## Setup
@@ -19,7 +25,9 @@ jupyter: julia-1.12
 using ModelSummaries
 using SummaryTables: Concat, Superscript
 using GLM, DataFrames, FixedEffectModels, RDatasets, CategoricalArrays
-using Random; Random.seed!(42)
+using CovarianceMatrices
+using LaTeXStrings
+using Random; Random.seed!(887766)
 ```
 
 ## Basic usage
@@ -38,11 +46,51 @@ m3 = lm(@formula(SepalLength ~ SepalWidth + PetalLength + PetalWidth), df)
 modelsummary(m1, m2, m3; stars = true)
 ```
 
+## Robust standard errors
+
+Use `CovarianceMatrices.jl` to compute heteroskedasticity-robust standard
+errors. The `+` operator pairs a fitted model with a variance estimator:
+
+```{julia}
+modelsummary(m2, m2 + vcov(HC0()), m2 + vcov(HC3());
+    stars = true,
+    regression_statistics = [Nobs, R2, AdjR2, VcovType],
+)
+```
+
+## Math labels with `BackendMath`
+
+Variable labels can include math that renders correctly across all backends.
+Only the `latex` keyword is required — HTML, Typst, and plain-text
+representations are derived automatically:
+
+```{julia}
+modelsummary(m2, m2 + vcov(HC3());
+    stars  = true,
+    labels = Dict(
+        "SepalWidth"  => BackendMath(latex = raw"Sepal width ($\beta_1$)"),
+        "PetalLength" => BackendMath(latex = raw"Petal length ($\beta_2$)"),
+    ),
+    regression_statistics = [Nobs, R2, AdjR2, VcovType],
+)
+```
+
+For full control, override any backend explicitly:
+
+```{julia}
+#| eval: false
+BackendMath(
+    latex = raw"$\hat{\sigma}^2$",
+    typst = raw"$hat(sigma)^2$",       # Typst math syntax differs
+    html  = "&sigma;&#x0302;<sup>2</sup>",
+    text  = "σ̂²",
+)
+```
+
 ## Groups, labels, and extra statistics
 
 ```{julia}
 modelsummary(m1, m2, m3;
-    stars  = true,
     groups = ["Parsimonious" "Parsimonious" "Full"],
     labels = Dict(
         "SepalWidth"  => "Sepal width",
@@ -55,17 +103,20 @@ modelsummary(m1, m2, m3;
 
 ## Fixed-effects models with checkmarks
 
-Use `fe_indicator = "✓"` to replace the default `"Yes"`:
+Use `yes_indicator = Checkmark` to replace the default `"Yes"` with a
+backend-adaptive checkmark (`\checkmark` in LaTeX, `✓` elsewhere):
 
 ```{julia}
 fe1 = reg(df, @formula(SepalLength ~ SepalWidth + fe(Species)))
 fe2 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength + fe(Species)))
 fe3 = reg(df, @formula(SepalLength ~ SepalWidth + PetalLength + fe(Species) + fe(isSmall)))
+fe4 = lm(@formula(SepalLength ~ SepalWidth + PetalLength), df)
 
 modelsummary(m1, fe1, fe2, fe3;
     stars        = true,
-    fe_indicator = "✓",
+    yes_indicator = Checkmark,
     regression_statistics = [Nobs, R2],
+    labels = Dict("isSmall" => "Small")
 )
 ```
 
@@ -75,23 +126,23 @@ When columns use different estimators, pass `estimator_names` to get a
 labelled header row. Consecutive equal names merge automatically.
 
 ```{julia}
-modelsummary(m1, fe1, fe2, fe3;
-    stars           = true,
-    estimator_names = ["OLS", "FE", "FE", "FE"],
-    fe_indicator    = "✓",
+modelsummary(m1, fe1, fe2, fe3, fe4 + vcov(CR1(df.Species));
+    stars           = false,
+    estimator_names = ["OLS", "FE", "FE", "FE", "OLS"],
+    yes_indicator    = Checkmark,
 )
 ```
 
 ## Publication-quality table
 
-Combine all the features — `estimator_names`, `fe_indicator`, `custom_lines`,
+Combine all the features — `estimator_names`, `yes_indicator`, `custom_lines`,
 and `footnotes` — to replicate a complex academic table in a single call,
 with no manual `Cell` construction needed.
 
 ```{julia}
 #| code-fold: false
 
-# ── Simulated panel data ──────────────────────────────────────────
+# Simulated panel data
 N, T = 30, 20
 panel = DataFrame(
     country = repeat(1:N, inner = T),
@@ -105,20 +156,22 @@ panel.Δy = -0.32 .* panel.Δd_HH .- 0.06 .* panel.Δd_F .+
 panel.country_cat = categorical(panel.country)
 panel.year_cat    = categorical(panel.year)
 
-# ── Four specifications ───────────────────────────────────────────
+# Four specifications
 spec1 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + fe(country_cat)))
 spec2 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + fe(country_cat)))
 spec3 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + trend + fe(country_cat)))
 spec4 = reg(panel, @formula(Δy ~ Δd_HH + Δd_F + fe(country_cat) + fe(year_cat)))
 
-# ── Build the table ───────────────────────────────────────────────
+# Build the table
 modelsummary(spec1, spec2, spec3, spec4;
     stars           = true,
     estimator_names = ["OLS", "OLS", "OLS", "OLS"],
-    fe_indicator    = "✓",
+    yes_indicator    = Checkmark,
     labels          = Dict(
-        "Δd_HH" => "Δ₃dᴴᴴ",
-        "Δd_F"  => "Δ₃dᶠ",
+        "Δd_HH" => BackendMath(latex = raw"$\Delta d^{HH}$",
+                               typst = raw"$Delta d^{HH}$"),
+        "Δd_F"  => BackendMath(latex = raw"$\Delta d^{F}$",
+                               typst = raw"$Delta d^{F}$"),
     ),
     regression_statistics = [Nobs, R2],
     custom_lines = [
@@ -133,6 +186,84 @@ modelsummary(spec1, spec2, spec3, spec4;
         ),
         " All regressions include country fixed effects.",
     ],
+)
+```
+
+## Kitchen sink — every option in one call
+
+The following example exercises every `modelsummary` keyword argument.
+Use it as a quick-reference for the full API.
+
+```{julia}
+#| code-fold: false
+
+modelsummary(
+    # Models
+    m1,                        # OLS, parsimonious
+    m2,                        # OLS, more controls
+    m2 + vcov(HC3()),          # same model, robust SEs
+    fe2,                       # fixed-effects
+
+    # Coefficient selection & ordering
+    keep  = ["SepalWidth", "PetalLength"],   # show only these
+    # drop  = ["(Intercept)"],               # (alternative: hide intercept)
+    order = ["PetalLength", "SepalWidth"],    # reorder rows
+
+    # Labels & math
+    labels = Dict(
+        "SepalWidth"  => BackendMath(latex = raw"Sepal width ($x_1$)",
+                                     typst = raw"Sepal width ($x_1$)"),
+        "PetalLength" => BackendMath(latex = raw"Petal length ($x_2$)",
+                                     typst = raw"Petal length ($x_2$)"),
+    ),
+
+    # Header
+    groups           = ["Parsimonious" "Full" "Full" "Full"],
+    estimator_names  = ["OLS", "OLS", "OLS", "FE"],
+    print_depvar     = true,
+    depvar_bold      = false,
+    number_regressions = true,
+    header_align     = :c,
+
+    # Below-coefficient statistic
+    below_statistic = StdError,     # or TStat, ConfInt, nothing
+    stat_below      = true,         # false: side-by-side layout
+
+    # Fixed effects & controls
+    print_fe_section       = true,
+    print_fe_suffix        = true,
+    yes_indicator          = Checkmark,
+    print_control_indicator = true,
+
+    # Bottom statistics
+    regression_statistics = [Nobs, R2, AdjR2, AIC, BIC, VcovType],
+    digits       = 3,              # decimals for coefficients / SEs
+    digits_stats = 4,              # decimals for summary statistics
+
+    # Significance stars
+    stars = false,
+
+    # Alignment
+    align = :r,                    # :r, :c, or :l for data columns
+
+    # Custom rows & footnotes
+    custom_lines = [
+        "Sample"   => ["Full", "Full", "Full", "Full"],
+        "Baseline" => ["Yes", "No", "No", "No"],
+    ],
+    footnotes = [
+        "Standard errors in parentheses.",
+    ],
+
+    # Section ordering (default shown)
+    section_order = [
+        :groups, :depvar, :estimator_names, :number_regressions, :break,
+        :coef, :break, :fe, :break, :controls, :break,
+        :custom_lines, :stats, :extralines,
+    ],
+
+    # Output
+    # file = "table.tex",        # save to file (.tex, .html, .typ)
 )
 ```
 

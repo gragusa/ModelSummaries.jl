@@ -31,7 +31,7 @@ default_keep(rrs) = Vector{String}()
 default_drop(rrs) = Vector{String}()
 default_order(rrs) = Vector{String}()
 default_fixedeffects(rrs) = Vector{String}()
-default_labels(rrs) = Dict{String, String}()
+default_labels(rrs) = Dict{String, Any}()
 default_below_statistic() = StdError
 default_stat_below() = true
 default_align() = :r
@@ -46,7 +46,7 @@ default_standardize_coef(rrs) = false
 
 Default label transformation. Returns empty dict (no transformation).
 """
-default_transform_labels(rrs) = Dict{String, String}()
+default_transform_labels(rrs) = Dict{String, Any}()
 
 default_print_estimator(rrs) = length(unique(RegressionType.(rrs))) > 1
 default_print_clusters(rrs) = false
@@ -102,7 +102,7 @@ function modelsummary(
         drop::Vector = Vector{Any}(),
         order::Vector = Vector{Any}(),
         fixedeffects::Vector = Vector{String}(),
-        labels::Dict{String, String} = Dict{String, String}(),
+        labels::Dict{String} = Dict{String, Any}(),
         align::Symbol = :r,
         header_align::Symbol = :c,
         below_statistic = StdError,
@@ -115,7 +115,7 @@ function modelsummary(
         print_fe_section = true,
         print_first_stage_section = false,
         file = nothing,
-        transform_labels::Union{Dict, Symbol} = Dict{String, String}(),
+        transform_labels::Union{Dict, Symbol} = Dict{String, Any}(),
         extralines = nothing,
         section_order = nothing,
         print_fe_suffix = true,
@@ -128,10 +128,11 @@ function modelsummary(
         use_relabeled_values = false,
         confint_level = 0.95,
         stars::Bool = false,
-        yes_indicator::AbstractString = "Yes",
+        yes_indicator = "Yes",
         footnotes::Vector = [],
         estimator_names = nothing,
-        custom_lines::Vector = []
+        custom_lines::Vector = [],
+        depvar_bold::Bool = false
 )
     nreg = length(rrs)
     ncols = 1 + nreg
@@ -299,7 +300,7 @@ function modelsummary(
             for y in y_names
                 push!(row,
                     Cell(display_name(y);
-                        merge = true, bold = true, border_bottom = true, halign = hdr_halign))
+                        merge = true, bold = depvar_bold, border_bottom = true, halign = hdr_halign))
             end
             push!(rows, row)
 
@@ -341,7 +342,7 @@ function modelsummary(
                     for i in 1:nreg
                         push!(brow,
                             make_understat_cell(coefbelow[j, i];
-                                digits = below_digits, halign = body_halign))
+                                digits = below_digits, stars, halign = body_halign))
                     end
                     push!(rows, brow)
                 end
@@ -361,8 +362,8 @@ function modelsummary(
                 row = Cell[Cell(stat_label(stats_mat[j, 1]); halign = :left)]
                 for i in 1:nreg
                     sv = stats_mat[j, i + 1]
-                    push!(row, Cell(format_stat_value(sv; digits = stat_digits);
-                        halign = body_halign))
+                    push!(row, make_stat_cell(sv;
+                        digits = stat_digits, stars, halign = body_halign))
                 end
                 push!(rows, row)
             end
@@ -383,11 +384,11 @@ function modelsummary(
                 lvals = last(line)
                 row = Cell[Cell(string(lname); halign = :left)]
                 for (i, val) in enumerate(lvals)
-                    push!(row, Cell(string(val); halign = body_halign))
+                    push!(row, Cell(string(val); halign = :center))
                 end
                 # Pad if fewer values than models
                 for _ in (length(lvals) + 1):nreg
-                    push!(row, Cell(nothing; halign = body_halign))
+                    push!(row, Cell(nothing; halign = :center))
                 end
                 push!(rows, row)
             end
@@ -409,7 +410,7 @@ function modelsummary(
                     for i in 1:nreg
                         val = st[j, i + 1]
                         push!(row, Cell(format_other_stat(val; digits = stat_digits);
-                            halign = body_halign))
+                            halign = :center))
                     end
                     push!(rows, row)
                 end
@@ -502,8 +503,8 @@ function combine_other_statistics(
         fill_val = missing,
         print_fe_suffix = true,
         fixedeffects = Vector{String}(),
-        labels = Dict{String, String}(),
-        transform_labels = Dict{String, String}(),
+        labels = Dict{String, Any}(),
+        transform_labels = Dict{String, Any}(),
         yes_indicator = "Yes",
         kwargs...
 )

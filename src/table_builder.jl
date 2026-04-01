@@ -1,5 +1,33 @@
 # Helper functions for building SummaryTables cells
 
+# Invisible parentheses — keeps coefficients aligned with parenthesized SEs.
+const _PHANTOM_OPEN = BackendMath(
+    latex = raw"\phantom{(}",
+    typst = "#hide[(]",
+    html  = "<span style=\"visibility:hidden\">(</span>",
+    text  = " ",
+)
+const _PHANTOM_CLOSE = BackendMath(
+    latex = raw"\phantom{)}",
+    typst = "#hide[)]",
+    html  = "<span style=\"visibility:hidden\">)</span>",
+    text  = " ",
+)
+
+# Invisible superscript stars — keeps SE rows aligned with starred coefficients.
+const _MAX_STARS = 3
+function _phantom_sup_stars(n::Int)
+    n <= 0 && return ()
+    s = "*" ^ n
+    phantom = BackendMath(
+        latex = "\\phantom{\\textsuperscript{$s}}",
+        typst = "#hide[#super[$s]]",
+        html  = "<sup style=\"visibility:hidden\">$s</sup>",
+        text  = "",
+    )
+    return (phantom,)
+end
+
 """
     format_number(x::Float64; digits=3)
 
@@ -32,30 +60,41 @@ function make_coef_cell(cv::CoefValue; digits = 3, stars = false, halign = :righ
     s = format_number(cv.val; digits)
     if stars
         star_str = significance_stars(cv.pvalue)
-        if !isempty(star_str)
-            return Cell(Concat(s, Superscript(star_str)); halign)
-        end
+        nstars = length(star_str)
+        parts = Any[_PHANTOM_OPEN, s]
+        nstars > 0 && push!(parts, Superscript(star_str))
+        append!(parts, _phantom_sup_stars(_MAX_STARS - nstars))
+        push!(parts, _PHANTOM_CLOSE)
+        return Cell(Concat(parts...); halign)
+    end
+    Cell(Concat(_PHANTOM_OPEN, s, _PHANTOM_CLOSE); halign)
+end
+
+"""
+    make_understat_cell(us::AbstractUnderStatistic; digits=3, stars=false, halign=:right)
+
+Create a Cell for an under-statistic (standard error, t-stat).
+"""
+function make_understat_cell(us::AbstractUnderStatistic; digits = 3, stars = false, halign = :right)
+    s = "(" * format_number(value(us); digits) * ")"
+    if stars
+        return Cell(Concat(s, _phantom_sup_stars(_MAX_STARS)...); halign)
     end
     Cell(s; halign)
 end
 
-"""
-    make_understat_cell(us::AbstractUnderStatistic; digits=3, halign=:right)
-
-Create a Cell for an under-statistic (standard error, t-stat).
-"""
-function make_understat_cell(us::AbstractUnderStatistic; digits = 3, halign = :right)
-    Cell("(" * format_number(value(us); digits) * ")"; halign)
-end
-
-function make_understat_cell(ci::ConfInt; digits = 3, halign = :right)
+function make_understat_cell(ci::ConfInt; digits = 3, stars = false, halign = :right)
     lo = format_number(value(ci)[1]; digits)
     hi = format_number(value(ci)[2]; digits)
-    Cell("($lo, $hi)"; halign)
+    s = "($lo, $hi)"
+    if stars
+        return Cell(Concat(s, _phantom_sup_stars(_MAX_STARS)...); halign)
+    end
+    Cell(s; halign)
 end
 
-make_understat_cell(::Missing; digits = 3, halign = :right) = Cell(nothing; halign)
-make_understat_cell(::Nothing; digits = 3, halign = :right) = Cell(nothing; halign)
+make_understat_cell(::Missing; digits = 3, stars = false, halign = :right) = Cell(nothing; halign)
+make_understat_cell(::Nothing; digits = 3, stars = false, halign = :right) = Cell(nothing; halign)
 
 # Display name functions for coefficient names
 
@@ -73,6 +112,7 @@ display_name(x::ClusterCoefName) = display_name(x.name)
 display_name(x::FirstStageCoefName) = display_name(x.name)
 display_name(x::RandomEffectCoefName) = display_name(x.rhs) * " | " * display_name(x.lhs)
 display_name(x::AbstractString) = String(x)
+display_name(x::BackendMath) = x
 display_name(x::AbstractCoefName) = string(x)
 
 # Suffix functions (customizable by users)
@@ -107,6 +147,22 @@ end
 # Format statistic values for display
 
 """
+    make_stat_cell(sv; digits=3, stars=false, halign=:right)
+
+Create a Cell for a regression statistic, padded to align with coefficient cells.
+"""
+function make_stat_cell(sv; digits = 3, stars = false, halign = :right)
+    s = format_stat_value(sv; digits)
+    if isempty(s)
+        return Cell(nothing; halign)
+    end
+    parts = Any[_PHANTOM_OPEN, s]
+    stars && append!(parts, _phantom_sup_stars(_MAX_STARS))
+    push!(parts, _PHANTOM_CLOSE)
+    Cell(Concat(parts...); halign)
+end
+
+"""
     format_stat_value(x; digits=3)
 
 Format a regression statistic value for display in a cell.
@@ -135,6 +191,7 @@ Format values from combine_other_statistics for display.
 """
 format_other_stat(x; digits = 3) = string(x)
 format_other_stat(x::AbstractString; digits = 3) = x
+format_other_stat(x::BackendMath; digits = 3) = x
 format_other_stat(x::Missing; digits = 3) = ""
 format_other_stat(x::ClusterValue; digits = 3) = value(x) > 0 ? "Yes" : ""
 format_other_stat(x::RandomEffectValue; digits = 3) = format_number(value(x); digits)
