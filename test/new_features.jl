@@ -19,8 +19,8 @@ using GLM, DataFrames
 end
 
 @testset "Unicode labels" begin
-    @test ModelSummaries.label(R2) == "R\u00b2"
-    @test ModelSummaries.label(AdjR2) == "Adjusted R\u00b2"
+    @test string(ModelSummaries.label(R2)) == "R\u00b2"
+    @test string(ModelSummaries.label(AdjR2)) == "Adjusted R\u00b2"
     @test ModelSummaries.label(Nobs) == "N"
     @test ModelSummaries.label(AIC) == "AIC"
     @test ModelSummaries.label(BIC) == "BIC"
