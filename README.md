@@ -26,14 +26,15 @@ Pkg.add(url="https://github.com/gragusa/ModelSummaries.jl")
 ## Quick start
 
 ```julia
-using ModelSummaries, GLM, DataFrames, RDatasets
+using ModelSummaries, GLM, DataFrames, RDatasets, Regress
 
 df = dataset("datasets", "iris")
 m1 = lm(@formula(SepalLength ~ SepalWidth), df)
 m2 = lm(@formula(SepalLength ~ SepalWidth + PetalLength), df)
 m3 = lm(@formula(SepalLength ~ SepalWidth + PetalLength + PetalWidth), df)
+m4 = Regress.ols(df, SepalLength ~ SepalWidth + PetalLength + PetalWidth + fe(species))
 
-modelsummary(m1, m2, m3; stars = true)
+modelsummary(m1, m2, m3, m4)
 ```
 
 ## Robust and clustered standard errors
