@@ -67,6 +67,9 @@ modelsummary(m1, m2; backend=:html, file="table.html")
 # Markdown/text output
 modelsummary(m1, m2; backend=:text)
 
+# Typst output (PrettyTables backend)
+modelsummary(m1, m2; backend=:typst, file="table.typ")
+
 # Auto-detect based on context (default)
 modelsummary(m1, m2)  # Uses markdown in REPL, HTML in Jupyter
 ```
@@ -94,6 +97,17 @@ modelsummary(m1, m2; theme=:unicode)
 
 Available themes: `:academic`, `:modern`, `:minimal`, `:compact`, `:unicode`, `:default`
 
+`theme=:academic` now aims to mimic a journal-style table aesthetic:
+- minimal rules in text output (no vertical separators),
+- `booktabs` in LaTeX,
+- sensible Typst defaults through PrettyTables.
+
+```julia
+# Journal-like output
+modelsummary(m1, m2; theme=:academic, backend=:latex, file="table.tex")
+modelsummary(m1, m2; theme=:academic, backend=:typst, file="table.typ")
+```
+
 For fine-grained control, use the `table_format` keyword:
 
 ```julia
@@ -111,6 +125,31 @@ modelsummary(m1, m2;
 You can pass a single `TableFormat`, provide a `Dict`/`NamedTuple` keyed by backend, or use PrettyTables aliases such as `:unicode_rounded` and `:latex_booktabs`. Any backend that is not specified falls back to the defaults.
 
 **See [PRETTYTABLES_GUIDE.md](PRETTYTABLES_GUIDE.md) for comprehensive examples of using PrettyTables features.**
+
+### Understanding themes vs `table_format`
+
+If you are unsure whether to use `theme` or `table_format`, use this rule of thumb:
+
+- Use `theme` when you want a coherent visual style quickly (`:academic`, `:modern`, etc.).
+- Use `table_format` when you want per-backend control or PrettyTables-native objects.
+- You can pass backend-specific options with nested dictionaries:
+
+```julia
+using PrettyTables
+
+custom = Dict(
+    :text => PrettyTables.TextTableFormat(),
+    :latex => PrettyTables.latex_table_format__booktabs,
+    :typst => Dict(
+        :table_format => :default,  # keep Typst default format
+        :pretty_kwargs => Dict(
+            :title => "Regression Results"
+        )
+    )
+)
+
+modelsummary(m1, m2; table_format=custom, backend=:typst)
+```
 
 ## Custom Covariance Matrices
 

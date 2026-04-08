@@ -15,7 +15,7 @@ using CategoricalArrays
     )
 
     @testset "OLS without FE" begin
-        m = ols(df, @formula(y ~ x1 + x2))
+        m = Regress.ols(df, @formula(y ~ x1 + x2))
         ms = modelsummary(m)
         @test size(ms, 2) == 2  # rownames + 1 model
         @test !isempty(ms.data)
@@ -28,7 +28,7 @@ using CategoricalArrays
     end
 
     @testset "OLS with FE" begin
-        m = ols(df, @formula(y ~ x1 + fe(group)))
+        m = Regress.ols(df, @formula(y ~ x1 + fe(group)))
         ms = modelsummary(m)
         @test size(ms, 2) == 2
 
@@ -40,17 +40,17 @@ using CategoricalArrays
     end
 
     @testset "Multiple OLS models" begin
-        m1 = ols(df, @formula(y ~ x1))
-        m2 = ols(df, @formula(y ~ x1 + x2))
-        m3 = ols(df, @formula(y ~ x1 + fe(group)))
+        m1 = Regress.ols(df, @formula(y ~ x1))
+        m2 = Regress.ols(df, @formula(y ~ x1 + x2))
+        m3 = Regress.ols(df, @formula(y ~ x1 + fe(group)))
 
         ms = modelsummary(m1, m2, m3)
         @test size(ms, 2) == 4  # rownames + 3 models
     end
 
-    @testset "IV model (TSLS)" begin
+    @testset "IV model (Regress.TSLS)" begin
         # Simple IV: x2 is endogenous, z is instrument
-        m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         ms = modelsummary(m)
         @test size(ms, 2) == 2
 
@@ -63,7 +63,7 @@ using CategoricalArrays
 
     @testset "First Stage Section" begin
         # Test that first-stage F-statistic appears when enabled
-        m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         ms = modelsummary(m; print_first_stage_section = true)
 
         buf = IOBuffer()
@@ -82,15 +82,15 @@ using CategoricalArrays
     end
 
     @testset "Mixed OLS and IV" begin
-        m1 = ols(df, @formula(y ~ x1 + x2))
-        m2 = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m1 = Regress.ols(df, @formula(y ~ x1 + x2))
+        m2 = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
 
         ms = modelsummary(m1, m2)
         @test size(ms, 2) == 3
     end
 
     @testset "Custom vcov" begin
-        m = ols(df, @formula(y ~ x1 + x2))
+        m = Regress.ols(df, @formula(y ~ x1 + x2))
 
         # With HC3
         ms = modelsummary(m + vcov(HC3()))
@@ -98,7 +98,7 @@ using CategoricalArrays
     end
 
     @testset "OLS with custom vcov" begin
-        m = ols(df, @formula(y ~ x1 + x2))
+        m = Regress.ols(df, @formula(y ~ x1 + x2))
         m_hc3 = m + vcov(HC3())
 
         # Basic table creation
@@ -118,7 +118,7 @@ using CategoricalArrays
     end
 
     @testset "OLS with FE and custom vcov" begin
-        m = ols(df, @formula(y ~ x1 + fe(group)))
+        m = Regress.ols(df, @formula(y ~ x1 + fe(group)))
         m_hc3 = m + vcov(HC3())
 
         ms = modelsummary(m_hc3)
@@ -132,7 +132,7 @@ using CategoricalArrays
     end
 
     @testset "IV with custom vcov" begin
-        m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_hc3 = m + vcov(HC3())
 
         # Basic table creation
@@ -149,7 +149,7 @@ using CategoricalArrays
     end
 
     @testset "IV first stage section with custom vcov" begin
-        m = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_hc3 = m + vcov(HC3())
 
         # Test first-stage section with custom vcov (uses recomputed F_kp)
@@ -164,8 +164,8 @@ using CategoricalArrays
     end
 
     @testset "Mixed model types with custom vcov" begin
-        m_ols = ols(df, @formula(y ~ x1 + x2))
-        m_iv = iv(TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
+        m_ols = Regress.ols(df, @formula(y ~ x1 + x2))
+        m_iv = Regress.iv(Regress.TSLS(), df, @formula(y ~ x1 + (x2 ~ z)))
         m_ols_hc3 = m_ols + vcov(HC3())
         m_iv_hc3 = m_iv + vcov(HC3())
 

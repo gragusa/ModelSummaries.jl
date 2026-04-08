@@ -238,7 +238,7 @@ default_stat_below(render::AbstractRenderType) = true
 """
     default_backend(rrs)
 
-Defaults to `nothing` (auto-detect), can be `:latex`, `:html`, or `:text`
+Defaults to `nothing` (auto-detect), can be `:latex`, `:html`, `:text`, or `:typst`
 """
 default_backend(rrs) = nothing
 
@@ -247,6 +247,7 @@ _backend_to_render(backend::Nothing) = AsciiTable()
 function _backend_to_render(backend::Symbol)
     backend == :latex ? LatexTable() :
     backend == :html ? HtmlTable() :
+    backend == :typst ? AsciiTable() :
     backend == :text ? AsciiTable() :
     AsciiTable()
 end
@@ -365,7 +366,7 @@ Produces a publication-quality regression table, similar to Stata's `esttab` and
 * `print_first_stage_section` is a `Bool` that governs whether a section on first-stage statistics (for IV models) should be shown. Defaults to `false`.
 * `print_estimator_section`  is a `Bool` that governs whether to print a section on which estimator (OLS/IV/Binomial/Poisson...) is used. Defaults to `true` if more than one value is displayed.
 * `standardize_coef` is a `Bool` that governs whether the table should show standardized coefficients. Note that this only works with `TableRegressionModel`s, and that only coefficient estimates and the `below_statistic` are being standardized (i.e. the R^2 etc still pertain to the non-standardized regression).
-* `backend` is a `Symbol` or `nothing` that governs the output format. Supported values are `:latex`, `:html`, `:text`, or `nothing` (auto-detect based on context). Defaults to `nothing`.
+* `backend` is a `Symbol` or `nothing` that governs the output format. Supported values are `:latex`, `:html`, `:text`, `:typst`, or `nothing` (auto-detect based on context). Defaults to `nothing`.
 * `stars` is a `Bool` that governs whether significance stars should be displayed next to coefficient estimates based on p-values. Defaults to `false`. When `true`, stars are added according to the breaks defined by `default_breaks(render)` (typically *** for p<0.01, ** for p<0.05, * for p<0.1).
 * `theme` is a `Symbol`, `Dict`, or `NamedTuple` that governs the table visual style across all backends. Available preset themes: `:academic`, `:modern`, `:minimal`, `:compact`, `:unicode`, `:default`. You can also pass a custom Dict/NamedTuple mapping backend symbols to PrettyTables.TableFormat objects. If both `theme` and `table_format` are provided, `theme` takes precedence. Defaults to `nothing` (uses default formats).
 * `table_format` is a `Dict`, `NamedTuple`, or `PrettyTables.TableFormat` that allows fine-grained control over table appearance for each backend. For most users, the `theme` parameter is easier to use. Defaults to `nothing`.
@@ -397,7 +398,7 @@ function modelsummary(
         header_align::Symbol = :c,
         below_statistic = StdError,
         stat_below::Bool = true,
-        regression_statistics = [Nobs, R2],
+        regression_statistics = (Nobs, R2),
         groups = nothing,
         print_depvar::Bool = true,
         number_regressions::Bool = length(rrs) > 1,
@@ -936,8 +937,8 @@ The `stats` argument can also be a pair of `AbstractRegressionStatistic => Strin
 uses the second value as the name of the statistic in the final table.
 """
 function combine_statistics(tables, stats)
-    types_strings = display_val.(stats)
-    type_f = f_val.(stats)
+    types_strings = collect(display_val.(stats))
+    type_f = collect(f_val.(stats))
     mat = Matrix{Any}(missing, length(types_strings), length(tables))
     for (i, t) in enumerate(tables)
         for (j, s) in enumerate(type_f)
