@@ -163,9 +163,9 @@ modelsummary(m1, m2; file = "table.html")  # HTML
 modelsummary(m1, m2; file = "table.typ")   # Typst
 ```
 
-## Acknowledgment
+## Similar packages
 
-**Johannes Boehm**, author of [RegressionTables.jl](https://github.com/jmboehm/RegressionTables.jl), should be credited for all the good things here.
+- [RegressionTables.jl](https://github.com/jmboehm/RegressionTables.jl)
 
 ## License
 
