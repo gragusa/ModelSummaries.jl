@@ -15,6 +15,7 @@ using Distributions: Distributions, FDist, InverseGaussian, NegativeBinomial,
                      Normal, UnivariateDistribution, ccdf, loglikelihood
 using Format: Format, format
 using SummaryTables: SummaryTables, Cell, Table, Concat, Superscript
+using WriteDocx: WriteDocx
 
 ##############################################################################
 ## Exported methods and types

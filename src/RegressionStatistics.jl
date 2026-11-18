@@ -327,7 +327,7 @@ struct ConfInt <: AbstractUnderStatistic
 end
 
 function ConfInt(rr::RegressionModel, k::Int; level = 0.95, standardize = false, vargs...)
-    @assert 0 < level < 1 "Confidence level must be between 0 and 1"
+    0 < level < 1 || throw(ArgumentError("confidence level must be in (0, 1), got $level"))
     c_int = confint(rr; level)[k, :] |> Tuple
     if standardize
         c_int = standardize_coef_values.(Ref(rr), c_int, k)

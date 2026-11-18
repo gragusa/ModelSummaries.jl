@@ -67,7 +67,7 @@ function _escape(s::Symbol)
     s == :underscore ? Dict("_" => "\\_") :
     s == :underscore2space ? Dict("_" => " ") :
     s == :latex ? escape_latex_dict :
-    error("Please provide :ampersand, :underscore, :underscore2space, :latex, or a Dict.")
+    throw(ArgumentError("transform_labels = :$s is not recognized; use :ampersand, :underscore, :underscore2space, :latex, or a Dict"))
 end
 
 ##############################################################################
@@ -94,7 +94,13 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `yes_indicator`: String shown for active fixed effects (default `"Yes"`, use `"✓"` for checkmarks).
 * `footnotes`: Vector of footnote strings or `SummaryTables.Concat` objects appended below the table.
 * `custom_lines`: Vector of `Pair{String, Vector}` for custom rows (e.g., `["Sample" => ["Full", "Full"]]`).
-* `file`: Save table to file (extension determines format: .tex, .html, .typ).
+* `keep`, `drop`, `order`, and `fixedeffects` throw an `ArgumentError` when a name or regex
+  matches no coefficient (fixed effect) of any model, or when an index is out of range.
+* `standardize_coef`: `true`, `false`, or one `Bool` per model. Throws an `ArgumentError` for a
+  model whose coefficients cannot be standardized (see [`ModelSummaries.can_standardize`](@ref)).
+* `file`: Save table to file. The extension determines the format: `.tex` (LaTeX),
+  `.html`/`.htm` (HTML), `.typ` (Typst), or `.docx` (Word). Any other extension throws an
+  `ArgumentError` before the table is built.
 """
 function modelsummary(
         rrs::RegressionModel...;
@@ -142,8 +148,11 @@ function modelsummary(
         section_order = default_section_order()
     end
 
-    @assert align ∈ (:l, :r, :c) "align must be one of :l, :r, :c"
-    @assert header_align ∈ (:l, :r, :c) "header_align must be one of :l, :r, :c"
+    align ∈ (:l, :r, :c) ||
+        throw(ArgumentError("align = :$align is not recognized; use :l, :r, or :c"))
+    header_align ∈ (:l, :r, :c) ||
+        throw(ArgumentError("header_align = :$header_align is not recognized; use :l, :r, or :c"))
+    file === nothing || output_mime(file)
 
     if isa(transform_labels, Symbol)
         transform_labels = _escape(transform_labels)
@@ -151,11 +160,15 @@ function modelsummary(
     if isa(standardize_coef, Bool)
         standardize_coef = fill(standardize_coef, nreg)
     end
+    length(standardize_coef) == nreg ||
+        throw(ArgumentError("standardize_coef has $(length(standardize_coef)) entries for $nreg models"))
     if !isa(confint_level, AbstractVector)
         confint_level = fill(confint_level, nreg)
     end
     for (i, rr) in enumerate(rrs)
-        standardize_coef[i] = standardize_coef[i] && can_standardize(rr)
+        if standardize_coef[i] && !can_standardize(rr)
+            throw(ArgumentError("standardize_coef: the coefficients of model $i ($(typeof(rr))) cannot be standardized; define `ModelSummaries.can_standardize` and `ModelSummaries.standardize_coef_values` for this type, or pass `standardize_coef = false` for this model"))
+        end
     end
 
     # Symbol aliases for below_statistic
@@ -163,7 +176,7 @@ function modelsummary(
         below_statistic = below_statistic == :se ? StdError :
                           below_statistic == :tstat ? TStat :
                           below_statistic == :none ? nothing :
-                          error("unrecognized below_statistic")
+                          throw(ArgumentError("below_statistic = :$below_statistic is not recognized; use :se, :tstat, :none, or a statistic type"))
     end
 
     # Symbol aliases for regression_statistics
@@ -188,6 +201,9 @@ function modelsummary(
         union([_coefnames(rr) for rr in rrs]...) |> unique
     end
 
+    check_selectors(nms, keep, "keep")
+    check_selectors(nms, drop, "drop")
+    check_selectors(nms, order, "order")
     if length(keep) > 0
         nms = build_nm_list(nms, keep)
     end
@@ -401,8 +417,10 @@ function modelsummary(
             end
             i_first = findfirst(!isnothing, temp)
             fill_val = fill_missing(last(first(temp[i_first])))
+            # `fixedeffects` selects fixed-effect names only; other sections show every name.
             st = combine_other_statistics(
-                temp; fill_val, print_fe_suffix, fixedeffects, labels,
+                temp; fill_val, print_fe_suffix,
+                fixedeffects = v == :fe ? fixedeffects : String[], labels,
                 transform_labels, yes_indicator)
             if st !== nothing
                 for j in 1:size(st, 1)
@@ -449,20 +467,7 @@ function modelsummary(
         footnotes = footnotes
     )
 
-    if file !== nothing
-        open(file, "w") do io
-            ext = lowercase(splitext(file)[2])
-            if ext == ".tex"
-                show(io, MIME"text/latex"(), table)
-            elseif ext in (".html", ".htm")
-                show(io, MIME"text/html"(), table)
-            elseif ext == ".typ"
-                show(io, MIME"text/typst"(), table)
-            else
-                show(io, MIME"text/html"(), table)
-            end
-        end
-    end
+    file === nothing || write_table(file, table)
 
     table
 end
@@ -522,6 +527,7 @@ function combine_other_statistics(
         return nothing
     end
     nms = replace_name.(nms, Ref(labels), Ref(transform_labels))
+    check_selectors(nms, fixedeffects, "fixedeffects")
     if length(fixedeffects) > 0
         nms = build_nm_list(nms, fixedeffects)
     end
@@ -578,25 +584,44 @@ function combine_other_statistics(
 end
 
 """
+    check_selectors(nms, selectors, kw)
+
+Throw an `ArgumentError` if a `String` or `Regex` in `selectors` matches no element of `nms`,
+the full list of names before any filtering. `kw` names the keyword in the message.
+"""
+function check_selectors(nms, selectors, kw)
+    names = string.(nms)
+    for x in selectors
+        found = x isa String ? x in names :
+                x isa Regex ? any(n -> occursin(x, n), names) : true
+        found ||
+            throw(ArgumentError("$kw: $(repr(x)) matches no name; available names: $(join(repr.(names), ", "))"))
+    end
+end
+
+"""
     value_pos(nms, x)
 
-Returns the position(s) of `x` in the vector `nms`.
+Returns the position(s) of `x` in the vector `nms`. A name absent from `nms` gives no
+positions: [`check_selectors`](@ref) has already rejected names absent from every model, and
+an earlier `keep` or `drop` may have removed the rest.
 """
-value_pos(nms, x::String) = value_pos(nms, findfirst(string.(nms) .== x))
+value_pos(nms, x::String) = findall(==(x), string.(nms))
 
 function value_pos(nms, x::Int)
-    @assert x in eachindex(nms) "x must be a valid index for the coefficient names"
+    x in eachindex(nms) ||
+        throw(ArgumentError("index $x is out of range for $(length(nms)) names"))
     x:x
 end
 
 function value_pos(nms, x::UnitRange)
-    @assert all(i in eachindex(nms) for i in x) "x must be a valid index range"
+    issubset(x, eachindex(nms)) ||
+        throw(ArgumentError("index range $x is out of range for $(length(nms)) names"))
     x
 end
 
 value_pos(nms, x::BitVector) = findall(x)
-value_pos(nms, x::Regex) = value_pos(nms, occursin.(x, string.(nms)))
-value_pos(nms, x::Nothing) = Int[]
+value_pos(nms, x::Regex) = findall(n -> occursin(x, n), string.(nms))
 
 function value_pos(nms, x::Symbol)
     if x == :last || x == :end
@@ -714,4 +739,41 @@ function add_blank(groups::Vector{Vector}, n)
         push!(out, g)
     end
     groups
+end
+
+##############################################################################
+## File output
+##############################################################################
+
+const FILE_FORMATS = (".tex" => MIME"text/latex"(), ".html" => MIME"text/html"(),
+    ".htm" => MIME"text/html"(), ".typ" => MIME"text/typst"(), ".docx" => :docx)
+
+"""
+    output_mime(file)
+
+The output format for `file`, chosen by its extension (case-insensitive). Throws an
+`ArgumentError` for an unsupported extension.
+"""
+function output_mime(file)
+    ext = lowercase(splitext(file)[2])
+    for (e, m) in FILE_FORMATS
+        e == ext && return m
+    end
+    throw(ArgumentError("file = $(repr(file)): unsupported extension $(repr(ext)); use one of $(join(first.(FILE_FORMATS), ", "))"))
+end
+
+"""
+    write_table(file, table::Table)
+
+Write `table` to `file` in the format given by the file's extension (see [`output_mime`](@ref)).
+"""
+function write_table(file, table::Table)
+    m = output_mime(file)
+    if m === :docx
+        doc = WriteDocx.Document(WriteDocx.Body([WriteDocx.Section([SummaryTables.to_docx(table)])]))
+        WriteDocx.save(file, doc)
+    else
+        open(io -> show(io, m, table), file, "w")
+    end
+    file
 end

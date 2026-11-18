@@ -23,11 +23,14 @@ function ModelSummaries.RegressionType(x::StatsModels.TableRegressionModel{T}) w
 end
 
 # k is which coefficient or standard error to standardize
-function ModelSummaries.standardize_coef_values(x::StatsModels.TableRegressionModel, val, k)
+function ModelSummaries.standardize_coef_values(
+        x::StatsModels.TableRegressionModel{<:GLM.LinPredModel}, val, k)
     ModelSummaries.standardize_coef_values(std(modelmatrix(x)[:, k]), std(response(x)), val)
 end
 
-ModelSummaries.can_standardize(x::StatsModels.TableRegressionModel) = true
+function ModelSummaries.can_standardize(x::StatsModels.TableRegressionModel{<:GLM.LinPredModel})
+    true
+end
 
 ModelSummaries.RegressionType(x::LinearModel) = RegressionType(Normal())
 ModelSummaries.RegressionType(x::GLM.LmResp) = RegressionType(Normal())

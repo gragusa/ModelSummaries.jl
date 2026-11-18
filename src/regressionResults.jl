@@ -105,16 +105,13 @@ Returns a boolean indicating whether the coefficients can be standardized.
 standardized coefficients are coefficients that are scaled by the standard deviation of the
 variables. This is useful for comparing the relative importance of the variables in the model.
 
-This is only possible of the `RegressionModel` includes the model matrix or the
-standard deviation of the dependent variable. If the `RegressionModel` does not include
-either of these, then this function should return `false`.
+The default is `false`. A package extension returns `true` for a model type whose model
+matrix and response are available, and defines [`ModelSummaries.standardize_coef_values`](@ref)
+for it. `modelsummary(...; standardize_coef = true)` throws for a model where this is `false`.
 
 See also [`ModelSummarys.standardize_coef_values`](@ref).
 """
-function can_standardize(x::T) where {T <: RegressionModel}
-    @warn "standardize_coef is not possible for $T"
-    false
-end
+can_standardize(x::RegressionModel) = false
 
 """
     standardize_coef_values(std_X, std_Y, val)

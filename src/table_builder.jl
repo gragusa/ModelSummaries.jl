@@ -45,7 +45,8 @@ format_number(::Missing; digits = 3) = ""
 Return significance stars string based on p-value.
 """
 function significance_stars(pval; breaks = [0.001, 0.01, 0.05])
-    @assert issorted(breaks)
+    issorted(breaks) ||
+        throw(ArgumentError("breaks must be sorted in increasing order, got $breaks"))
     (isnan(pval) || pval < 0) && return ""
     i = findfirst(pval .<= breaks)
     i === nothing ? "" : "*"^(length(breaks) - i + 1)
