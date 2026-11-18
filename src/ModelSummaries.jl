@@ -4,15 +4,15 @@ module ModelSummaries
 ## Dependencies
 ##############################################################################
 
-using StatsBase: StatsBase, adjr2, aic, aicc, bic, confint, r2
+using StatsBase: StatsBase, CoefTable, adjr2, aic, aicc, bic, confint, r2
 using StatsModels: StatsModels, AbstractTerm, CategoricalTerm, InteractionTerm,
                    InterceptTerm, MatrixTerm, RegressionModel, Term, formula
 using Statistics: Statistics
 using StatsAPI: StatsAPI
-import StatsAPI: coef, stderror, dof_residual, coefnames, islinear, nobs
+import StatsAPI: coef, coeftable, stderror, dof_residual, coefnames, islinear, nobs
 
-using Distributions: Distributions, FDist, InverseGaussian, NegativeBinomial,
-                     Normal, UnivariateDistribution, ccdf, loglikelihood
+using Distributions: Distributions, InverseGaussian, NegativeBinomial, Normal, TDist,
+                     UnivariateDistribution, ccdf, loglikelihood, params
 using Format: Format, format
 using SummaryTables: SummaryTables, Cell, Table, Concat, Superscript
 using WriteDocx: WriteDocx

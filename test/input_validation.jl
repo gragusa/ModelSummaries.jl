@@ -14,6 +14,11 @@ StatsAPI.coef(::PlainModel) = [1.0, 2.0]
 StatsAPI.stderror(::PlainModel) = [0.1, 0.2]
 StatsAPI.dof_residual(::PlainModel) = 10
 StatsAPI.nobs(::PlainModel) = 12
+StatsAPI.coefnames(::PlainModel) = ["(Intercept)", "x"]
+function StatsAPI.coeftable(::PlainModel)
+    GLM.CoefTable([[1.0, 2.0], [0.1, 0.2], [10.0, 10.0], [0.0, 0.0]],
+        ["Coef.", "Std. Error", "t", "Pr(>|t|)"], ["(Intercept)", "x"], 4, 3)
+end
 
 @testset "Input validation" begin
     df = DataFrame(y = randn(60), x1 = randn(60), x2 = randn(60), b = rand(0:1, 60))

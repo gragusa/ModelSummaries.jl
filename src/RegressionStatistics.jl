@@ -290,12 +290,12 @@ abstract type AbstractUnderStatistic <: AbstractRegressionData end
         val::Float64
     end
 
-The t-statistic of a coefficient.
+The test statistic of a coefficient (t or z), read from the model's `coeftable`.
 """
 struct TStat <: AbstractUnderStatistic
     val::Float64
 end
-TStat(rr::RegressionModel, k::Int; vargs...) = TStat(_coef(rr)[k] / _stderror(rr)[k])
+TStat(rr::RegressionModel, k::Int; vargs...) = TStat(_teststat(rr)[k])
 
 """
     struct StdError <: AbstractUnderStatistic
@@ -320,7 +320,7 @@ end
         val::Tuple{Float64, Float64}
     end
 
-The confidence interval of a coefficient.
+The confidence interval of a coefficient, from the model's `confint(rr; level)`.
 """
 struct ConfInt <: AbstractUnderStatistic
     val::Tuple{Float64, Float64}
@@ -343,7 +343,8 @@ value(x::AbstractUnderStatistic) = x.val
         pvalue::Float64
     end
 
-The value of a coefficient and its p-value.
+The value of a coefficient and its p-value. The p-value, which also sets the significance
+stars, is read from the model's `coeftable`.
 """
 struct CoefValue <: AbstractRegressionData
     val::Float64

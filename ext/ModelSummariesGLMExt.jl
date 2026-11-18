@@ -89,7 +89,12 @@ function ModelSummaries.FStatPValue(model::StatsModels.TableRegressionModel{<:Li
     ModelSummaries.FStatPValue(model.model)
 end
 
-# Note: F-statistic for RegressionModelWithVcov is handled in ModelSummariesCovarianceMatricesExt
-# when CovarianceMatrices is loaded. The robust F-statistic methods are defined there.
+# Distribution behind GLM's coeftable p-values: t for linear models, Normal for every GLM
+# (including the Normal family).
+function ModelSummaries.reference_distribution(x::StatsModels.TableRegressionModel)
+    ModelSummaries.reference_distribution(x.model)
+end
+ModelSummaries.reference_distribution(x::LinearModel) = TDist(dof_residual(x))
+ModelSummaries.reference_distribution(::GeneralizedLinearModel) = Normal()
 
 end

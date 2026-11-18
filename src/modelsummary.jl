@@ -89,6 +89,13 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `regression_statistics`: Vector of statistic types for the bottom section.
 * `digits`, `digits_stats`: Number of decimal places.
 * `stars`: Show significance stars (default `false`).
+* `pvalue_note`: Append a note stating, per column, the distribution behind the p-values,
+  e.g. `"p-values: (1) t(97); (2) Normal"` (default `false`). Throws for a model without a
+  [`ModelSummaries.reference_distribution`](@ref) method, or whose `coeftable` p-values that
+  distribution does not reproduce.
+
+P-values (and stars), test statistics (`TStat`), and confidence intervals (`ConfInt`) are
+read from each model's `coeftable` and `confint`; ModelSummaries computes no inference.
 * `groups`: Group labels for columns.
 * `estimator_names`: Vector of estimator labels for a header row (e.g., `["OLS", "IV", "OLS"]`).
 * `yes_indicator`: String shown for active fixed effects (default `"Yes"`, use `"✓"` for checkmarks).
@@ -134,6 +141,7 @@ function modelsummary(
         use_relabeled_values = false,
         confint_level = 0.95,
         stars::Bool = false,
+        pvalue_note::Bool = false,
         yes_indicator = "Yes",
         footnotes::Vector = [],
         estimator_names = nothing,
@@ -459,6 +467,10 @@ function modelsummary(
     rgaps = Pair{Int, Float64}[p => 8.0
                                for p in sort(collect(rowgap_after))
                                if 0 < p < nrow]
+
+    if pvalue_note
+        footnotes = [footnotes; pvalue_note_text(rrs)]
+    end
 
     table = Table(cells;
         header = header_end > 0 ? header_end : nothing,

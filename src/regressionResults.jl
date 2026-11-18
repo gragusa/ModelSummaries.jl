@@ -70,21 +70,126 @@ By default, is just a passthrough for the `stderror` function from the `StatsMod
 _stderror(x::RegressionModel) = stderror(x)
 
 """
-    _dof_residual(x::RegressionModel)
+    _coeftable(x::RegressionModel)
 
-Returns the degrees of freedom of the residuals in the regression model.
-By default, is just a passthrough for the `dof_residual` function from the `StatsModels` package.
+Returns the model's `StatsAPI.CoefTable`, the source of the p-values and test statistics
+shown in the table. A passthrough for `coeftable`. The table must set `pvalcol` and
+`teststatcol`; a package extension overrides this method for a model type whose
+`coeftable` leaves one of them unset (see [`ModelSummaries.with_teststatcol`](@ref)).
 """
-_dof_residual(x::RegressionModel) = dof_residual(x)
+_coeftable(x::RegressionModel) = coeftable(x)
+
+"""
+    with_teststatcol(ct::CoefTable, name::AbstractString)
+
+Returns a copy of `ct` whose `teststatcol` is the column named `name`. Throws if no column
+has that name, or if `ct` already marks a different column as the test statistic.
+"""
+function with_teststatcol(ct::CoefTable, name::AbstractString)
+    col = findfirst(==(name), ct.colnms)
+    col === nothing && throw(ArgumentError(
+        "the coefficient table has no column named \"$name\"; its columns are $(ct.colnms)"))
+    ct.teststatcol in (0, col) || throw(ArgumentError(
+        "the coefficient table marks column $(ct.teststatcol) \
+        (\"$(ct.colnms[ct.teststatcol])\") as the test statistic, not \"$name\""))
+    CoefTable(ct.cols, ct.colnms, ct.rownms, ct.pvalcol, col)
+end
+
+"""
+    _coeftable_column(x::RegressionModel, which::Symbol)
+
+Returns the p-values (`which = :pvalue`) or test statistics (`which = :teststat`) of the
+model's [`ModelSummaries._coeftable`](@ref), in the order of `coef(x)`.
+
+Rows are matched to coefficients by name, since a `coeftable` may list them in a different
+order than `coef` (FixedEffectModels and Regress put the intercept last). Throws if the
+table does not mark the column, if its row names are not a permutation of `coefnames(x)`,
+or if its first column, reordered, does not reproduce `coef(x)`.
+"""
+function _coeftable_column(x::RegressionModel, which::Symbol)
+    ct = _coeftable(x)
+    col = which === :pvalue ? ct.pvalcol :
+          which === :teststat ? ct.teststatcol :
+          throw(ArgumentError("which = :$which; use :pvalue or :teststat"))
+    mname = nameof(typeof(x))
+    col > 0 || throw(ArgumentError(
+        "the coeftable of the $mname model does not mark its \
+        $(which === :pvalue ? "p-value (`pvalcol`)" : "test-statistic (`teststatcol`)") \
+        column; its columns are $(ct.colnms)"))
+    b = _coef(x)
+    rows = if isempty(ct.rownms)
+        length(ct.cols[1]) == length(b) || throw(DimensionMismatch(
+            "the coeftable of the $mname model has $(length(ct.cols[1])) rows for \
+            $(length(b)) coefficients"))
+        collect(eachindex(ct.cols[1]))
+    else
+        rowidx = Dict(nm => i for (i, nm) in pairs(ct.rownms))
+        nms = string.(coefnames(x))
+        length(rowidx) == length(ct.rownms) == length(nms) &&
+        all(in(keys(rowidx)), nms) || throw(ArgumentError(
+            "the coeftable rows of the $mname model, $(ct.rownms), are not a permutation \
+            of its coefficient names, $nms"))
+        [rowidx[nm] for nm in nms]
+    end
+    isapprox(ct.cols[1][rows], b; nans = true) || throw(ArgumentError(
+        "the first column of the coeftable of the $mname model does not reproduce \
+        `coef`: $(ct.cols[1][rows]) vs $b"))
+    ct.cols[col][rows]
+end
 
 """
     _pvalue(x::RegressionModel)
 
-Returns a vector of the p-values of the coefficients in the regression model.
+Returns the p-values of the coefficients, read from the model's `coeftable`.
 """
-function _pvalue(x::RegressionModel)
-    tt = _coef(x) ./ _stderror(x)
-    ccdf.(Ref(FDist(1, _dof_residual(x))), abs2.(tt))
+_pvalue(x::RegressionModel) = _coeftable_column(x, :pvalue)
+
+"""
+    _teststat(x::RegressionModel)
+
+Returns the test statistics (t or z) of the coefficients, read from the model's `coeftable`.
+"""
+_teststat(x::RegressionModel) = _coeftable_column(x, :teststat)
+
+"""
+    reference_distribution(x::RegressionModel) -> UnivariateDistribution
+
+The distribution under which the model's `coeftable` computes two-sided p-values from its
+test statistics, e.g. `TDist(dof_residual(x))` or `Normal()`. Package extensions define it
+for the model types they support; the fallback throws. Only `modelsummary(...; pvalue_note =
+true)` calls it, and the note is checked against the `coeftable` p-values.
+"""
+function reference_distribution(x::RegressionModel)
+    throw(ArgumentError(
+        "pvalue_note: no `ModelSummaries.reference_distribution` method for \
+        $(nameof(typeof(x))); define one, or pass `pvalue_note = false`"))
+end
+
+distribution_label(d::TDist) = (ν = only(params(d)); "t($(isinteger(ν) ? Int(ν) : ν))")
+distribution_label(::Normal) = "Normal"
+function distribution_label(d::UnivariateDistribution)
+    throw(ArgumentError("pvalue_note: no label for the reference distribution $d"))
+end
+
+"""
+    pvalue_note_text(rrs) -> String
+
+The table note stating, per column, the distribution behind the p-values, e.g.
+`"p-values: (1) t(97); (2) Normal"`. Throws if the stated distribution of a column does not
+reproduce that model's `coeftable` p-values.
+"""
+function pvalue_note_text(rrs)
+    labels = map(enumerate(rrs)) do (i, rr)
+        d = reference_distribution(rr)
+        p = _pvalue(rr)
+        p_ref = 2 .* ccdf.(d, abs.(_teststat(rr)))
+        isapprox(p_ref, p; rtol = sqrt(eps()), nans = true) || throw(ArgumentError(
+            "pvalue_note: the p-values of model $i ($(nameof(typeof(rr)))) are not two-sided \
+            tests against $(distribution_label(d)): $p vs $p_ref"))
+        distribution_label(d)
+    end
+    length(rrs) == 1 && return "p-values: $(only(labels))"
+    "p-values: " * join(("($i) $l" for (i, l) in enumerate(labels)), "; ")
 end
 
 """

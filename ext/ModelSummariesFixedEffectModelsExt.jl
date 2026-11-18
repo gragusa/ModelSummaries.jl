@@ -4,6 +4,7 @@ using FixedEffectModels
 using ModelSummaries
 using Distributions
 using StatsModels
+using StatsAPI: coeftable, dof_residual
 
 ModelSummaries.FStat(x::FixedEffectModel) = FStat(x.F)
 ModelSummaries.FStatPValue(x::FixedEffectModel) = FStatPValue(x.p)
@@ -18,6 +19,12 @@ end
 ModelSummaries.applies(::Type{R2Within}, x::FixedEffectModel) = has_fe(x)
 
 ModelSummaries.RegressionType(x::FixedEffectModel) = RegressionType(Normal(), has_iv(x))
+
+# FixedEffectModels' coeftable leaves `teststatcol` unset.
+function ModelSummaries._coeftable(x::FixedEffectModel)
+    ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
+end
+ModelSummaries.reference_distribution(x::FixedEffectModel) = TDist(dof_residual(x))
 
 function ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(FixedEffectModels.fe)})
     ModelSummaries.CoefName(string(x.exorig.args[end]))

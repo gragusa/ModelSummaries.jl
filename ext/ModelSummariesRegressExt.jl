@@ -4,6 +4,7 @@ using Regress
 using ModelSummaries
 using Distributions
 using StatsModels
+using StatsAPI: coeftable, dof_residual
 
 # Import model types
 using Regress: OLSEstimator, IVEstimator, has_iv, has_fe
@@ -34,6 +35,14 @@ end
 # The estimator behind `stderror`: Regress's default, or the one attached by `+ vcov(...)`.
 function ModelSummaries.VcovType(x::Union{OLSEstimator, IVEstimator})
     VcovType(ModelSummaries.vcov_type_name(x.vcov_estimator))
+end
+
+# Regress's coeftable leaves `teststatcol` unset.
+function ModelSummaries._coeftable(x::Union{OLSEstimator, IVEstimator})
+    ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
+end
+function ModelSummaries.reference_distribution(x::Union{OLSEstimator, IVEstimator})
+    TDist(dof_residual(x))
 end
 
 # Regression Type
