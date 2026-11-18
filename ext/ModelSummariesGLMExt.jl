@@ -34,6 +34,26 @@ ModelSummaries.RegressionType(x::GLM.LmResp) = RegressionType(Normal())
 ModelSummaries.RegressionType(x::GeneralizedLinearModel) = RegressionType(x.rr)
 ModelSummaries.RegressionType(x::GLM.GlmResp{Y, D, L}) where {Y, D, L} = RegressionType(D)
 
+function ModelSummaries.applies(S, model::StatsModels.TableRegressionModel)
+    ModelSummaries.applies(S, model.model)
+end
+
+# Statistics that GLM does not define for these model types
+ModelSummaries.applies(::Type{<:Union{R2, AdjR2}}, ::GeneralizedLinearModel) = false
+function ModelSummaries.applies(::Type{<:Union{FStat, FStatPValue}}, ::GeneralizedLinearModel)
+    false
+end
+function ModelSummaries.applies(
+        ::Type{<:Union{FStatIV, FStatIVPValue, R2Within}}, ::GLM.LinPredModel)
+    false
+end
+
+# The overall F-test needs at least one predictor and positive residual degrees of freedom.
+function ModelSummaries.applies(::Type{<:Union{FStat, FStatPValue}}, model::LinearModel)
+    p = dof(model) - 1
+    p > 0 && nobs(model) > p + 1
+end
+
 # F-statistic for LinearModel
 function ModelSummaries.FStat(model::LinearModel)
     # F = (R² / p) / ((1 - R²) / (n - p - 1))
@@ -42,20 +62,12 @@ function ModelSummaries.FStat(model::LinearModel)
     n = nobs(model)
     p = dof(model) - 1  # dof includes intercept, so subtract 1 for number of predictors
 
-    if p == 0 || n <= p + 1
-        return FStat(nothing)
-    end
-
     f_stat = (r2_val / p) / ((1 - r2_val) / (n - p - 1))
     return FStat(f_stat)
 end
 
 function ModelSummaries.FStatPValue(model::LinearModel)
     f_obj = ModelSummaries.FStat(model)
-    if f_obj.val === nothing
-        return FStatPValue(nothing)
-    end
-
     n = nobs(model)
     p = dof(model) - 1
 

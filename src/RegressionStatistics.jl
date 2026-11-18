@@ -7,31 +7,50 @@ AbstractRegressionStatistic encapsulates all regression statistics
 (e.g., number of observations, ``R^2``, etc.). In most cases, the individual regression
 packages provide functions that access these, generally from the [StatsAPI.jl](https://github.com/JuliaStats/StatsAPI.jl)
 package. If the function does not exist in the regression package, it is typically added in
-the extension to this package. Since some statistics are not relevant for all regressions,
-the value of the statistic is wrapped in a `Union` with `Nothing` to indicate that the
-value is not available.
+the extension to this package.
 
 To define a new regression statistic, three things are needed:
 1. A new type that is a subtype of `AbstractRegressionStatistic`
-2. A constructor that takes a `RegressionModel` and returns the new type (or `nothing` if the statistic is not available)
+2. A constructor that takes a `RegressionModel` and returns the new type
 3. A `label` function: `label(::Type{YourStat}) = "Your Label"`
 
 It is also helpful to maintain consistency by defining the value as `val` within the struct.
 
+Errors raised while computing a statistic propagate to the caller. A statistic that is not
+defined for a model type (e.g. the ``R^2`` of a logit) is shown as a blank cell only when
+[`applies`](@ref) returns `false` for that pair.
+
 For example:
 ```julia
 struct YMean <: ModelSummaries.AbstractRegressionStatistic
-    val::Union{Float64, Nothing}
+    val::Float64
 end
-YMean(x::RegressionModel) = try
-    YMean(mean(x.model.rr.y))
-catch
-    YMean(nothing)
-end
+YMean(x::RegressionModel) = YMean(mean(response(x)))
 ModelSummaries.label(::Type{YMean}) = "Mean of Y"
 ```
 """
 abstract type AbstractRegressionStatistic <: AbstractRegressionData end
+
+"""
+    applies(S, model) -> Bool
+
+Whether the regression statistic `S` is defined for `model`. When `false`, the table shows
+a blank cell for `S` in that model's column and `S(model)` is never called. When `true`
+(the default), `S(model)` is called and any error it raises propagates.
+
+Define `applies(::Type{S}, ::MyModel) = false` for statistics that do not exist for a
+model type, for example `R2` for a generalized linear model or `R2Within` for a model
+without fixed effects.
+"""
+applies(S, model) = true
+
+function _no_statistic_method(S, model)
+    throw(ArgumentError("""
+        the regression statistic $S is not available for models of type $(nameof(typeof(model))). \
+        Define a method `$S(::$(nameof(typeof(model))))`, or \
+        `ModelSummaries.applies(::Type{$S}, ::$(nameof(typeof(model)))) = false` \
+        to show a blank cell instead."""))
+end
 
 """
     abstract type AbstractR2 <: AbstractRegressionStatistic end
@@ -46,12 +65,7 @@ abstract type AbstractR2 <: AbstractRegressionStatistic end
 struct Nobs <: AbstractRegressionStatistic
     val::Union{Int, Nothing}
 end
-Nobs(x::RegressionModel) =
-    try
-        Nobs(nobs(x))
-    catch
-        Nobs(nothing)
-    end
+Nobs(x::RegressionModel) = Nobs(nobs(x))
 
 label(::Type{Nobs}) = "N"
 
@@ -61,12 +75,7 @@ label(::Type{Nobs}) = "N"
 struct R2 <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2(x::RegressionModel) =
-    try
-        R2(r2(x))
-    catch
-        R2(nothing)
-    end
+R2(x::RegressionModel) = R2(r2(x))
 
 label(::Type{R2}) = _r2label("")
 
@@ -76,12 +85,7 @@ label(::Type{R2}) = _r2label("")
 struct R2McFadden <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2McFadden(x::RegressionModel) =
-    try
-        R2McFadden(r2(x, :McFadden))
-    catch
-        R2McFadden(nothing)
-    end
+R2McFadden(x::RegressionModel) = R2McFadden(r2(x, :McFadden))
 
 label(::Type{R2McFadden}) = _r2label("Pseudo ")
 
@@ -93,12 +97,7 @@ const PseudoR2 = R2McFadden
 struct R2CoxSnell <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2CoxSnell(x::RegressionModel) =
-    try
-        R2CoxSnell(r2(x, :CoxSnell))
-    catch
-        R2CoxSnell(nothing)
-    end
+R2CoxSnell(x::RegressionModel) = R2CoxSnell(r2(x, :CoxSnell))
 
 label(::Type{R2CoxSnell}) = _r2label("Cox-Snell ")
 
@@ -108,12 +107,7 @@ label(::Type{R2CoxSnell}) = _r2label("Cox-Snell ")
 struct R2Nagelkerke <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2Nagelkerke(x::RegressionModel) =
-    try
-        R2Nagelkerke(r2(x, :Nagelkerke))
-    catch
-        R2Nagelkerke(nothing)
-    end
+R2Nagelkerke(x::RegressionModel) = R2Nagelkerke(r2(x, :Nagelkerke))
 
 label(::Type{R2Nagelkerke}) = _r2label("Nagelkerke ")
 
@@ -123,12 +117,7 @@ label(::Type{R2Nagelkerke}) = _r2label("Nagelkerke ")
 struct R2Deviance <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2Deviance(x::RegressionModel) =
-    try
-        R2Deviance(r2(x, :devianceratio))
-    catch
-        R2Deviance(nothing)
-    end
+R2Deviance(x::RegressionModel) = R2Deviance(r2(x, :devianceratio))
 
 label(::Type{R2Deviance}) = _r2label("Deviance ")
 
@@ -138,12 +127,7 @@ label(::Type{R2Deviance}) = _r2label("Deviance ")
 struct AdjR2 <: AbstractR2
     val::Union{Float64, Nothing}
 end
-AdjR2(x::RegressionModel) =
-    try
-        AdjR2(adjr2(x))
-    catch
-        AdjR2(nothing)
-    end
+AdjR2(x::RegressionModel) = AdjR2(adjr2(x))
 
 label(::Type{AdjR2}) = _r2label("Adjusted ")
 
@@ -153,12 +137,7 @@ label(::Type{AdjR2}) = _r2label("Adjusted ")
 struct AdjR2McFadden <: AbstractR2
     val::Union{Float64, Nothing}
 end
-AdjR2McFadden(x::RegressionModel) =
-    try
-        AdjR2McFadden(adjr2(x, :McFadden))
-    catch
-        AdjR2McFadden(nothing)
-    end
+AdjR2McFadden(x::RegressionModel) = AdjR2McFadden(adjr2(x, :McFadden))
 
 label(::Type{AdjR2McFadden}) = _r2label("Pseudo Adjusted ")
 
@@ -170,12 +149,7 @@ const AdjPseudoR2 = AdjR2McFadden
 struct AdjR2Deviance <: AbstractR2
     val::Union{Float64, Nothing}
 end
-AdjR2Deviance(x::RegressionModel) =
-    try
-        AdjR2Deviance(adjr2(x, :devianceratio))
-    catch
-        AdjR2Deviance(nothing)
-    end
+AdjR2Deviance(x::RegressionModel) = AdjR2Deviance(adjr2(x, :devianceratio))
 
 label(::Type{AdjR2Deviance}) = _r2label("Deviance Adjusted ")
 
@@ -185,12 +159,7 @@ label(::Type{AdjR2Deviance}) = _r2label("Deviance Adjusted ")
 struct DOF <: AbstractRegressionStatistic
     val::Union{Int, Nothing}
 end
-DOF(x::RegressionModel) =
-    try
-        DOF(dof_residual(x))
-    catch
-        DOF(nothing)
-    end
+DOF(x::RegressionModel) = DOF(dof_residual(x))
 
 label(::Type{DOF}) = "Degrees of Freedom"
 
@@ -200,12 +169,7 @@ label(::Type{DOF}) = "Degrees of Freedom"
 struct LogLikelihood <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-LogLikelihood(x::RegressionModel) =
-    try
-        LogLikelihood(loglikelihood(x))
-    catch
-        LogLikelihood(nothing)
-    end
+LogLikelihood(x::RegressionModel) = LogLikelihood(loglikelihood(x))
 
 label(::Type{LogLikelihood}) = "Log Likelihood"
 
@@ -215,12 +179,7 @@ label(::Type{LogLikelihood}) = "Log Likelihood"
 struct AIC <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-AIC(x::RegressionModel) =
-    try
-        AIC(aic(x))
-    catch
-        AIC(nothing)
-    end
+AIC(x::RegressionModel) = AIC(aic(x))
 
 label(::Type{AIC}) = "AIC"
 
@@ -230,12 +189,7 @@ label(::Type{AIC}) = "AIC"
 struct AICC <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-AICC(x::RegressionModel) =
-    try
-        AICC(aicc(x))
-    catch
-        AICC(nothing)
-    end
+AICC(x::RegressionModel) = AICC(aicc(x))
 
 label(::Type{AICC}) = "AICC"
 
@@ -245,12 +199,7 @@ label(::Type{AICC}) = "AICC"
 struct BIC <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-BIC(x::RegressionModel) =
-    try
-        BIC(bic(x))
-    catch
-        BIC(nothing)
-    end
+BIC(x::RegressionModel) = BIC(bic(x))
 
 label(::Type{BIC}) = "BIC"
 
@@ -260,7 +209,7 @@ label(::Type{BIC}) = "BIC"
 struct FStat <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-FStat(r::RegressionModel) = FStat(nothing)
+FStat(r::RegressionModel) = _no_statistic_method(FStat, r)
 
 label(::Type{FStat}) = "F"
 
@@ -270,7 +219,7 @@ label(::Type{FStat}) = "F"
 struct FStatPValue <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-FStatPValue(r::RegressionModel) = FStatPValue(nothing)
+FStatPValue(r::RegressionModel) = _no_statistic_method(FStatPValue, r)
 
 label(::Type{FStatPValue}) = label(FStat) * "-test p value"
 
@@ -280,7 +229,7 @@ label(::Type{FStatPValue}) = label(FStat) * "-test p value"
 struct FStatIV <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-FStatIV(r::RegressionModel) = FStatIV(nothing)
+FStatIV(r::RegressionModel) = _no_statistic_method(FStatIV, r)
 
 label(::Type{FStatIV}) = "First-stage " * label(FStat) * " statistic"
 
@@ -290,7 +239,7 @@ label(::Type{FStatIV}) = "First-stage " * label(FStat) * " statistic"
 struct FStatIVPValue <: AbstractRegressionStatistic
     val::Union{Float64, Nothing}
 end
-FStatIVPValue(r::RegressionModel) = FStatIVPValue(nothing)
+FStatIVPValue(r::RegressionModel) = _no_statistic_method(FStatIVPValue, r)
 
 label(::Type{FStatIVPValue}) = "First-stage p value"
 
@@ -300,7 +249,7 @@ label(::Type{FStatIVPValue}) = "First-stage p value"
 struct R2Within <: AbstractR2
     val::Union{Float64, Nothing}
 end
-R2Within(r::RegressionModel) = R2Within(nothing)
+R2Within(r::RegressionModel) = _no_statistic_method(R2Within, r)
 
 label(::Type{R2Within}) = _r2label("Within-")
 

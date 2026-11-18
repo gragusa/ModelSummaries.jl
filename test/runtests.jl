@@ -7,7 +7,8 @@ include("ExplicitImports.jl")
 tests = [
     "label_transforms.jl",
     "modelsummaries.jl",
-    "new_features.jl"
+    "new_features.jl",
+    "statistics_errors.jl"
 ]
 
 for test in tests

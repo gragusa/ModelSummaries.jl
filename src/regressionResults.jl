@@ -30,38 +30,30 @@ _formula(x::RegressionModel) = formula(x)
 """
     _responsename(x::RegressionModel)
 
-Returns the name of the dependent variable in the regression model.
-The default  is to return a parsed version of the left hand side of formula ([`ModelSummarys._formula`](@ref)),
-but if that is not available, then it will return the `StatsAPI.responsename` function.
+Returns the name of the dependent variable in the regression model, parsed from the left
+hand side of the formula ([`ModelSummaries._formula`](@ref)). A model type without a
+formula needs its own method.
 """
 function _responsename(x::RegressionModel)
-    try
-        out = get_coefname(_formula(x).lhs)
-    catch
-        out = get_coefname(responsename(x))
-    end
-    if isa(out, AbstractVector)
-        out = first(out)
-    end
-    out
+    out = get_coefname(_formula(x).lhs)
+    out isa AbstractVector ? first(out) : out
 end
 
 """
     _coefnames(x::RegressionModel)
 
-Returns a vector of the names of the coefficients in the regression model.
-The default  is to return a parsed version of the formula ([`ModelSummarys._formula`](@ref)),
-but if that is not available, then it will return the `StatsAPI.coefnames` function.
+Returns a vector of the names of the coefficients in the regression model, parsed from the
+right hand side of the formula ([`ModelSummaries._formula`](@ref)). A model type without a
+formula needs its own method. Throws if the number of names differs from the number of
+coefficients, since the names would then be attached to the wrong estimates.
 """
 function _coefnames(x::RegressionModel)
-    try
-        out = get_coefname(_formula(x).rhs)
-    catch
-        out = get_coefname(coefnames(x))
-    end
-    if !isa(out, AbstractVector)
-        out = [out]
-    end
+    out = get_coefname(_formula(x).rhs)
+    out = out isa AbstractVector ? out : [out]
+    ncoef = length(_coef(x))
+    length(out) == ncoef || throw(DimensionMismatch(
+        "the formula of the $(nameof(typeof(x))) model yields $(length(out)) coefficient \
+        names but the model has $ncoef coefficients: $(string.(out))"))
     out
 end
 

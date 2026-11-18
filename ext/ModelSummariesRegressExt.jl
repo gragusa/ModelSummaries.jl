@@ -19,17 +19,16 @@ ModelSummaries.FStatPValue(x::OLSEstimator) = FStatPValue(x.p)
 ModelSummaries.FStatPValue(x::IVEstimator) = FStatPValue(x.p)
 
 # First-stage F-statistic (IV only)
-ModelSummaries.FStatIV(x::OLSEstimator) = FStatIV(nothing)
 ModelSummaries.FStatIV(x::IVEstimator) = FStatIV(x.F_kp)
-ModelSummaries.FStatIVPValue(x::OLSEstimator) = FStatIVPValue(nothing)
 ModelSummaries.FStatIVPValue(x::IVEstimator) = FStatIVPValue(x.p_kp)
+function ModelSummaries.applies(::Type{<:Union{FStatIV, FStatIVPValue}}, ::OLSEstimator)
+    false
+end
 
 # Within R²
-function ModelSummaries.R2Within(x::OLSEstimator)
-    has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
-end
-function ModelSummaries.R2Within(x::IVEstimator)
-    has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+ModelSummaries.R2Within(x::Union{OLSEstimator, IVEstimator}) = R2Within(x.r2_within)
+function ModelSummaries.applies(::Type{R2Within}, x::Union{OLSEstimator, IVEstimator})
+    has_fe(x)
 end
 
 # Regression Type

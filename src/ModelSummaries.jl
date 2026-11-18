@@ -9,7 +9,7 @@ using StatsModels: StatsModels, AbstractTerm, CategoricalTerm, InteractionTerm,
                    InterceptTerm, MatrixTerm, RegressionModel, Term, formula
 using Statistics: Statistics
 using StatsAPI: StatsAPI
-import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs
+import StatsAPI: coef, stderror, dof_residual, coefnames, islinear, nobs
 
 using Distributions: Distributions, FDist, InverseGaussian, NegativeBinomial,
                      Normal, UnivariateDistribution, ccdf, loglikelihood

@@ -487,7 +487,7 @@ function combine_statistics(tables, stats)
     mat = Matrix{Any}(missing, length(types_strings), length(tables))
     for (i, t) in enumerate(tables)
         for (j, s) in enumerate(type_f)
-            mat[j, i] = s(t)
+            mat[j, i] = applies(s, t) ? s(t) : nothing
         end
     end
     hcat(types_strings, mat)
