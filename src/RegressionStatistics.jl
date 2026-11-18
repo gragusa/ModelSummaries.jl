@@ -1,3 +1,12 @@
+"""
+    abstract type AbstractRegressionData end
+
+Parent type of the values placed in table cells: fit statistics
+([`AbstractRegressionStatistic`](@ref)), statistics shown with the coefficients
+([`ModelSummaries.AbstractUnderStatistic`](@ref)), coefficients
+([`ModelSummaries.CoefValue`](@ref)), and the fixed-effect, cluster, first-stage, controls,
+and estimator rows. Instances broadcast as scalars.
+"""
 abstract type AbstractRegressionData end
 
 Base.broadcastable(x::AbstractRegressionData) = Ref(x)
@@ -66,6 +75,15 @@ struct Nobs <: AbstractRegressionStatistic
     val::Union{Int, Nothing}
 end
 Nobs(x::RegressionModel) = Nobs(nobs(x))
+
+"""
+    label(::Type{T})
+
+The row label shown for statistic type `T`, as a `String` or a
+[`BackendMath`](@ref) that renders per output format. Every
+[`AbstractRegressionStatistic`](@ref) subtype needs a method.
+"""
+function label end
 
 label(::Type{Nobs}) = "N"
 
@@ -272,6 +290,13 @@ Spacer(x::RegressionModel) = Spacer()
 value(::Spacer) = nothing
 label(::Type{Spacer}) = ""
 
+"""
+    value(x)
+
+The content of `x`: the number held by a statistic or coefficient (`nothing` when the cell is
+blank), or the wrapped name of a coefficient-name type. A new statistic with a `val` field
+needs no method.
+"""
 value(s::AbstractRegressionStatistic) = s.val
 
 Base.show(io::IO, s::AbstractRegressionStatistic) = show(io, value(s))

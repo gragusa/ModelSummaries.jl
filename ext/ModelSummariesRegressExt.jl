@@ -38,7 +38,7 @@ function ModelSummaries.VcovType(x::Union{OLSEstimator, IVEstimator})
 end
 
 # Regress's coeftable leaves `teststatcol` unset.
-function ModelSummaries._coeftable(x::Union{OLSEstimator, IVEstimator})
+function ModelSummaries.inference_coeftable(x::Union{OLSEstimator, IVEstimator})
     ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
 end
 function ModelSummaries.reference_distribution(x::Union{OLSEstimator, IVEstimator})

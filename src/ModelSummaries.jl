@@ -31,6 +31,19 @@ export TStat, StdError, ConfInt, RegressionType
 # Statistics type system
 export AbstractRegressionStatistic
 
+# Extension API: methods that package extensions and users add for their own model,
+# statistic, and coefficient-name types.
+public AbstractRegressionData, AbstractUnderStatistic, AbstractR2,
+       label, value, applies, default_regression_statistics, default_section_order,
+       inference_coeftable, with_teststatcol, reference_distribution,
+       other_stats, fixed_effect_entries, cluster_entries,
+       can_standardize, standardize_coef_values, vcov_type_name,
+       CoefValue, HasControls, FixedEffectValue, ClusterValue, FirstStageValue,
+       get_coefname, display_name, significance_stars,
+       fe_suffix, cluster_suffix, first_stage_suffix,
+       AbstractCoefName, CoefName, InteractedCoefName, CategoricalCoefName,
+       InterceptCoefName, FixedEffectCoefName, ClusterCoefName, FirstStageCoefName
+
 ##############################################################################
 ## Load files
 ##############################################################################

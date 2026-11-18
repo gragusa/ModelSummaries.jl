@@ -13,7 +13,8 @@ tests = [
     "input_validation.jl",
     "vcov.jl",
     "inference.jl",
-    "other_stats.jl"
+    "other_stats.jl",
+    "public_api.jl"
 ]
 
 for test in tests

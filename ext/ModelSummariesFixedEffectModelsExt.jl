@@ -21,7 +21,7 @@ ModelSummaries.applies(::Type{R2Within}, x::FixedEffectModel) = has_fe(x)
 ModelSummaries.RegressionType(x::FixedEffectModel) = RegressionType(Normal(), has_iv(x))
 
 # FixedEffectModels' coeftable leaves `teststatcol` unset.
-function ModelSummaries._coeftable(x::FixedEffectModel)
+function ModelSummaries.inference_coeftable(x::FixedEffectModel)
     ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
 end
 ModelSummaries.reference_distribution(x::FixedEffectModel) = TDist(dof_residual(x))

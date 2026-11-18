@@ -167,6 +167,14 @@ Base.hash(x::FixedEffectCoefName, h::UInt) = hash(x.name, hash(FixedEffectCoefNa
 
 Base.replace(x::FixedEffectCoefName, r::Pair) = FixedEffectCoefName(replace(x.name, r))
 
+"""
+    struct ClusterCoefName <: AbstractCoefName
+        name::AbstractCoefName
+    end
+
+Used to store the name of a cluster variable, so that
+[`ModelSummaries.cluster_suffix`](@ref) can be appended to it.
+"""
 struct ClusterCoefName <: AbstractCoefName
     name::AbstractCoefName
     ClusterCoefName(x::AbstractCoefName) = new(x)

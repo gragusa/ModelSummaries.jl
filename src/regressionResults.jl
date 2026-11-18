@@ -70,14 +70,14 @@ By default, is just a passthrough for the `stderror` function from the `StatsMod
 _stderror(x::RegressionModel) = stderror(x)
 
 """
-    _coeftable(x::RegressionModel)
+    inference_coeftable(x::RegressionModel)
 
 Returns the model's `StatsAPI.CoefTable`, the source of the p-values and test statistics
 shown in the table. A passthrough for `coeftable`. The table must set `pvalcol` and
 `teststatcol`; a package extension overrides this method for a model type whose
 `coeftable` leaves one of them unset (see [`ModelSummaries.with_teststatcol`](@ref)).
 """
-_coeftable(x::RegressionModel) = coeftable(x)
+inference_coeftable(x::RegressionModel) = coeftable(x)
 
 """
     with_teststatcol(ct::CoefTable, name::AbstractString)
@@ -99,7 +99,7 @@ end
     _coeftable_column(x::RegressionModel, which::Symbol)
 
 Returns the p-values (`which = :pvalue`) or test statistics (`which = :teststat`) of the
-model's [`ModelSummaries._coeftable`](@ref), in the order of `coef(x)`.
+model's [`ModelSummaries.inference_coeftable`](@ref), in the order of `coef(x)`.
 
 Rows are matched to coefficients by name, since a `coeftable` may list them in a different
 order than `coef` (FixedEffectModels and Regress put the intercept last). Throws if the
@@ -107,7 +107,7 @@ table does not mark the column, if its row names are not a permutation of `coefn
 or if its first column, reordered, does not reproduce `coef(x)`.
 """
 function _coeftable_column(x::RegressionModel, which::Symbol)
-    ct = _coeftable(x)
+    ct = inference_coeftable(x)
     col = which === :pvalue ? ct.pvalcol :
           which === :teststat ? ct.teststatcol :
           throw(ArgumentError("which = :$which; use :pvalue or :teststat"))
