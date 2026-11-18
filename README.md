@@ -13,7 +13,7 @@ Tables render natively to **LaTeX**, **HTML**, **Typst**, and **DOCX** — with 
 | [GLM.jl](https://github.com/JuliaStats/GLM.jl) | `lm`, `glm` |
 | [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) | `reg` (FE, IV, clusters) |
 | [Regress.jl](https://gragusa.org/gragusa/Regress.jl) | OLS, IV, FE, clusters |
-| [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) | `model + vcov(HC3())` syntax |
+| [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) | Estimator names in the `VcovType` row |
 | Any `StatsAPI.RegressionModel` | Basic support out of the box |
 
 ## Installation
@@ -39,12 +39,15 @@ modelsummary(m1, m2, m3, m4)
 
 ## Robust and clustered standard errors
 
-Pair any fitted model with a covariance estimator using `+`:
+Standard errors, test statistics, and confidence intervals are read from each model.
+To change the covariance estimator, use the `model + vcov(estimator)` method of the
+package that fitted the model (Regress.jl provides one):
 
 ```julia
 using CovarianceMatrices
 
-modelsummary(m2, m2 + vcov(HC0()), m2 + vcov(HC3());
+r2 = Regress.ols(df, @formula(SepalLength ~ SepalWidth + PetalLength))
+modelsummary(r2, r2 + vcov(HC0()), r2 + vcov(HC3());
     regression_statistics = [Nobs, R2, AdjR2, VcovType],
 )
 ```

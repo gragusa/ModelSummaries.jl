@@ -9,10 +9,6 @@ within an extension, it is possible to define the necessary function.
 ##
 ## Basic regression model interface functions
 ##
-## Note: VcovSpec and RegressionModelWithVcov are defined in the
-## CovarianceMatrices extension (ModelSummariesCovarianceMatricesExt).
-## The model + vcov() syntax only works when CovarianceMatrices is loaded.
-##
 ##############################################################################
 
 """
@@ -195,9 +191,8 @@ other_stats(x::RegressionModel, s::Symbol) = nothing
     VcovType(x::RegressionModel)
 
 Returns a VcovType object indicating the type of variance-covariance estimator used.
-For models with custom vcov (RegressionModelWithVcov), the type is determined by
-the CovarianceMatrices extension. For other models, this checks for vcov_type property
-or returns "IID" as default.
+Package extensions define methods for model types that record their estimator. This
+fallback reads a `vcov_type` property if the model has one and otherwise returns "IID".
 """
 function VcovType(x::RegressionModel)
     # Check for vcov_type property (common in FixedEffectModels.jl)
@@ -232,23 +227,3 @@ Used in display output to indicate what type of standard errors are shown.
 vcov_type_name(v) = string(typeof(v).name.name)
 vcov_type_name(::AbstractMatrix) = "Custom"
 vcov_type_name(::Function) = "Function"
-
-##############################################################################
-##
-## materialize_vcov - stub for extension point
-##
-## The actual implementation is in the CovarianceMatrices extension.
-##
-##############################################################################
-
-"""
-    materialize_vcov(estimator, model::RegressionModel)
-
-Produce the variance–covariance matrix for `model` given an estimator object.
-This is the extension point for third-party estimators: define a method that
-returns the desired matrix.
-
-The actual implementation for CovarianceMatrices.jl estimators is provided
-by the ModelSummariesCovarianceMatricesExt extension.
-"""
-function materialize_vcov end

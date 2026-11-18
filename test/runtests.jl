@@ -9,7 +9,8 @@ tests = [
     "modelsummaries.jl",
     "new_features.jl",
     "statistics_errors.jl",
-    "input_validation.jl"
+    "input_validation.jl",
+    "vcov.jl"
 ]
 
 for test in tests

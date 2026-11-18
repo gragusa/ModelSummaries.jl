@@ -31,6 +31,11 @@ function ModelSummaries.applies(::Type{R2Within}, x::Union{OLSEstimator, IVEstim
     has_fe(x)
 end
 
+# The estimator behind `stderror`: Regress's default, or the one attached by `+ vcov(...)`.
+function ModelSummaries.VcovType(x::Union{OLSEstimator, IVEstimator})
+    VcovType(ModelSummaries.vcov_type_name(x.vcov_estimator))
+end
+
 # Regression Type
 ModelSummaries.RegressionType(x::OLSEstimator) = RegressionType(Normal(), false)
 ModelSummaries.RegressionType(x::IVEstimator) = RegressionType(Normal(), true)
