@@ -15,10 +15,10 @@ within an extension, it is possible to define the necessary function.
     _formula(x::RegressionModel)
 
 Generally a passthrough for the `formula` function from the `StatsModels` package.
-Note tha the `formula` function returns the `FormulaSchema`.
+Note that the `formula` function returns the `FormulaSchema`.
 
-This function is only used internally in the [`ModelSummarys._responsename`](@ref)
-and [`ModelSummarys._coefnames`](@ref) functions. Therefore, if the `RegressionModel`
+This function is only used internally in the [`ModelSummaries._responsename`](@ref)
+and [`ModelSummaries._coefnames`](@ref) functions. Therefore, if the `RegressionModel`
 uses those two functions without using `formula`, this function is not necessary.
 """
 _formula(x::RegressionModel) = formula(x)
@@ -210,7 +210,7 @@ The default is `false`. A package extension returns `true` for a model type whos
 matrix and response are available, and defines [`ModelSummaries.standardize_coef_values`](@ref)
 for it. `modelsummary(...; standardize_coef = true)` throws for a model where this is `false`.
 
-See also [`ModelSummarys.standardize_coef_values`](@ref).
+See also [`ModelSummaries.standardize_coef_values`](@ref).
 """
 can_standardize(x::RegressionModel) = false
 
@@ -220,7 +220,7 @@ can_standardize(x::RegressionModel) = false
 Standardizes the coefficients by the standard deviation of the variables.
 This is useful for comparing the relative importance of the variables in the model.
 
-This function is only used if the [`ModelSummarys.can_standardize`](@ref) function returns `true`.
+This function is only used if the [`ModelSummaries.can_standardize`](@ref) function returns `true`.
 
 ### Arguments
 - `std_X::Real`: The standard deviation of the independent variable.

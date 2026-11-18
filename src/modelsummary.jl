@@ -52,7 +52,11 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `rr::RegressionModel...`: Regression models to display.
 * `keep`, `drop`, `order`: Filter and reorder coefficients.
 * `fixedeffects`: Filter fixed effects.
-* `labels`: Dict mapping variable names to display labels.
+* `labels`: Dict mapping coefficient names to display labels. Keys are the names as
+  `coefnames(model)` prints them, so an interaction is keyed `"x & z"` and a categorical level
+  `"species: setosa"`.
+* `interaction_separator`: String placed between the parts of an unlabeled interaction in the
+  table (default `" × "`); `labels` keys always use `" & "`.
 * `below_statistic`: Type shown below coefficients (`StdError`, `TStat`, `ConfInt`, or `nothing`).
 * `regression_statistics`: Vector of statistic types for the bottom section. The default is
   the union of each model's [`ModelSummaries.default_regression_statistics`](@ref), e.g.
@@ -87,6 +91,7 @@ function modelsummary(
         order::Vector = Vector{Any}(),
         fixedeffects::Vector = Vector{String}(),
         labels::Dict{String} = Dict{String, Any}(),
+        interaction_separator::AbstractString = " \u00d7 ",
         align::Symbol = :r,
         header_align::Symbol = :c,
         below_statistic = StdError,
@@ -294,7 +299,7 @@ function modelsummary(
             row = Cell[Cell(nothing; halign = :left)]
             for y in y_names
                 push!(row,
-                    Cell(display_name(y);
+                    Cell(display_name(y, interaction_separator);
                         merge = true, bold = depvar_bold, border_bottom = true, halign = hdr_halign))
             end
             push!(rows, row)
@@ -319,7 +324,7 @@ function modelsummary(
 
             for j in 1:length(nms)
                 # Coefficient value row
-                row = Cell[Cell(display_name(nms[j]); halign = :left)]
+                row = Cell[Cell(display_name(nms[j], interaction_separator); halign = :left)]
                 for i in 1:nreg
                     cv = coefvalues[j, i]
                     if ismissing(cv)

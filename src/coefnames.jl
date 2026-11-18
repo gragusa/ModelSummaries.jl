@@ -4,8 +4,9 @@ get_coefname(x::MatrixTerm) = mapreduce(get_coefname, vcat, x.terms)
     abstract type AbstractCoefName end
 
 These names largely mirror their equivalents in [StatsModels.jl](https://github.com/JuliaStats/StatsModels.jl).
-The main difference here is that the names are always based on strings (instead of symbols). There are also
-several default functions that are resused (e.g., `get` and `replace`) to make relabeling coefficients easier.
+The main difference here is that the names are always based on strings (instead of symbols). `string(x)` gives
+the name as StatsModels prints it (the form `labels` keys match), [`ModelSummaries.display_name`](@ref) the form
+shown in the table, and `replace(x, old => new)` applies a `transform_labels` replacement to every part of the name.
 
 AbstractCoefName simply acts as a parent type to the other types. The other types are:
 - [`CoefName`](@ref): for `Term`, `ContinuousTerm` and `FunctionTerm`
@@ -48,13 +49,6 @@ end
 
 value(x::CoefName) = x.name
 Base.string(x::CoefName) = value(x)
-function Base.get(x::Dict{String, String}, val::CoefName, def::CoefName)
-    if haskey(x, value(val))
-        return CoefName(x[value(val)])
-    else
-        def
-    end
-end
 get_coefname(x::AbstractTerm) = CoefName(coefnames(x))
 get_coefname(x::Term) = CoefName(string(x.sym))
 Base.replace(x::CoefName, r::Pair) = CoefName(replace(value(x), r))
@@ -70,29 +64,10 @@ get_coefname(x::AbstractVector) = CoefName.(String.(x))
 Used to store the different coefficient names that makes up an InteractionTerm. The internals of the
 vector are typically [`CoefName`](@ref), but can also be strings.
 
-In a regression, each element of the vector is typically displayed as "name1 & name2 & ..." (in AsciiTables).
-The separator is set by [`interaction_combine`](@ref) function, and the default varies based on [`AbstractRenderType`](@ref):
-- For `AbstractAscii`, it defaults to `" & "`
-- For `AbstractLaTeX`, it defaults to `" \$\\times\$ "`
-- For `AbstractHtml`, it defaults to `" &times; "`
-
-
-You can change the separator by running:
-```julia
-ModelSummarys.interaction_combine(render::\$RenderType) = " & "
-```
-where `\$RenderType` is the type of the renderer you want to change. For example, to change the output in `AbstractLaTeX`:
-```julia
-ModelSummarys.interaction_combine(::AbstractLaTeX) = " \\& "
-```
-
-You can control how interaction terms are displayed more generally by changing:
-```julia
-Base.repr(render::AbstractRenderType, x::ModelSummarys.InteractedCoefName; args...) =
-    join(ModelSummarys.value.(x), ModelSummarys.interaction_combine(render))
-```
-
-See [Customization of Defaults](@ref) for more details.
+`string(x)` joins the parts with `" & "`, as StatsModels' `coefnames` does; this is the key a
+`labels` dictionary must use (`labels = Dict("x & z" => "Treated × Post")`). The table shows the parts joined by
+the `interaction_separator` keyword of [`modelsummary`](@ref) (default `" × "`). Two interactions are equal when
+they have the same parts in any order.
 """
 struct InteractedCoefName <: AbstractCoefName
     names::Vector
@@ -104,15 +79,6 @@ Base.string(x::InteractedCoefName) = join(string.(x.names), " & ")
 Base.hash(x::InteractedCoefName, h::UInt) = hash(sort(string.(value(x))), h)
 function Base.:(==)(x::InteractedCoefName, y::InteractedCoefName)
     sort(string.(value(x))) == sort(string.(value(y)))
-end
-function Base.get(x::Dict{String, String}, val::InteractedCoefName, def::InteractedCoefName)
-    # if the interaction exactly matches what would be in StatsModels, just return that
-    # otherwise, go through each term in the interactionterm and see if the dict contains those pieces
-    if haskey(x, string(val))
-        return CoefName(x[string(val)])
-    else
-        InteractedCoefName(get.(Ref(x), value(val), value(def)))
-    end
 end
 function get_coefname(x::InteractionTerm)
     # One name per combination of the component terms' names, with the first
@@ -136,19 +102,8 @@ end
 Used to store the name of a coefficient for a `CategoricalTerm`. The `level` is the level of the categorical.
 In other words, the `name` is the column name, the `level` is the category within that column.
 
-In a regression, the display of categorical terms is typically displayed as "name: level". You can change how the
-categorical term is "equal" by changing the [`categorical_equal`](@ref) function. The default is ": ", but you can change:
-this by setting:
-```julia
-ModelSummarys.categorical_equal(render::AbstractRenderType) = " = "
-ModelSummarys.categorical_equal(render::AbstractLatex) = " \$=\$ "
-```
-
-You can also change how the categorical term is displayed by changing the [`repr`](@ref) function. The default is:
-```julia
-Base.repr(render::AbstractRenderType, x::ModelSummarys.CategoricalCoefName; args...) =
-    "\$(ModelSummarys.value(x))\$(ModelSummarys.categorical_equal(render)) \$(x.level)"
-```
+Both `string(x)` and the table show `"name: level"`, which is also the form `labels` keys use
+(`labels = Dict("species: setosa" => "Setosa")`).
 """
 struct CategoricalCoefName <: AbstractCoefName
     name::String
@@ -163,16 +118,6 @@ Base.string(x::CategoricalCoefName) = "$(value(x)): $(x.level)"
 function get_coefname(x::CategoricalTerm)
     [CategoricalCoefName(string(x.sym), string(n)) for n in x.contrasts.coefnames]
 end
-function Base.get(x::Dict{String, String}, val::CategoricalCoefName, def::CategoricalCoefName)
-    # similar to interactioncoefname, if the categorical term exactly matches what would be in StatsModels, just return that
-    if haskey(x, string(val))
-        return CoefName(x[string(val)])
-    else
-        nm = get(x, value(val), value(def))
-        lvl = get(x, val.level, def.level)
-        CategoricalCoefName(nm, lvl)
-    end
-end
 
 function Base.replace(x::CategoricalCoefName, r::Pair)
     CategoricalCoefName(
@@ -184,20 +129,13 @@ end
 """
     struct InterceptCoefName <: AbstractCoefName end
 
-Used as a simple indicator for the existence of an intercept term. This allows relabeling of the intercept
-in all cases by setting
-```julia
-ModelSummarys.label(::InterceptCoefName) = "My Intercept"
-```
-See [Customization of Defaults](@ref) for more details.
+Used as a simple indicator for the existence of an intercept term. It prints as `"(Intercept)"`, so
+`labels = Dict("(Intercept)" => "Constant")` relabels the intercept of every model.
 """
 struct InterceptCoefName <: AbstractCoefName end
 
 Base.string(x::InterceptCoefName) = "(Intercept)"
 get_coefname(x::InterceptTerm{H}) where {H} = H ? InterceptCoefName() : []
-function Base.get(x::Dict{String, String}, val::InterceptCoefName, def::InterceptCoefName)
-    get(x, string(val), def)
-end
 function Base.replace(x::InterceptCoefName, r::Pair)
     v = string(x)
     out = replace(v, r)
@@ -224,9 +162,8 @@ end
 
 value(x::FixedEffectCoefName) = x.name
 Base.string(x::FixedEffectCoefName) = string(x.name)
-function Base.get(x::Dict{String, String}, val::FixedEffectCoefName, def::FixedEffectCoefName)
-    FixedEffectCoefName(get(x, val.name, def.name))
-end
+Base.:(==)(x::FixedEffectCoefName, y::FixedEffectCoefName) = x.name == y.name
+Base.hash(x::FixedEffectCoefName, h::UInt) = hash(x.name, hash(FixedEffectCoefName, h))
 
 Base.replace(x::FixedEffectCoefName, r::Pair) = FixedEffectCoefName(replace(x.name, r))
 
@@ -239,9 +176,8 @@ ClusterCoefName(x::String) = ClusterCoefName(CoefName(x))
 
 value(x::ClusterCoefName) = x.name
 Base.string(x::ClusterCoefName) = string(x.name)
-function Base.get(x::Dict{String, String}, val::ClusterCoefName, def::ClusterCoefName)
-    ClusterCoefName(get(x, val.name, def.name))
-end
+Base.:(==)(x::ClusterCoefName, y::ClusterCoefName) = x.name == y.name
+Base.hash(x::ClusterCoefName, h::UInt) = hash(x.name, hash(ClusterCoefName, h))
 
 Base.replace(x::ClusterCoefName, r::Pair) = ClusterCoefName(replace(x.name, r))
 
@@ -261,9 +197,8 @@ FirstStageCoefName(x::String) = FirstStageCoefName(CoefName(x))
 
 value(x::FirstStageCoefName) = x.name
 Base.string(x::FirstStageCoefName) = string(x.name)
-function Base.get(x::Dict{String, String}, val::FirstStageCoefName, def::FirstStageCoefName)
-    FirstStageCoefName(get(x, val.name, def.name))
-end
+Base.:(==)(x::FirstStageCoefName, y::FirstStageCoefName) = x.name == y.name
+Base.hash(x::FirstStageCoefName, h::UInt) = hash(x.name, hash(FirstStageCoefName, h))
 
 Base.replace(x::FirstStageCoefName, r::Pair) = FirstStageCoefName(replace(x.name, r))
 
@@ -288,8 +223,3 @@ value(x::RandomEffectCoefName) = x
 Base.string(x::RandomEffectCoefName) = string(x.rhs) * " | " * string(x.lhs)
 Base.hash(x::RandomEffectCoefName, h::UInt) = hash(string(x), h)
 Base.:(==)(x::RandomEffectCoefName, y::RandomEffectCoefName) = string(x) == string(y)
-function Base.get(x::Dict{String, String}, val::RandomEffectCoefName, def::RandomEffectCoefName)
-    rhs = get(x, val.rhs, def.rhs)
-    lhs = get(x, val.lhs, def.lhs)
-    RandomEffectCoefName(rhs, lhs)
-end

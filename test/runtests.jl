@@ -8,6 +8,7 @@ tests = [
     "label_transforms.jl",
     "modelsummaries.jl",
     "new_features.jl",
+    "coefnames.jl",
     "statistics_errors.jl",
     "input_validation.jl",
     "vcov.jl",

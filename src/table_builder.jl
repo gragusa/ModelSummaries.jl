@@ -104,21 +104,28 @@ end
 # Display name functions for coefficient names
 
 """
-    display_name(x)
+    display_name(x, interaction_separator = " × ")
 
-Convert a coefficient name or other value to a display string.
+Convert a coefficient name or other value to the string shown in the table. The parts of an
+[`ModelSummaries.InteractedCoefName`](@ref) are joined by `interaction_separator`; every other
+name is shown as `string(x)` prints it. A new name type needs a two-argument method.
 """
-display_name(x::CoefName) = x.name
-display_name(x::InteractedCoefName) = join(display_name.(x.names), " \u00d7 ")
-display_name(x::CategoricalCoefName) = "$(x.name): $(x.level)"
-display_name(x::InterceptCoefName) = "(Intercept)"
-display_name(x::FixedEffectCoefName) = display_name(x.name)
-display_name(x::ClusterCoefName) = display_name(x.name)
-display_name(x::FirstStageCoefName) = display_name(x.name)
-display_name(x::RandomEffectCoefName) = display_name(x.rhs) * " | " * display_name(x.lhs)
-display_name(x::AbstractString) = String(x)
-display_name(x::BackendMath) = x
-display_name(x::AbstractCoefName) = string(x)
+display_name(x) = display_name(x, " \u00d7 ")
+display_name(x::CoefName, sep) = x.name
+function display_name(x::InteractedCoefName, sep)
+    join(display_name.(x.names, Ref(sep)), sep)
+end
+display_name(x::CategoricalCoefName, sep) = "$(x.name): $(x.level)"
+display_name(x::InterceptCoefName, sep) = "(Intercept)"
+display_name(x::FixedEffectCoefName, sep) = display_name(x.name, sep)
+display_name(x::ClusterCoefName, sep) = display_name(x.name, sep)
+display_name(x::FirstStageCoefName, sep) = display_name(x.name, sep)
+function display_name(x::RandomEffectCoefName, sep)
+    display_name(x.rhs, sep) * " | " * display_name(x.lhs, sep)
+end
+display_name(x::AbstractString, sep) = String(x)
+display_name(x::BackendMath, sep) = x
+display_name(x::AbstractCoefName, sep) = string(x)
 
 # Suffix functions (customizable by users)
 
