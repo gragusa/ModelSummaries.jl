@@ -24,3 +24,6 @@ Regress = {rev = "main", url = "https://github.com/gragusa/Regress.jl"}
 
 [compat]
 Aqua = "0.8"
+CategoricalArrays = "1"
+DataFrames = "1.8.1"
+RDatasets = "0.8.1"
