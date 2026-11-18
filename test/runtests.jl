@@ -2,6 +2,7 @@ using ModelSummaries
 using Test
 
 include("Aqua.jl")
+include("ExplicitImports.jl")
 
 tests = [
     "label_transforms.jl",

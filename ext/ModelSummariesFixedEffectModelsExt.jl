@@ -52,7 +52,8 @@ function ModelSummaries.other_stats(rr::FixedEffectModel, s::Symbol)
             nothing
         end
     elseif s == :clusters && rr.nclusters !== nothing
-        collect(ModelSummaries.ClusterCoefName.(string.(keys(rr.nclusters))) .=> ModelSummaries.ClusterValue.(values(rr.nclusters)))
+        collect(ModelSummaries.ClusterCoefName.(string.(keys(rr.nclusters))) .=>
+            ModelSummaries.ClusterValue.(values(rr.nclusters)))
     else
         nothing
     end

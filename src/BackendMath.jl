@@ -132,8 +132,8 @@ function _latex_to_text(s::AbstractString)
                 i = j
                 if i <= n && chars[i] == '{'
                     # find closing brace
-                    depth = 1;
-                    i += 1;
+                    depth = 1
+                    i += 1
                     start = i
                     while i <= n && depth > 0
                         chars[i] == '{' && (depth += 1)
@@ -159,8 +159,8 @@ function _latex_to_text(s::AbstractString)
             table = c == '^' ? _SUPERSCRIPT_UNICODE : _SUBSCRIPT_UNICODE
             i += 1
             if chars[i] == '{'
-                depth = 1;
-                i += 1;
+                depth = 1
+                i += 1
                 start = i
                 while i <= n && depth > 0
                     chars[i] == '{' && (depth += 1)
@@ -236,8 +236,8 @@ function _latex_to_html(s::AbstractString)
                 accent = cmd == "hat" ? "\u0302" : cmd == "tilde" ? "\u0303" : "\u0304"
                 i = j
                 if i <= n && chars[i] == '{'
-                    depth = 1;
-                    i += 1;
+                    depth = 1
+                    i += 1
                     start = i
                     while i <= n && depth > 0
                         chars[i] == '{' && (depth += 1)
@@ -262,8 +262,8 @@ function _latex_to_html(s::AbstractString)
             tag = c == '^' ? "sup" : "sub"
             i += 1
             if chars[i] == '{'
-                depth = 1;
-                i += 1;
+                depth = 1
+                i += 1
                 start = i
                 while i <= n && depth > 0
                     chars[i] == '{' && (depth += 1)

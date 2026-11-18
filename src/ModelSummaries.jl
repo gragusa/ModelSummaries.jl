@@ -4,17 +4,17 @@ module ModelSummaries
 ## Dependencies
 ##############################################################################
 
-using StatsBase
-using StatsModels
-using Statistics
-using StatsAPI
-import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs, vcov
+using StatsBase: StatsBase, adjr2, aic, aicc, bic, confint, r2
+using StatsModels: StatsModels, AbstractTerm, CategoricalTerm, InteractionTerm,
+                   InterceptTerm, MatrixTerm, RegressionModel, Term, formula
+using Statistics: Statistics
+using StatsAPI: StatsAPI
+import StatsAPI: coef, stderror, dof_residual, responsename, coefnames, islinear, nobs
 
-using Distributions
-using Format
-using LinearAlgebra: issymmetric
-using SummaryTables
-using SummaryTables: Cell, Table, Concat, Superscript
+using Distributions: Distributions, FDist, InverseGaussian, NegativeBinomial,
+                     Normal, UnivariateDistribution, ccdf, loglikelihood
+using Format: Format, format
+using SummaryTables: SummaryTables, Cell, Table, Concat, Superscript
 
 ##############################################################################
 ## Exported methods and types

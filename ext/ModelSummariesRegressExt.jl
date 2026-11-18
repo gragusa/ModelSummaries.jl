@@ -67,7 +67,8 @@ function ModelSummaries.other_stats(rr::OLSEstimator, s::Symbol)
         # Check if cluster variables are stored
         hasfield(typeof(rr.fes), :clusters) && !isempty(rr.fes.clusters) || return nothing
         cluster_names = keys(rr.fes.clusters)
-        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=> ModelSummaries.ClusterValue.(length.(unique.(values(rr.fes.clusters)))))
+        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=>
+            ModelSummaries.ClusterValue.(length.(unique.(values(rr.fes.clusters)))))
     elseif s == :first_stage
         # OLS models have no first stage
         nothing
@@ -99,12 +100,14 @@ function ModelSummaries.other_stats(rr::IVEstimator, s::Symbol)
         cluster_vars = rr.postestimation.cluster_vars
         isempty(cluster_vars) && return nothing
         cluster_names = keys(cluster_vars)
-        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=> ModelSummaries.ClusterValue.(length.(unique.(values(cluster_vars)))))
+        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=>
+            ModelSummaries.ClusterValue.(length.(unique.(values(cluster_vars)))))
     elseif s == :first_stage
         # Return first-stage F-statistic (Kleibergen-Paap) as a section
         isnothing(rr.F_kp) && return nothing
         [
-            ModelSummaries.FirstStageCoefName("F-statistic") => ModelSummaries.FirstStageValue(rr.F_kp)
+            ModelSummaries.FirstStageCoefName("F-statistic") =>
+            ModelSummaries.FirstStageValue(rr.F_kp)
         ]
     else
         nothing

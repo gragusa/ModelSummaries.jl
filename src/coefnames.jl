@@ -115,11 +115,14 @@ function Base.get(x::Dict{String, String}, val::InteractedCoefName, def::Interac
     end
 end
 function get_coefname(x::InteractionTerm)
-    StatsModels.kron_insideout(
-        (args...) -> InteractedCoefName(collect(args)),
-        (StatsModels.vectorize(get_coefname.(x.terms)))...
-    )
+    # One name per combination of the component terms' names, with the first
+    # term varying fastest: the column order of `modelcols(::InteractionTerm, d)`.
+    parts = (_along_dim(i, p) for (i, p) in enumerate(get_coefname.(x.terms)))
+    out = broadcast((args...) -> InteractedCoefName(collect(args)), parts...)
+    out isa AbstractArray ? vec(out) : out
 end
+_along_dim(i, a) = a
+_along_dim(i, a::AbstractVector) = reshape(a, ntuple(Returns(1), i - 1)..., :)
 function Base.replace(x::InteractedCoefName, r::Pair)
     InteractedCoefName(replace.(value(x), Ref(r)))
 end

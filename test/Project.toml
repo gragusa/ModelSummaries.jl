@@ -1,10 +1,11 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
-CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+CovarianceMatrices = "60f91f6f-d783-54cb-84f9-544141854719"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 FixedEffectModels = "9d5cd8c9-2029-5cab-9928-427838db53e3"
 GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -26,4 +27,5 @@ Regress = {rev = "main", url = "https://github.com/gragusa/Regress.jl"}
 Aqua = "0.8"
 CategoricalArrays = "1"
 DataFrames = "1.8.1"
+ExplicitImports = "1.15"
 RDatasets = "0.8.1"
