@@ -33,34 +33,11 @@ function ModelSummaries.get_coefname(x::FixedEffectModels.FixedEffectTerm)
     ModelSummaries.CoefName(string(x.x))
 end
 
-"""
-    ModelSummaries.other_stats(rr::FixedEffectModel; fixedeffects=String[], fe_suffix="Fixed Effects")
-
-Return a vector of fixed effects terms. If `fixedeffects` is not empty, only the fixed effects in `fixedeffects` are returned. If `fe_suffix` is not empty, the fixed effects are returned as a tuple with the suffix.
-"""
 function ModelSummaries.other_stats(rr::FixedEffectModel, s::Symbol)
     if s == :fe
-        out = []
-        if !isdefined(rr, :formula)
-            return Dict{Symbol, Vector{Pair}}()
-        end
-        fe_set = has_fe.(rr.formula.rhs)
-        for (i, v) in enumerate(fe_set)
-            if v && !isa(fe_set, Bool)
-                push!(out,
-                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
-            elseif v
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
-            end
-        end
-        if length(out) > 0
-            out .=> ModelSummaries.FixedEffectValue(true)
-        else
-            nothing
-        end
+        ModelSummaries.fixed_effect_entries(rr.formula.rhs, has_fe)
     elseif s == :clusters && rr.nclusters !== nothing
-        collect(ModelSummaries.ClusterCoefName.(string.(keys(rr.nclusters))) .=>
-            ModelSummaries.ClusterValue.(values(rr.nclusters)))
+        ModelSummaries.cluster_entries(keys(rr.nclusters), values(rr.nclusters))
     else
         nothing
     end

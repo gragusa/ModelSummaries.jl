@@ -120,9 +120,6 @@ display_name(x::InterceptCoefName, sep) = "(Intercept)"
 display_name(x::FixedEffectCoefName, sep) = display_name(x.name, sep)
 display_name(x::ClusterCoefName, sep) = display_name(x.name, sep)
 display_name(x::FirstStageCoefName, sep) = display_name(x.name, sep)
-function display_name(x::RandomEffectCoefName, sep)
-    display_name(x.rhs, sep) * " | " * display_name(x.lhs, sep)
-end
 display_name(x::AbstractString, sep) = String(x)
 display_name(x::BackendMath, sep) = x
 display_name(x::AbstractCoefName, sep) = string(x)
@@ -206,7 +203,6 @@ format_other_stat(x::AbstractString; digits = 3) = x
 format_other_stat(x::BackendMath; digits = 3) = x
 format_other_stat(x::Missing; digits = 3) = ""
 format_other_stat(x::ClusterValue; digits = 3) = value(x) > 0 ? "Yes" : ""
-format_other_stat(x::RandomEffectValue; digits = 3) = format_number(value(x); digits)
 function format_other_stat(x::FirstStageValue; digits = 3)
     value(x) === nothing ? "" : format_number(value(x); digits)
 end

@@ -400,20 +400,6 @@ value(x::HasControls) = x.val
 
 label(::Type{HasControls}) = "Controls"
 
-"""
-    struct RegressionNumbers
-        val::Int
-    end
-
-Used to define which column number the regression is in.
-"""
-struct RegressionNumbers <: AbstractRegressionData
-    val::Int
-end
-value(x::RegressionNumbers) = x.val
-
-label(::Type{RegressionNumbers}) = ""
-
 value(x) = missing
 value(x::String) = x
 
@@ -429,19 +415,6 @@ struct FixedEffectValue <: AbstractRegressionData
 end
 
 value(x::FixedEffectValue) = x.val
-
-"""
-    struct RandomEffectValue
-        val::Real
-    end
-
-A simple store of the random effect value (typically the standard deviation).
-"""
-struct RandomEffectValue <: AbstractRegressionData
-    val::Real
-end
-
-value(x::RandomEffectValue) = x.val
 
 """
     struct ClusterValue

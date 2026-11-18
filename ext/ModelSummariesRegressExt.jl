@@ -64,24 +64,13 @@ end
 
 function ModelSummaries.other_stats(rr::OLSEstimator, s::Symbol)
     if s == :fe
-        !has_fe(rr) && return nothing
-        out = []
-        fe_set = has_fe.(rr.formula.rhs)
-        for (i, v) in enumerate(fe_set)
-            if v && !isa(fe_set, Bool)
-                push!(out,
-                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
-            elseif v
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
-            end
-        end
-        length(out) > 0 ? (out .=> ModelSummaries.FixedEffectValue(true)) : nothing
+        has_fe(rr) || return nothing
+        ModelSummaries.fixed_effect_entries(rr.formula.rhs, has_fe)
     elseif s == :clusters
         # Check if cluster variables are stored
         hasfield(typeof(rr.fes), :clusters) && !isempty(rr.fes.clusters) || return nothing
-        cluster_names = keys(rr.fes.clusters)
-        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=>
-            ModelSummaries.ClusterValue.(length.(unique.(values(rr.fes.clusters)))))
+        clusters = rr.fes.clusters
+        ModelSummaries.cluster_entries(keys(clusters), length.(unique.(values(clusters))))
     elseif s == :first_stage
         # OLS models have no first stage
         nothing
@@ -96,25 +85,14 @@ end
 
 function ModelSummaries.other_stats(rr::IVEstimator, s::Symbol)
     if s == :fe
-        !has_fe(rr) && return nothing
-        out = []
-        fe_set = has_fe.(rr.formula.rhs)
-        for (i, v) in enumerate(fe_set)
-            if v && !isa(fe_set, Bool)
-                push!(out,
-                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
-            elseif v
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
-            end
-        end
-        length(out) > 0 ? (out .=> ModelSummaries.FixedEffectValue(true)) : nothing
+        has_fe(rr) || return nothing
+        ModelSummaries.fixed_effect_entries(rr.formula.rhs, has_fe)
     elseif s == :clusters
         isnothing(rr.postestimation) && return nothing
         cluster_vars = rr.postestimation.cluster_vars
         isempty(cluster_vars) && return nothing
-        cluster_names = keys(cluster_vars)
-        collect(ModelSummaries.ClusterCoefName.(string.(cluster_names)) .=>
-            ModelSummaries.ClusterValue.(length.(unique.(values(cluster_vars)))))
+        ModelSummaries.cluster_entries(keys(cluster_vars),
+            length.(unique.(values(cluster_vars))))
     elseif s == :first_stage
         # Return first-stage F-statistic (Kleibergen-Paap) as a section
         isnothing(rr.F_kp) && return nothing

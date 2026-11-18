@@ -11,7 +11,7 @@ Default section order for the table.
 """
 function default_section_order()
     [:groups, :depvar, :estimator_names, :number_regressions, :break,
-        :coef, :break, :fe, :break, :randomeffects, :break, :clusters,
+        :coef, :break, :fe, :break, :clusters,
         :break, :first_stage, :break, :regtype, :break, :controls,
         :break, :custom_lines, :stats, :extralines]
 end
@@ -95,7 +95,6 @@ function modelsummary(
         align::Symbol = :r,
         header_align::Symbol = :c,
         below_statistic = StdError,
-        stat_below::Bool = true,
         regression_statistics = default_regression_statistics(rrs),
         groups = nothing,
         print_depvar::Bool = true,
@@ -111,7 +110,6 @@ function modelsummary(
         print_control_indicator = true,
         standardize_coef = false,
         print_clusters = false,
-        print_randomeffects = false,
         digits = nothing,
         digits_stats = nothing,
         use_relabeled_values = false,
@@ -254,8 +252,6 @@ function modelsummary(
             print_clusters && push!(sections, :clusters)
         elseif s == :first_stage
             print_first_stage_section && push!(sections, :first_stage)
-        elseif s == :randomeffects
-            print_randomeffects && push!(sections, :randomeffects)
         else
             push!(sections, s)
         end
@@ -337,7 +333,7 @@ function modelsummary(
                 push!(rows, row)
 
                 # Below-statistic row
-                if below_statistic !== nothing && stat_below
+                if below_statistic !== nothing
                     brow = Cell[Cell(nothing; halign = :left)]
                     for i in 1:nreg
                         push!(brow,
@@ -394,7 +390,7 @@ function modelsummary(
             end
 
         elseif v isa Symbol
-            # Handle :fe, :clusters, :first_stage, :randomeffects via other_stats
+            # Handle :fe, :clusters, :first_stage via other_stats
             temp = [other_stats(t, v) for t in rrs]
             if all(isnothing, temp)
                 continue
@@ -717,16 +713,6 @@ function add_blank(groups::Matrix, n)
     else
         groups
     end
-end
-function add_blank(groups::Vector{Vector}, n)
-    out = Vector{Vector}()
-    for g in groups
-        if length(g) < n
-            g = vcat(fill("", n - length(g)), g)
-        end
-        push!(out, g)
-    end
-    groups
 end
 
 ##############################################################################

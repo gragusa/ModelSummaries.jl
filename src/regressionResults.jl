@@ -285,12 +285,39 @@ default_regression_statistics(rr::RegressionModel) = [Nobs, R2]
 """
     other_stats(rr::RegressionModel, s::Symbol)
 
-Returns any other statistics to be displayed. This is used (if the appropriate extension is loaded)
-to display the fixed effects in a FixedEffectModel (or GLFixedEffectModel),
-clusters in those two, or Random Effects in a MixedModel. For other regressions, this
-returns `nothing`.
+Returns the rows of section `s` (`:fe`, `:clusters`, or `:first_stage`) for `rr` as a vector
+of `name => value` pairs, or `nothing` if the model has none. Package extensions define
+methods for model types with fixed effects, clustered standard errors, or a first stage
+(see [`fixed_effect_entries`](@ref) and [`cluster_entries`](@ref)). The fallback returns
+`nothing`.
 """
 other_stats(x::RegressionModel, s::Symbol) = nothing
+
+"""
+    fixed_effect_entries(rhs, isfe)
+
+The `:fe` section rows for a formula right-hand side `rhs` (one term or a tuple of terms):
+`FixedEffectCoefName => FixedEffectValue(true)` for each term with `isfe(term) == true`, or
+`nothing` if there is none.
+"""
+function fixed_effect_entries(rhs, isfe)
+    terms = rhs isa Tuple ? rhs : (rhs,)
+    out = [FixedEffectCoefName(get_coefname(t)) => FixedEffectValue(true)
+           for t in terms if isfe(t)]
+    isempty(out) ? nothing : out
+end
+
+"""
+    cluster_entries(names, counts)
+
+The `:clusters` section rows: `ClusterCoefName(string(name)) => ClusterValue(count)` for
+each pair from `names` and `counts`, which must have equal length.
+"""
+function cluster_entries(names, counts)
+    length(names) == length(counts) || throw(DimensionMismatch(
+        "got $(length(names)) cluster names and $(length(counts)) cluster counts"))
+    [ClusterCoefName(string(n)) => ClusterValue(c) for (n, c) in zip(names, counts)]
+end
 
 """
     VcovType(x::RegressionModel)

@@ -201,25 +201,3 @@ Base.:(==)(x::FirstStageCoefName, y::FirstStageCoefName) = x.name == y.name
 Base.hash(x::FirstStageCoefName, h::UInt) = hash(x.name, hash(FirstStageCoefName, h))
 
 Base.replace(x::FirstStageCoefName, r::Pair) = FirstStageCoefName(replace(x.name, r))
-
-"""
-    struct RandomEffectCoefName <: AbstractCoefName
-        rhs::CoefName
-        lhs::AbstractCoefName
-        val::Float64
-    end
-
-Used to store the name and the standard deviation of a coefficient for a `RandomEffectTerm` from
-[MixedModels.jl](https://github.com/JuliaStats/MixedModels.jl). The standard deviation is stored
-since that is often the useful information on the relationship between rhs and lhs.
-"""
-struct RandomEffectCoefName <: AbstractCoefName
-    rhs::CoefName
-    lhs::AbstractCoefName
-    RandomEffectCoefName(rhs::CoefName, lhs::AbstractCoefName) = new(rhs, lhs)
-end
-
-value(x::RandomEffectCoefName) = x
-Base.string(x::RandomEffectCoefName) = string(x.rhs) * " | " * string(x.lhs)
-Base.hash(x::RandomEffectCoefName, h::UInt) = hash(string(x), h)
-Base.:(==)(x::RandomEffectCoefName, y::RandomEffectCoefName) = string(x) == string(y)

@@ -12,7 +12,8 @@ tests = [
     "statistics_errors.jl",
     "input_validation.jl",
     "vcov.jl",
-    "inference.jl"
+    "inference.jl",
+    "other_stats.jl"
 ]
 
 for test in tests
