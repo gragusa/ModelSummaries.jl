@@ -42,12 +42,18 @@ format_number(::Missing; digits = 3) = ""
 """
     significance_stars(pval; breaks=[0.001, 0.01, 0.05])
 
-Return significance stars string based on p-value.
+Return the significance stars for p-value `pval`: one star per entry of `breaks` that `pval`
+does not exceed.
+
+A NaN p-value (e.g. from a coefficient with a NaN standard error) gets no stars; the standard
+error shown in the same column keeps the problem visible. A p-value outside [0, 1] throws an
+`ArgumentError`.
 """
 function significance_stars(pval; breaks = [0.001, 0.01, 0.05])
     issorted(breaks) ||
         throw(ArgumentError("breaks must be sorted in increasing order, got $breaks"))
-    (isnan(pval) || pval < 0) && return ""
+    isnan(pval) && return ""
+    0 <= pval <= 1 || throw(ArgumentError("p-value must be in [0, 1], got $pval"))
     i = findfirst(pval .<= breaks)
     i === nothing ? "" : "*"^(length(breaks) - i + 1)
 end

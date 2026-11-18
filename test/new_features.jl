@@ -44,4 +44,9 @@ end
     @test ModelSummaries.significance_stars(0.03) == "*"
     @test ModelSummaries.significance_stars(0.1) == ""
     @test ModelSummaries.significance_stars(NaN) == ""
+    @test ModelSummaries.significance_stars(0.0) == "***"
+    @test ModelSummaries.significance_stars(1.0) == ""
+    @test_throws "p-value must be in [0, 1], got -0.01" ModelSummaries.significance_stars(-0.01)
+    @test_throws "p-value must be in [0, 1], got 1.5" ModelSummaries.significance_stars(1.5)
+    @test_throws ArgumentError ModelSummaries.significance_stars(Inf)
 end
