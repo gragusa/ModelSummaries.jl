@@ -1,12 +1,7 @@
 
 ##############################################################################
-## Default settings (no render type parameter)
+## Default settings
 ##############################################################################
-
-default_digits(x) = 3
-default_digits(x::AbstractRegressionStatistic) = default_digits(value(x))
-default_digits(x::AbstractUnderStatistic) = default_digits(value(x))
-default_digits(x::CoefValue) = default_digits(value(x))
 
 """
     default_section_order()
@@ -21,42 +16,15 @@ function default_section_order()
         :break, :custom_lines, :stats, :extralines]
 end
 
-default_depvar() = true
-default_number_regressions(rrs) = length(rrs) > 1
-default_print_fe(rrs) = true
-default_print_randomeffects(rrs) = true
-default_groups(rrs) = nothing
-default_extralines(rrs) = nothing
-default_keep(rrs) = Vector{String}()
-default_drop(rrs) = Vector{String}()
-default_order(rrs) = Vector{String}()
-default_fixedeffects(rrs) = Vector{String}()
-default_labels(rrs) = Dict{String, Any}()
-default_below_statistic() = StdError
-default_stat_below() = true
-default_align() = :r
-default_header_align() = :c
-default_file(rrs) = nothing
-default_print_fe_suffix() = true
-default_print_control_indicator() = true
-default_standardize_coef(rrs) = false
-
 """
-    default_transform_labels(rrs)
+    default_regression_statistics(rrs::Tuple)
 
-Default label transformation. Returns empty dict (no transformation).
+Union, in order of first appearance, of the per-model
+[`default_regression_statistics`](@ref) of the models in `rrs`.
 """
-default_transform_labels(rrs) = Dict{String, Any}()
-
-default_print_estimator(rrs) = length(unique(RegressionType.(rrs))) > 1
-default_print_clusters(rrs) = false
-
 function default_regression_statistics(rrs::Tuple)
     unique(union(default_regression_statistics.(rrs)...))
 end
-
-default_confint_level() = 0.95
-default_use_relabeled_values(rrs) = true
 
 # Escape helpers (for LaTeX label transforms)
 const escape_latex_dict = Dict("&" => "\\&", "%" => "\\%", "\$" => "\\\$",
@@ -86,7 +54,10 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `fixedeffects`: Filter fixed effects.
 * `labels`: Dict mapping variable names to display labels.
 * `below_statistic`: Type shown below coefficients (`StdError`, `TStat`, `ConfInt`, or `nothing`).
-* `regression_statistics`: Vector of statistic types for the bottom section.
+* `regression_statistics`: Vector of statistic types for the bottom section. The default is
+  the union of each model's [`ModelSummaries.default_regression_statistics`](@ref), e.g.
+  `[Nobs, R2, R2McFadden]` for an OLS and a logit column. A cell is blank when the statistic
+  does not apply to that column's model (see [`ModelSummaries.applies`](@ref)).
 * `digits`, `digits_stats`: Number of decimal places.
 * `stars`: Show significance stars (default `false`).
 * `pvalue_note`: Append a note stating, per column, the distribution behind the p-values,
@@ -120,7 +91,7 @@ function modelsummary(
         header_align::Symbol = :c,
         below_statistic = StdError,
         stat_below::Bool = true,
-        regression_statistics = [Nobs, R2],
+        regression_statistics = default_regression_statistics(rrs),
         groups = nothing,
         print_depvar::Bool = true,
         number_regressions::Bool = length(rrs) > 1,

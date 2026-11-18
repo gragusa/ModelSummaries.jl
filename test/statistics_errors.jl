@@ -1,6 +1,7 @@
 using ModelSummaries
 using Test
 using GLM, DataFrames, StatsAPI
+using FixedEffectModels: reg, fe
 
 const SM = ModelSummaries.StatsModels
 
@@ -39,6 +40,26 @@ StatsAPI.coef(::MisnamedModel) = [1.0]
 
     mat = ModelSummaries.combine_statistics((NoNobsModel(),), [Nobs])
     @test mat[1, 2] === nothing
+end
+
+@testset "Default statistics come from the models" begin
+    df = DataFrame(y = randn(60), x = randn(60), b = rand(0:1, 60), g = repeat(1:6, 10))
+    ols = lm(@formula(y ~ x), df)
+    logit = glm(@formula(b ~ x), df, Binomial(), LogitLink())
+    fem = reg(df, @formula(y ~ x + fe(g)))
+
+    @test ModelSummaries.default_regression_statistics((ols,)) == [Nobs, R2]
+    @test ModelSummaries.default_regression_statistics((logit,)) == [Nobs, R2McFadden]
+    @test ModelSummaries.default_regression_statistics((ols, logit)) ==
+          [Nobs, R2, R2McFadden]
+    @test ModelSummaries.default_regression_statistics((ols, fem)) == [Nobs, R2, R2Within]
+
+    html(t) = sprint(show, MIME"text/html"(), t)
+    @test html(modelsummary(ols, logit)) ==
+          html(modelsummary(ols, logit; regression_statistics = [Nobs, R2, R2McFadden]))
+    @test occursin("Pseudo", html(modelsummary(logit)))
+    @test occursin("Within", html(modelsummary(fem)))
+    @test !occursin("Pseudo", html(modelsummary(ols)))
 end
 
 @testset "Statistics: errors propagate" begin
