@@ -2,6 +2,7 @@ using ModelSummaries
 using Test
 using GLM, DataFrames, StatsAPI
 using FixedEffectModels: reg, fe
+using Distributions: FDist, ccdf
 
 const SM = ModelSummaries.StatsModels
 
@@ -60,6 +61,32 @@ end
     @test occursin("Pseudo", html(modelsummary(logit)))
     @test occursin("Within", html(modelsummary(fem)))
     @test !occursin("Pseudo", html(modelsummary(ols)))
+end
+
+@testset "Linear-model F test matches GLM.ftest" begin
+    t = 1:40
+    df = DataFrame(x = sin.(t), z = cos.(t) .^ 2)
+    df.y = 1 .+ 0.3 .* df.x .+ 0.2 .* df.z .+ 0.5 .* sin.(3 .* t)
+    for f in (@formula(y ~ x), @formula(y ~ x + z))
+        m = lm(f, df)
+        ref = ftest(m.model)
+        @test ModelSummaries.applies(FStat, m)
+        @test ModelSummaries.value(FStat(m)) ≈ ref.fstat
+        @test ModelSummaries.value(FStatPValue(m)) ≈ ref.pval
+    end
+
+    # Without an intercept GLM's null model has no predictor, so F tests every coefficient.
+    m0 = lm(@formula(y ~ 0 + x + z), df)
+    rss, n = deviance(m0), nrow(df)
+    F0 = ((sum(abs2, df.y) - rss) / 2) / (rss / (n - 2))
+    @test ModelSummaries.value(@test_logs (:warn, r"null model") FStat(m0)) ≈ F0
+    @test ModelSummaries.value(@test_logs (:warn, r"null model") match_mode=:any FStatPValue(m0)) ≈
+          ccdf(FDist(2, n - 2), F0)
+
+    m1 = lm(@formula(y ~ 1), df)
+    @test !ModelSummaries.applies(FStat, m1)
+    @test !ModelSummaries.applies(FStatPValue, m1)
+    @test ModelSummaries.combine_statistics((m1,), [FStat])[1, 2] === nothing
 end
 
 @testset "Statistics: errors propagate" begin

@@ -51,34 +51,26 @@ function ModelSummaries.applies(
     false
 end
 
-# The overall F-test needs at least one predictor and positive residual degrees of freedom.
-function ModelSummaries.applies(::Type{<:Union{FStat, FStatPValue}}, model::LinearModel)
-    p = dof(model) - 1
-    p > 0 && nobs(model) > p + 1
+# Degrees of freedom of the overall F-test of every coefficient except the intercept against
+# GLM's null model (intercept only, or no predictor when the model has no intercept).
+# `dof(::LinearModel)` counts σ as well as the estimated coefficients.
+function _ftest_dof(model::LinearModel)
+    (dof(model) - 1 - hasintercept(model), dof_residual(model))
 end
 
-# F-statistic for LinearModel
-function ModelSummaries.FStat(model::LinearModel)
-    # F = (R² / p) / ((1 - R²) / (n - p - 1))
-    # where p = number of predictors (excluding intercept)
-    r2_val = r2(model)
-    n = nobs(model)
-    p = dof(model) - 1  # dof includes intercept, so subtract 1 for number of predictors
+function ModelSummaries.applies(::Type{<:Union{FStat, FStatPValue}}, model::LinearModel)
+    df1, df2 = _ftest_dof(model)
+    df1 > 0 && df2 > 0
+end
 
-    f_stat = (r2_val / p) / ((1 - r2_val) / (n - p - 1))
-    return FStat(f_stat)
+function ModelSummaries.FStat(model::LinearModel)
+    df1, df2 = _ftest_dof(model)
+    rss = deviance(model)
+    FStat(((nulldeviance(model) - rss) / df1) / (rss / df2))
 end
 
 function ModelSummaries.FStatPValue(model::LinearModel)
-    f_obj = ModelSummaries.FStat(model)
-    n = nobs(model)
-    p = dof(model) - 1
-
-    # F-distribution with p and (n - p - 1) degrees of freedom
-    fdist = FDist(p, n - p - 1)
-    pval = ccdf(fdist, f_obj.val)
-
-    return FStatPValue(pval)
+    FStatPValue(ccdf(FDist(_ftest_dof(model)...), ModelSummaries.FStat(model).val))
 end
 
 # F-statistic for TableRegressionModel wrapping LinearModel
