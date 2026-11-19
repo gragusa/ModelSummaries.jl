@@ -37,6 +37,14 @@ ModelSummaries.RegressionType(x::GLM.LmResp) = RegressionType(Normal())
 ModelSummaries.RegressionType(x::GeneralizedLinearModel) = RegressionType(x.rr)
 ModelSummaries.RegressionType(x::GLM.GlmResp{Y, D, L}) where {Y, D, L} = RegressionType(D)
 
+function ModelSummaries.VcovType(x::StatsModels.TableRegressionModel{<:GLM.LinPredModel})
+    VcovType(x.model)
+end
+ModelSummaries.VcovType(::LinearModel) = VcovType("IID")
+# GLM's `vcov` is the inverse of the estimated information matrix, scaled by the dispersion
+# for families that have one.
+ModelSummaries.VcovType(::GeneralizedLinearModel) = VcovType("Information-based")
+
 function ModelSummaries.applies(S, model::StatsModels.TableRegressionModel)
     ModelSummaries.applies(S, model.model)
 end

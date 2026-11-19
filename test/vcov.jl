@@ -1,6 +1,7 @@
 using ModelSummaries
 using Test
 using DataFrames, GLM, Regress, CovarianceMatrices, StatsAPI
+using FixedEffectModels: reg, Vcov
 
 const MS = ModelSummaries
 
@@ -36,4 +37,33 @@ const MS = ModelSummaries
     ext = Base.get_extension(MS, :ModelSummariesCovarianceMatricesExt)
     @test ext !== nothing
     @test !any(meth -> parentmodule(meth) in (MS, ext), methods(+))
+end
+
+struct NoVcovModel <: StatsAPI.RegressionModel end
+
+@testset "Std. Error row names the estimator of each model type" begin
+    n = 60
+    df = DataFrame(; x = sin.(1:n), y = cos.(1:n) .+ sin.(1:n),
+        b = isodd.(1:n) .| (sin.(1:n) .> 0.5), g = repeat(1:6; inner = 10))
+    ols = lm(@formula(y ~ x), df)
+    logit = glm(@formula(b ~ x), df, Binomial(), LogitLink())
+    gauss = glm(@formula(y ~ x), df, Normal(), IdentityLink())
+    @test MS.value(VcovType(ols)) == "IID"
+    @test MS.value(VcovType(ols.model)) == "IID"
+    @test MS.value(VcovType(logit)) == "Information-based"
+    @test MS.value(VcovType(gauss)) == "Information-based"
+
+    fe_simple = reg(df, @formula(y ~ x), Vcov.simple())
+    fe_robust = reg(df, @formula(y ~ x), Vcov.robust())
+    fe_cluster = reg(df, @formula(y ~ x), Vcov.cluster(:g))
+    @test MS.value(VcovType(fe_simple)) == "IID"
+    @test MS.value(VcovType(fe_robust)) == "HC1"
+    @test MS.value(VcovType(fe_cluster)) == "CR1"
+
+    mat = MS.combine_statistics((ols, logit, fe_robust, fe_cluster), [VcovType])
+    @test [MS.value(mat[1, j]) for j in 2:5] == ["IID", "Information-based", "HC1", "CR1"]
+    @test modelsummary(ols, logit, fe_cluster; regression_statistics = [Nobs, VcovType]) isa
+          MS.SummaryTables.Table
+
+    @test_throws "the regression statistic VcovType is not available for models of type NoVcovModel" VcovType(NoVcovModel())
 end

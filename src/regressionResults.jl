@@ -322,27 +322,12 @@ end
 """
     VcovType(x::RegressionModel)
 
-Returns a VcovType object indicating the type of variance-covariance estimator used.
-Package extensions define methods for model types that record their estimator. This
-fallback reads a `vcov_type` property if the model has one and otherwise returns "IID".
+Return a `VcovType` naming the variance-covariance estimator behind the standard errors of
+`x`. Package extensions define methods for the model types they support. This fallback
+throws an `ArgumentError`, since a model type without a method gives no reliable way to name
+its estimator.
 """
-function VcovType(x::RegressionModel)
-    # Check for vcov_type property (common in FixedEffectModels.jl)
-    if hasproperty(x, :vcov_type)
-        s = string(x.vcov_type)
-        if s == "Simple covariance estimator"
-            return VcovType("IID")
-        elseif occursin("Robust", s) || occursin("Heteroskedastic", s)
-            return VcovType("Robust")
-        elseif occursin("Cluster", s)
-            return VcovType("Cluster")
-        end
-        return VcovType(s)
-    end
-
-    # Fallback/Default
-    return VcovType("IID")
-end
+VcovType(x::RegressionModel) = _no_statistic_method(VcovType, x)
 
 ##############################################################################
 ##

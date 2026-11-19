@@ -20,6 +20,16 @@ ModelSummaries.applies(::Type{R2Within}, x::FixedEffectModel) = has_fe(x)
 
 ModelSummaries.RegressionType(x::FixedEffectModel) = RegressionType(Normal(), has_iv(x))
 
+# Vcov.jl scales `robust()` by n/(n-k) and `cluster()` by (n-1)/(n-k) * G/(G-1).
+ModelSummaries.VcovType(x::FixedEffectModel) = VcovType(_vcov_label(x.vcov_type))
+_vcov_label(::FixedEffectModels.Vcov.SimpleCovariance) = "IID"
+_vcov_label(::FixedEffectModels.Vcov.RobustCovariance) = "HC1"
+_vcov_label(::FixedEffectModels.Vcov.ClusterCovariance) = "CR1"
+function _vcov_label(v)
+    throw(ArgumentError("no `VcovType` label for the FixedEffectModels covariance estimator \
+        $(typeof(v)); add a `_vcov_label` method in ModelSummariesFixedEffectModelsExt"))
+end
+
 # FixedEffectModels' coeftable leaves `teststatcol` unset.
 function ModelSummaries.inference_coeftable(x::FixedEffectModel)
     ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
