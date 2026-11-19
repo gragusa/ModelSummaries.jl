@@ -54,7 +54,12 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `fixedeffects`: Filter fixed effects.
 * `labels`: Dict mapping coefficient names to display labels. Keys are the names as
   `coefnames(model)` prints them, so an interaction is keyed `"x & z"` and a categorical level
-  `"species: setosa"`.
+  `"species: setosa"`. A key for the full name wins; otherwise each part of an interaction is
+  relabeled by its own key (`Dict("x" => "T")` shows `x & z` as `T × z`), and a key for a
+  categorical's variable name relabels that part (`Dict("species" => "Species")` shows
+  `"Species: setosa"`). Levels are relabeled only by a full-name key or `transform_labels`. A
+  label that replaces only part of a name must be a string. `keep`, `drop`, and `order` match
+  the names before relabeling.
 * `interaction_separator`: String placed between the parts of an unlabeled interaction in the
   table (default `" × "`); `labels` keys always use `" & "`.
 * `below_statistic`: Type shown below coefficients (`StdError`, `TStat`, `ConfInt`, or `nothing`).

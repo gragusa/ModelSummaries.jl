@@ -250,13 +250,46 @@ function transformer(s, repl_dict::AbstractDict)
     return s
 end
 
+"""
+    replace_name(s, exact_dict, repl_dict)
+
+The displayed name of `s`. A key of `exact_dict` (`labels`) equal to `s` or to `string(s)`
+replaces the whole name. Otherwise each part of an `InteractedCoefName`, and the variable
+name of a `CategoricalCoefName`, is relabeled by its own key, and the remaining text gets the
+`repl_dict` (`transform_labels`) replacements. A label that replaces only part of a name must
+be a string.
+"""
 function replace_name(s::Union{AbstractString, AbstractCoefName}, exact_dict, repl_dict)
-    # Try the value directly, then fall back to its string representation
+    r = _exact_label(s, exact_dict)
+    r === nothing ? _relabel_parts(s, exact_dict, repl_dict) : r
+end
+
+function _exact_label(s, exact_dict)
     r = get(exact_dict, s, nothing)
     r !== nothing && return r
     skey = string(s)
-    skey != s && (r = get(exact_dict, skey, nothing); r !== nothing && return r)
-    transformer(s, repl_dict)
+    skey != s ? get(exact_dict, skey, nothing) : nothing
+end
+
+_relabel_parts(s, exact_dict, repl_dict) = transformer(s, repl_dict)
+function _relabel_parts(s::InteractedCoefName, exact_dict, repl_dict)
+    parts = map(value(s)) do p
+        r = _exact_label(p, exact_dict)
+        r === nothing ? _relabel_parts(p, exact_dict, repl_dict) : _part_label(r, p, s)
+    end
+    InteractedCoefName(parts)
+end
+function _relabel_parts(s::CategoricalCoefName, exact_dict, repl_dict)
+    r = get(exact_dict, value(s), nothing)
+    name = r === nothing ? transformer(value(s), repl_dict) : _part_label(r, value(s), s)
+    CategoricalCoefName(name, transformer(s.level, repl_dict))
+end
+
+_part_label(r::AbstractString, part, whole) = r
+function _part_label(r, part, whole)
+    throw(ArgumentError("labels[\"$(string(part))\"] is a $(typeof(r)), but it would relabel " *
+                        "only part of the name \"$(string(whole))\", which requires a string; " *
+                        "add a label for the full name \"$(string(whole))\""))
 end
 function replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict)
     (replace_name(s[1], exact_dict, repl_dict), s[2])

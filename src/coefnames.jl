@@ -65,9 +65,10 @@ Used to store the different coefficient names that makes up an InteractionTerm. 
 vector are typically [`CoefName`](@ref), but can also be strings.
 
 `string(x)` joins the parts with `" & "`, as StatsModels' `coefnames` does; this is the key a
-`labels` dictionary must use (`labels = Dict("x & z" => "Treated × Post")`). The table shows the parts joined by
-the `interaction_separator` keyword of [`modelsummary`](@ref) (default `" × "`). Two interactions are equal when
-they have the same parts in any order.
+`labels` dictionary must use (`labels = Dict("x & z" => "Treated × Post")`). Without such a key, `labels` keys for
+the parts relabel each part (`labels = Dict("x" => "Treated")` shows `"Treated × z"`). The table shows the parts
+joined by the `interaction_separator` keyword of [`modelsummary`](@ref) (default `" × "`). Two interactions are
+equal when they have the same parts in any order.
 """
 struct InteractedCoefName <: AbstractCoefName
     names::Vector
@@ -103,7 +104,8 @@ Used to store the name of a coefficient for a `CategoricalTerm`. The `level` is 
 In other words, the `name` is the column name, the `level` is the category within that column.
 
 Both `string(x)` and the table show `"name: level"`, which is also the form `labels` keys use
-(`labels = Dict("species: setosa" => "Setosa")`).
+(`labels = Dict("species: setosa" => "Setosa")`). Without such a key, a `labels` key for `name` relabels the
+variable name and keeps the level (`labels = Dict("species" => "Species")` shows `"Species: setosa"`).
 """
 struct CategoricalCoefName <: AbstractCoefName
     name::String
