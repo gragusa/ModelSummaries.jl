@@ -39,14 +39,42 @@ format_number(x::Int; digits = 3) = format(x, commas = true)
 format_number(::Nothing; digits = 3) = ""
 format_number(::Missing; digits = 3) = ""
 
+# A hyphen that starts a number: "-1.4", "(-0.2, 3.1)".
+const _NEGATIVE = r"(?<![\w.])-(?=[\d.])"
+
+"""
+    with_minus(s::AbstractString)
+
+`s` itself, or, when it contains a negative number, a [`BackendMath`](@ref)
+that sets the sign as a minus: `\$-\$` in LaTeX, U+2212 in Typst, `&minus;`
+in HTML. Plain text keeps the hyphen, so numbers stay readable as code.
+"""
+function with_minus(s::AbstractString)
+    occursin(_NEGATIVE, s) || return s
+    typst_str = replace(s, _NEGATIVE => "−", "\\" => "\\\\", "\"" => "\\\"")
+    BackendMath(
+        latex = replace(s, _NEGATIVE => raw"$-$"),
+        typst = "#\"" * typst_str * "\"",
+        html = replace(s, _NEGATIVE => "&minus;"),
+        text = String(s)
+    )
+end
+
 """
     significance_stars(pval; breaks=[0.001, 0.01, 0.05])
 
-Return significance stars string based on p-value.
+Return the significance stars for p-value `pval`: one star per entry of `breaks` that `pval`
+does not exceed.
+
+A NaN p-value (e.g. from a coefficient with a NaN standard error) gets no stars; the standard
+error shown in the same column keeps the problem visible. A p-value outside [0, 1] throws an
+`ArgumentError`.
 """
 function significance_stars(pval; breaks = [0.001, 0.01, 0.05])
-    @assert issorted(breaks)
-    (isnan(pval) || pval < 0) && return ""
+    issorted(breaks) ||
+        throw(ArgumentError("breaks must be sorted in increasing order, got $breaks"))
+    isnan(pval) && return ""
+    0 <= pval <= 1 || throw(ArgumentError("p-value must be in [0, 1], got $pval"))
     i = findfirst(pval .<= breaks)
     i === nothing ? "" : "*"^(length(breaks) - i + 1)
 end
@@ -57,7 +85,7 @@ end
 Create a Cell for a coefficient value, optionally with significance stars.
 """
 function make_coef_cell(cv::CoefValue; digits = 3, stars = false, halign = :right)
-    s = format_number(cv.val; digits)
+    s = with_minus(format_number(cv.val; digits))
     if stars
         star_str = significance_stars(cv.pvalue)
         nstars = length(star_str)
@@ -76,7 +104,7 @@ end
 Create a Cell for an under-statistic (standard error, t-stat).
 """
 function make_understat_cell(us::AbstractUnderStatistic; digits = 3, stars = false, halign = :right)
-    s = "(" * format_number(value(us); digits) * ")"
+    s = with_minus("(" * format_number(value(us); digits) * ")")
     if stars
         return Cell(Concat(s, _phantom_sup_stars(_MAX_STARS)...); halign)
     end
@@ -86,7 +114,7 @@ end
 function make_understat_cell(ci::ConfInt; digits = 3, stars = false, halign = :right)
     lo = format_number(value(ci)[1]; digits)
     hi = format_number(value(ci)[2]; digits)
-    s = "($lo, $hi)"
+    s = with_minus("($lo, $hi)")
     if stars
         return Cell(Concat(s, _phantom_sup_stars(_MAX_STARS)...); halign)
     end
@@ -103,21 +131,36 @@ end
 # Display name functions for coefficient names
 
 """
-    display_name(x)
+    display_name(x, interaction_separator = " × ")
 
-Convert a coefficient name or other value to a display string.
+Convert a coefficient name or other value to the cell value shown in the table. The parts of
+an [`ModelSummaries.InteractedCoefName`](@ref) are joined by `interaction_separator`; every
+other name is shown as `string(x)` prints it. A name with a [`BackendMath`](@ref) part (from a
+part label) is a `SummaryTables.Concat` of its parts, so the renderer escapes the string parts
+and writes the `BackendMath` markup for each backend unchanged. A new name type needs a
+two-argument method.
 """
-display_name(x::CoefName) = x.name
-display_name(x::InteractedCoefName) = join(display_name.(x.names), " \u00d7 ")
-display_name(x::CategoricalCoefName) = "$(x.name): $(x.level)"
-display_name(x::InterceptCoefName) = "(Intercept)"
-display_name(x::FixedEffectCoefName) = display_name(x.name)
-display_name(x::ClusterCoefName) = display_name(x.name)
-display_name(x::FirstStageCoefName) = display_name(x.name)
-display_name(x::RandomEffectCoefName) = display_name(x.rhs) * " | " * display_name(x.lhs)
-display_name(x::AbstractString) = String(x)
-display_name(x::BackendMath) = x
-display_name(x::AbstractCoefName) = string(x)
+display_name(x) = display_name(x, " \u00d7 ")
+display_name(x::CoefName, sep) = x.name
+function display_name(x::InteractedCoefName, sep)
+    parts = display_name.(x.names, Ref(sep))
+    all(p -> p isa String, parts) && return join(parts, sep)
+    pieces = Any[first(parts)]
+    for p in parts[2:end]
+        push!(pieces, sep, p)
+    end
+    Concat(pieces...)
+end
+display_name(x::CategoricalCoefName, sep) = _categorical_display(x.name, x.level)
+_categorical_display(name::String, level) = "$name: $level"
+_categorical_display(name::BackendMath, level) = Concat(name, ": ", level)
+display_name(x::InterceptCoefName, sep) = "(Intercept)"
+display_name(x::FixedEffectCoefName, sep) = display_name(x.name, sep)
+display_name(x::ClusterCoefName, sep) = display_name(x.name, sep)
+display_name(x::FirstStageCoefName, sep) = display_name(x.name, sep)
+display_name(x::AbstractString, sep) = String(x)
+display_name(x::BackendMath, sep) = x
+display_name(x::AbstractCoefName, sep) = string(x)
 
 # Suffix functions (customizable by users)
 
@@ -157,7 +200,7 @@ Create a Cell for a regression statistic, padded to align with coefficient cells
 """
 function make_stat_cell(sv; digits = 3, stars = false, halign = :right)
     s = format_stat_value(sv; digits)
-    if isempty(s)
+    if s isa AbstractString && isempty(s)
         return Cell(nothing; halign)
     end
     parts = Any[_PHANTOM_OPEN, s]
@@ -172,7 +215,7 @@ end
 Format a regression statistic value for display in a cell.
 """
 function format_stat_value(x::AbstractRegressionStatistic; digits = 3)
-    format_number(value(x); digits)
+    with_minus(format_number(value(x); digits))
 end
 function format_stat_value(x::Nobs; digits = 3)
     value(x) === nothing ? "" : format(value(x), commas = true)
@@ -198,11 +241,10 @@ format_other_stat(x::AbstractString; digits = 3) = x
 format_other_stat(x::BackendMath; digits = 3) = x
 format_other_stat(x::Missing; digits = 3) = ""
 format_other_stat(x::ClusterValue; digits = 3) = value(x) > 0 ? "Yes" : ""
-format_other_stat(x::RandomEffectValue; digits = 3) = format_number(value(x); digits)
 function format_other_stat(x::FirstStageValue; digits = 3)
-    value(x) === nothing ? "" : format_number(value(x); digits)
+    value(x) === nothing ? "" : with_minus(format_number(value(x); digits))
 end
-format_other_stat(x::Float64; digits = 3) = format_number(x; digits)
+format_other_stat(x::Float64; digits = 3) = with_minus(format_number(x; digits))
 format_other_stat(x::Int; digits = 3) = format(x, commas = true)
 format_other_stat(x::Bool; digits = 3) = x ? "Yes" : ""
 

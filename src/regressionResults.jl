@@ -9,20 +9,16 @@ within an extension, it is possible to define the necessary function.
 ##
 ## Basic regression model interface functions
 ##
-## Note: VcovSpec and RegressionModelWithVcov are defined in the
-## CovarianceMatrices extension (ModelSummariesCovarianceMatricesExt).
-## The model + vcov() syntax only works when CovarianceMatrices is loaded.
-##
 ##############################################################################
 
 """
     _formula(x::RegressionModel)
 
 Generally a passthrough for the `formula` function from the `StatsModels` package.
-Note tha the `formula` function returns the `FormulaSchema`.
+Note that the `formula` function returns the `FormulaSchema`.
 
-This function is only used internally in the [`ModelSummarys._responsename`](@ref)
-and [`ModelSummarys._coefnames`](@ref) functions. Therefore, if the `RegressionModel`
+This function is only used internally in the [`ModelSummaries._responsename`](@ref)
+and [`ModelSummaries._coefnames`](@ref) functions. Therefore, if the `RegressionModel`
 uses those two functions without using `formula`, this function is not necessary.
 """
 _formula(x::RegressionModel) = formula(x)
@@ -30,38 +26,30 @@ _formula(x::RegressionModel) = formula(x)
 """
     _responsename(x::RegressionModel)
 
-Returns the name of the dependent variable in the regression model.
-The default  is to return a parsed version of the left hand side of formula ([`ModelSummarys._formula`](@ref)),
-but if that is not available, then it will return the `StatsAPI.responsename` function.
+Returns the name of the dependent variable in the regression model, parsed from the left
+hand side of the formula ([`ModelSummaries._formula`](@ref)). A model type without a
+formula needs its own method.
 """
 function _responsename(x::RegressionModel)
-    try
-        out = get_coefname(_formula(x).lhs)
-    catch
-        out = get_coefname(responsename(x))
-    end
-    if isa(out, AbstractVector)
-        out = first(out)
-    end
-    out
+    out = get_coefname(_formula(x).lhs)
+    out isa AbstractVector ? first(out) : out
 end
 
 """
     _coefnames(x::RegressionModel)
 
-Returns a vector of the names of the coefficients in the regression model.
-The default  is to return a parsed version of the formula ([`ModelSummarys._formula`](@ref)),
-but if that is not available, then it will return the `StatsAPI.coefnames` function.
+Returns a vector of the names of the coefficients in the regression model, parsed from the
+right hand side of the formula ([`ModelSummaries._formula`](@ref)). A model type without a
+formula needs its own method. Throws if the number of names differs from the number of
+coefficients, since the names would then be attached to the wrong estimates.
 """
 function _coefnames(x::RegressionModel)
-    try
-        out = get_coefname(_formula(x).rhs)
-    catch
-        out = get_coefname(coefnames(x))
-    end
-    if !isa(out, AbstractVector)
-        out = [out]
-    end
+    out = get_coefname(_formula(x).rhs)
+    out = out isa AbstractVector ? out : [out]
+    ncoef = length(_coef(x))
+    length(out) == ncoef || throw(DimensionMismatch(
+        "the formula of the $(nameof(typeof(x))) model yields $(length(out)) coefficient \
+        names but the model has $ncoef coefficients: $(string.(out))"))
     out
 end
 
@@ -82,21 +70,126 @@ By default, is just a passthrough for the `stderror` function from the `StatsMod
 _stderror(x::RegressionModel) = stderror(x)
 
 """
-    _dof_residual(x::RegressionModel)
+    inference_coeftable(x::RegressionModel)
 
-Returns the degrees of freedom of the residuals in the regression model.
-By default, is just a passthrough for the `dof_residual` function from the `StatsModels` package.
+Returns the model's `StatsAPI.CoefTable`, the source of the p-values and test statistics
+shown in the table. A passthrough for `coeftable`. The table must set `pvalcol` and
+`teststatcol`; a package extension overrides this method for a model type whose
+`coeftable` leaves one of them unset (see [`ModelSummaries.with_teststatcol`](@ref)).
 """
-_dof_residual(x::RegressionModel) = dof_residual(x)
+inference_coeftable(x::RegressionModel) = coeftable(x)
+
+"""
+    with_teststatcol(ct::CoefTable, name::AbstractString)
+
+Returns a copy of `ct` whose `teststatcol` is the column named `name`. Throws if no column
+has that name, or if `ct` already marks a different column as the test statistic.
+"""
+function with_teststatcol(ct::CoefTable, name::AbstractString)
+    col = findfirst(==(name), ct.colnms)
+    col === nothing && throw(ArgumentError(
+        "the coefficient table has no column named \"$name\"; its columns are $(ct.colnms)"))
+    ct.teststatcol in (0, col) || throw(ArgumentError(
+        "the coefficient table marks column $(ct.teststatcol) \
+        (\"$(ct.colnms[ct.teststatcol])\") as the test statistic, not \"$name\""))
+    CoefTable(ct.cols, ct.colnms, ct.rownms, ct.pvalcol, col)
+end
+
+"""
+    _coeftable_column(x::RegressionModel, which::Symbol)
+
+Returns the p-values (`which = :pvalue`) or test statistics (`which = :teststat`) of the
+model's [`ModelSummaries.inference_coeftable`](@ref), in the order of `coef(x)`.
+
+Rows are matched to coefficients by name, since a `coeftable` may list them in a different
+order than `coef` (FixedEffectModels and Regress put the intercept last). Throws if the
+table does not mark the column, if its row names are not a permutation of `coefnames(x)`,
+or if its first column, reordered, does not reproduce `coef(x)`.
+"""
+function _coeftable_column(x::RegressionModel, which::Symbol)
+    ct = inference_coeftable(x)
+    col = which === :pvalue ? ct.pvalcol :
+          which === :teststat ? ct.teststatcol :
+          throw(ArgumentError("which = :$which; use :pvalue or :teststat"))
+    mname = nameof(typeof(x))
+    col > 0 || throw(ArgumentError(
+        "the coeftable of the $mname model does not mark its \
+        $(which === :pvalue ? "p-value (`pvalcol`)" : "test-statistic (`teststatcol`)") \
+        column; its columns are $(ct.colnms)"))
+    b = _coef(x)
+    rows = if isempty(ct.rownms)
+        length(ct.cols[1]) == length(b) || throw(DimensionMismatch(
+            "the coeftable of the $mname model has $(length(ct.cols[1])) rows for \
+            $(length(b)) coefficients"))
+        collect(eachindex(ct.cols[1]))
+    else
+        rowidx = Dict(nm => i for (i, nm) in pairs(ct.rownms))
+        nms = string.(coefnames(x))
+        length(rowidx) == length(ct.rownms) == length(nms) &&
+        all(in(keys(rowidx)), nms) || throw(ArgumentError(
+            "the coeftable rows of the $mname model, $(ct.rownms), are not a permutation \
+            of its coefficient names, $nms"))
+        [rowidx[nm] for nm in nms]
+    end
+    isapprox(ct.cols[1][rows], b; nans = true) || throw(ArgumentError(
+        "the first column of the coeftable of the $mname model does not reproduce \
+        `coef`: $(ct.cols[1][rows]) vs $b"))
+    ct.cols[col][rows]
+end
 
 """
     _pvalue(x::RegressionModel)
 
-Returns a vector of the p-values of the coefficients in the regression model.
+Returns the p-values of the coefficients, read from the model's `coeftable`.
 """
-function _pvalue(x::RegressionModel)
-    tt = _coef(x) ./ _stderror(x)
-    ccdf.(Ref(FDist(1, _dof_residual(x))), abs2.(tt))
+_pvalue(x::RegressionModel) = _coeftable_column(x, :pvalue)
+
+"""
+    _teststat(x::RegressionModel)
+
+Returns the test statistics (t or z) of the coefficients, read from the model's `coeftable`.
+"""
+_teststat(x::RegressionModel) = _coeftable_column(x, :teststat)
+
+"""
+    reference_distribution(x::RegressionModel) -> UnivariateDistribution
+
+The distribution under which the model's `coeftable` computes two-sided p-values from its
+test statistics, e.g. `TDist(dof_residual(x))` or `Normal()`. Package extensions define it
+for the model types they support; the fallback throws. Only `modelsummary(...; pvalue_note =
+true)` calls it, and the note is checked against the `coeftable` p-values.
+"""
+function reference_distribution(x::RegressionModel)
+    throw(ArgumentError(
+        "pvalue_note: no `ModelSummaries.reference_distribution` method for \
+        $(nameof(typeof(x))); define one, or pass `pvalue_note = false`"))
+end
+
+distribution_label(d::TDist) = (ν = only(params(d)); "t($(isinteger(ν) ? Int(ν) : ν))")
+distribution_label(::Normal) = "Normal"
+function distribution_label(d::UnivariateDistribution)
+    throw(ArgumentError("pvalue_note: no label for the reference distribution $d"))
+end
+
+"""
+    pvalue_note_text(rrs) -> String
+
+The table note stating, per column, the distribution behind the p-values, e.g.
+`"p-values: (1) t(97); (2) Normal"`. Throws if the stated distribution of a column does not
+reproduce that model's `coeftable` p-values.
+"""
+function pvalue_note_text(rrs)
+    labels = map(enumerate(rrs)) do (i, rr)
+        d = reference_distribution(rr)
+        p = _pvalue(rr)
+        p_ref = 2 .* ccdf.(d, abs.(_teststat(rr)))
+        isapprox(p_ref, p; rtol = sqrt(eps()), nans = true) || throw(ArgumentError(
+            "pvalue_note: the p-values of model $i ($(nameof(typeof(rr)))) are not two-sided \
+            tests against $(distribution_label(d)): $p vs $p_ref"))
+        distribution_label(d)
+    end
+    length(rrs) == 1 && return "p-values: $(only(labels))"
+    "p-values: " * join(("($i) $l" for (i, l) in enumerate(labels)), "; ")
 end
 
 """
@@ -113,16 +206,13 @@ Returns a boolean indicating whether the coefficients can be standardized.
 standardized coefficients are coefficients that are scaled by the standard deviation of the
 variables. This is useful for comparing the relative importance of the variables in the model.
 
-This is only possible of the `RegressionModel` includes the model matrix or the
-standard deviation of the dependent variable. If the `RegressionModel` does not include
-either of these, then this function should return `false`.
+The default is `false`. A package extension returns `true` for a model type whose model
+matrix and response are available, and defines [`ModelSummaries.standardize_coef_values`](@ref)
+for it. `modelsummary(...; standardize_coef = true)` throws for a model where this is `false`.
 
-See also [`ModelSummarys.standardize_coef_values`](@ref).
+See also [`ModelSummaries.standardize_coef_values`](@ref).
 """
-function can_standardize(x::T) where {T <: RegressionModel}
-    @warn "standardize_coef is not possible for $T"
-    false
-end
+can_standardize(x::RegressionModel) = false
 
 """
     standardize_coef_values(std_X, std_Y, val)
@@ -130,7 +220,7 @@ end
 Standardizes the coefficients by the standard deviation of the variables.
 This is useful for comparing the relative importance of the variables in the model.
 
-This function is only used if the [`ModelSummarys.can_standardize`](@ref) function returns `true`.
+This function is only used if the [`ModelSummaries.can_standardize`](@ref) function returns `true`.
 
 ### Arguments
 - `std_X::Real`: The standard deviation of the independent variable.
@@ -160,14 +250,63 @@ function transformer(s, repl_dict::AbstractDict)
     return s
 end
 
+"""
+    replace_name(s, exact_dict, repl_dict)
+
+The displayed name of `s`. A key of `exact_dict` (`labels`) equal to `s` or to `string(s)`
+replaces the whole name. Otherwise each part of an `InteractedCoefName`, and the variable
+name of a `CategoricalCoefName`, is relabeled by its own key, and the remaining text gets the
+`repl_dict` (`transform_labels`) replacements. A label that replaces only part of a name must
+be a string.
+"""
 function replace_name(s::Union{AbstractString, AbstractCoefName}, exact_dict, repl_dict)
-    # Try the value directly, then fall back to its string representation
+    r = _exact_label(s, exact_dict)
+    r === nothing ? _relabel_parts(s, exact_dict, repl_dict) : r
+end
+
+function _exact_label(s, exact_dict)
     r = get(exact_dict, s, nothing)
     r !== nothing && return r
     skey = string(s)
-    skey != s && (r = get(exact_dict, skey, nothing); r !== nothing && return r)
-    transformer(s, repl_dict)
+    skey != s ? get(exact_dict, skey, nothing) : nothing
 end
+
+_relabel_parts(s, exact_dict, repl_dict) = transformer(s, repl_dict)
+function _relabel_parts(s::InteractedCoefName, exact_dict, repl_dict)
+    parts = map(value(s)) do p
+        r = _exact_label(p, exact_dict)
+        r === nothing ? _relabel_parts(p, exact_dict, repl_dict) : _part_label(r, p, s)
+    end
+    InteractedCoefName(parts)
+end
+function _relabel_parts(s::CategoricalCoefName, exact_dict, repl_dict)
+    r = get(exact_dict, value(s), nothing)
+    name = r === nothing ? transformer(value(s), repl_dict) : _part_label(r, value(s), s)
+    CategoricalCoefName(name, transformer(s.level, repl_dict))
+end
+
+_part_label(r::AbstractString, part, whole) = r
+_part_label(r::BackendMath, part, whole) = r
+function _part_label(r, part, whole)
+    throw(ArgumentError("labels[\"$(string(part))\"] is a $(typeof(r)), but it would relabel " *
+                        "only part of the name \"$(string(whole))\", which requires a string " *
+                        "or a BackendMath; add a label for the full name \"$(string(whole))\""))
+end
+const SectionCoefName = Union{FixedEffectCoefName, ClusterCoefName, FirstStageCoefName}
+
+# A section row keeps its wrapper type through relabeling: the wrapper decides the suffix
+# (`fe_suffix`, `cluster_suffix`, `first_stage_suffix`) the row is shown with.
+function replace_name(s::T, exact_dict, repl_dict) where {T <: SectionCoefName}
+    T(_section_label(replace_name(value(s), exact_dict, repl_dict), s))
+end
+
+_section_label(r::Union{AbstractCoefName, BackendMath}, s) = r
+_section_label(r::AbstractString, s) = CoefName(r)
+function _section_label(r, s)
+    throw(ArgumentError("labels[\"$(string(s))\"] is a $(typeof(r)), but the row \"$(string(s))\" " *
+                        "is shown with a suffix, which requires a string or a BackendMath"))
+end
+
 function replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict)
     (replace_name(s[1], exact_dict, repl_dict), s[2])
 end
@@ -195,38 +334,58 @@ default_regression_statistics(rr::RegressionModel) = [Nobs, R2]
 """
     other_stats(rr::RegressionModel, s::Symbol)
 
-Returns any other statistics to be displayed. This is used (if the appropriate extension is loaded)
-to display the fixed effects in a FixedEffectModel (or GLFixedEffectModel),
-clusters in those two, or Random Effects in a MixedModel. For other regressions, this
-returns `nothing`.
+Returns the rows of section `s` (`:fe`, `:clusters`, or `:first_stage`) for `rr` as a vector
+of `name => value` pairs, or `nothing` if the model has none. Each `name` is a
+`FixedEffectCoefName`, `ClusterCoefName`, `FirstStageCoefName`, `UnnamedFixedEffectCoefName`,
+or `UnnamedClusterCoefName`; its type sets the suffix the row is shown with, and any other
+name throws when the table is built. Package extensions define methods for model types with
+fixed effects, clustered standard errors, or a first stage (see
+[`fixed_effect_entries`](@ref) and [`cluster_entries`](@ref)). The fallback returns
+`nothing`.
 """
 other_stats(x::RegressionModel, s::Symbol) = nothing
 
 """
+    fixed_effect_entries(rhs, isfe)
+
+The `:fe` section rows for a formula right-hand side `rhs` (one term or a tuple of terms):
+`FixedEffectCoefName => FixedEffectValue(true)` for each term with `isfe(term) == true`, or
+`nothing` if there is none.
+"""
+function fixed_effect_entries(rhs, isfe)
+    terms = rhs isa Tuple ? rhs : (rhs,)
+    out = [FixedEffectCoefName(get_coefname(t)) => FixedEffectValue(true)
+           for t in terms if isfe(t)]
+    isempty(out) ? nothing : out
+end
+
+"""
+    cluster_entries(names, counts)
+
+The `:clusters` section rows: `ClusterCoefName(string(name)) => ClusterValue(count)` for
+each pair from `names` and `counts`, which must have equal length. A `nothing` in `names`
+marks a dimension given as data; its row is named `UnnamedClusterCoefName(k)`, k its
+position in `names`.
+"""
+function cluster_entries(names, counts)
+    length(names) == length(counts) || throw(DimensionMismatch(
+        "got $(length(names)) cluster names and $(length(counts)) cluster counts"))
+    [_cluster_name(n, k) => ClusterValue(c)
+     for (k, (n, c)) in enumerate(zip(names, counts))]
+end
+
+_cluster_name(n, k) = ClusterCoefName(string(n))
+_cluster_name(::Nothing, k) = UnnamedClusterCoefName(k)
+
+"""
     VcovType(x::RegressionModel)
 
-Returns a VcovType object indicating the type of variance-covariance estimator used.
-For models with custom vcov (RegressionModelWithVcov), the type is determined by
-the CovarianceMatrices extension. For other models, this checks for vcov_type property
-or returns "IID" as default.
+Return a `VcovType` naming the variance-covariance estimator behind the standard errors of
+`x`. Package extensions define methods for the model types they support. This fallback
+throws an `ArgumentError`, since a model type without a method gives no reliable way to name
+its estimator.
 """
-function VcovType(x::RegressionModel)
-    # Check for vcov_type property (common in FixedEffectModels.jl)
-    if hasproperty(x, :vcov_type)
-        s = string(x.vcov_type)
-        if s == "Simple covariance estimator"
-            return VcovType("IID")
-        elseif occursin("Robust", s) || occursin("Heteroskedastic", s)
-            return VcovType("Robust")
-        elseif occursin("Cluster", s)
-            return VcovType("Cluster")
-        end
-        return VcovType(s)
-    end
-
-    # Fallback/Default
-    return VcovType("IID")
-end
+VcovType(x::RegressionModel) = _no_statistic_method(VcovType, x)
 
 ##############################################################################
 ##
@@ -236,30 +395,17 @@ end
 
 """
     vcov_type_name(v) -> String
+    vcov_type_name(v, m::RegressionModel) -> String
 
-Return a readable name for the variance-covariance estimator type.
-Used in display output to indicate what type of standard errors are shown.
+Return a readable name for the variance-covariance estimator `v`, shown in the
+`Std. Error` row.
+
+The two-argument form names the estimator as attached to the fitted model `m`, for
+estimators whose description depends on the fit (a HAC kernel that selects its bandwidth
+from the data reports the bandwidth the estimate of `vcov(m)` used). It defaults to
+`vcov_type_name(v)`.
 """
 vcov_type_name(v) = string(typeof(v).name.name)
 vcov_type_name(::AbstractMatrix) = "Custom"
 vcov_type_name(::Function) = "Function"
-
-##############################################################################
-##
-## materialize_vcov - stub for extension point
-##
-## The actual implementation is in the CovarianceMatrices extension.
-##
-##############################################################################
-
-"""
-    materialize_vcov(estimator, model::RegressionModel)
-
-Produce the variance–covariance matrix for `model` given an estimator object.
-This is the extension point for third-party estimators: define a method that
-returns the desired matrix.
-
-The actual implementation for CovarianceMatrices.jl estimators is provided
-by the ModelSummariesCovarianceMatricesExt extension.
-"""
-function materialize_vcov end
+vcov_type_name(v, ::RegressionModel) = vcov_type_name(v)

@@ -1,12 +1,7 @@
 
 ##############################################################################
-## Default settings (no render type parameter)
+## Default settings
 ##############################################################################
-
-default_digits(x) = 3
-default_digits(x::AbstractRegressionStatistic) = default_digits(value(x))
-default_digits(x::AbstractUnderStatistic) = default_digits(value(x))
-default_digits(x::CoefValue) = default_digits(value(x))
 
 """
     default_section_order()
@@ -16,47 +11,20 @@ Default section order for the table.
 """
 function default_section_order()
     [:groups, :depvar, :estimator_names, :number_regressions, :break,
-        :coef, :break, :fe, :break, :randomeffects, :break, :clusters,
+        :coef, :break, :fe, :break, :clusters,
         :break, :first_stage, :break, :regtype, :break, :controls,
         :break, :custom_lines, :stats, :extralines]
 end
 
-default_depvar() = true
-default_number_regressions(rrs) = length(rrs) > 1
-default_print_fe(rrs) = true
-default_print_randomeffects(rrs) = true
-default_groups(rrs) = nothing
-default_extralines(rrs) = nothing
-default_keep(rrs) = Vector{String}()
-default_drop(rrs) = Vector{String}()
-default_order(rrs) = Vector{String}()
-default_fixedeffects(rrs) = Vector{String}()
-default_labels(rrs) = Dict{String, Any}()
-default_below_statistic() = StdError
-default_stat_below() = true
-default_align() = :r
-default_header_align() = :c
-default_file(rrs) = nothing
-default_print_fe_suffix() = true
-default_print_control_indicator() = true
-default_standardize_coef(rrs) = false
-
 """
-    default_transform_labels(rrs)
+    default_regression_statistics(rrs::Tuple)
 
-Default label transformation. Returns empty dict (no transformation).
+Union, in order of first appearance, of the per-model
+[`default_regression_statistics`](@ref) of the models in `rrs`.
 """
-default_transform_labels(rrs) = Dict{String, Any}()
-
-default_print_estimator(rrs) = length(unique(RegressionType.(rrs))) > 1
-default_print_clusters(rrs) = false
-
 function default_regression_statistics(rrs::Tuple)
     unique(union(default_regression_statistics.(rrs)...))
 end
-
-default_confint_level() = 0.95
-default_use_relabeled_values(rrs) = true
 
 # Escape helpers (for LaTeX label transforms)
 const escape_latex_dict = Dict("&" => "\\&", "%" => "\\%", "\$" => "\\\$",
@@ -67,7 +35,7 @@ function _escape(s::Symbol)
     s == :underscore ? Dict("_" => "\\_") :
     s == :underscore2space ? Dict("_" => " ") :
     s == :latex ? escape_latex_dict :
-    error("Please provide :ampersand, :underscore, :underscore2space, :latex, or a Dict.")
+    throw(ArgumentError("transform_labels = :$s is not recognized; use :ampersand, :underscore, :underscore2space, :latex, or a Dict"))
 end
 
 ##############################################################################
@@ -84,17 +52,44 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `rr::RegressionModel...`: Regression models to display.
 * `keep`, `drop`, `order`: Filter and reorder coefficients.
 * `fixedeffects`: Filter fixed effects.
-* `labels`: Dict mapping variable names to display labels.
+* `labels`: Dict mapping coefficient names to display labels. Keys are the names as
+  `coefnames(model)` prints them, so an interaction is keyed `"x & z"` and a categorical level
+  `"species: setosa"`. A key for the full name wins; otherwise each part of an interaction is
+  relabeled by its own key (`Dict("x" => "T")` shows `x & z` as `T × z`), and a key for a
+  categorical's variable name relabels that part (`Dict("species" => "Species")` shows
+  `"Species: setosa"`). Levels are relabeled only by a full-name key or `transform_labels`. A
+  label that replaces only part of a name must be a string or a `BackendMath`. A key for a
+  fixed-effect, cluster, or first-stage name relabels that name and keeps the row's suffix
+  (`Dict("year" => "Year")` shows `Year Fixed Effects` and `Year Clustering`); it must also be
+  a string or a `BackendMath`. `keep`, `drop`, and `order` match the names before relabeling.
+* `interaction_separator`: String placed between the parts of an unlabeled interaction in the
+  table (default `" × "`); `labels` keys always use `" & "`.
 * `below_statistic`: Type shown below coefficients (`StdError`, `TStat`, `ConfInt`, or `nothing`).
-* `regression_statistics`: Vector of statistic types for the bottom section.
+* `regression_statistics`: Vector of statistic types for the bottom section. The default is
+  the union of each model's [`ModelSummaries.default_regression_statistics`](@ref), e.g.
+  `[Nobs, R2, R2McFadden]` for an OLS and a logit column. A cell is blank when the statistic
+  does not apply to that column's model (see [`ModelSummaries.applies`](@ref)).
 * `digits`, `digits_stats`: Number of decimal places.
 * `stars`: Show significance stars (default `false`).
+* `pvalue_note`: Append a note stating, per column, the distribution behind the p-values,
+  e.g. `"p-values: (1) t(97); (2) Normal"` (default `false`). Throws for a model without a
+  [`ModelSummaries.reference_distribution`](@ref) method, or whose `coeftable` p-values that
+  distribution does not reproduce.
+
+P-values (and stars), test statistics (`TStat`), and confidence intervals (`ConfInt`) are
+read from each model's `coeftable` and `confint`; ModelSummaries computes no inference.
 * `groups`: Group labels for columns.
 * `estimator_names`: Vector of estimator labels for a header row (e.g., `["OLS", "IV", "OLS"]`).
 * `yes_indicator`: String shown for active fixed effects (default `"Yes"`, use `"✓"` for checkmarks).
 * `footnotes`: Vector of footnote strings or `SummaryTables.Concat` objects appended below the table.
 * `custom_lines`: Vector of `Pair{String, Vector}` for custom rows (e.g., `["Sample" => ["Full", "Full"]]`).
-* `file`: Save table to file (extension determines format: .tex, .html, .typ).
+* `keep`, `drop`, `order`, and `fixedeffects` throw an `ArgumentError` when a name or regex
+  matches no coefficient (fixed effect) of any model, or when an index is out of range.
+* `standardize_coef`: `true`, `false`, or one `Bool` per model. Throws an `ArgumentError` for a
+  model whose coefficients cannot be standardized (see [`ModelSummaries.can_standardize`](@ref)).
+* `file`: Save table to file. The extension determines the format: `.tex` (LaTeX),
+  `.html`/`.htm` (HTML), `.typ` (Typst), or `.docx` (Word). Any other extension throws an
+  `ArgumentError` before the table is built.
 """
 function modelsummary(
         rrs::RegressionModel...;
@@ -103,11 +98,11 @@ function modelsummary(
         order::Vector = Vector{Any}(),
         fixedeffects::Vector = Vector{String}(),
         labels::Dict{String} = Dict{String, Any}(),
+        interaction_separator::AbstractString = " \u00d7 ",
         align::Symbol = :r,
         header_align::Symbol = :c,
         below_statistic = StdError,
-        stat_below::Bool = true,
-        regression_statistics = [Nobs, R2],
+        regression_statistics = default_regression_statistics(rrs),
         groups = nothing,
         print_depvar::Bool = true,
         number_regressions::Bool = length(rrs) > 1,
@@ -122,12 +117,11 @@ function modelsummary(
         print_control_indicator = true,
         standardize_coef = false,
         print_clusters = false,
-        print_randomeffects = false,
         digits = nothing,
         digits_stats = nothing,
-        use_relabeled_values = false,
         confint_level = 0.95,
         stars::Bool = false,
+        pvalue_note::Bool = false,
         yes_indicator = "Yes",
         footnotes::Vector = [],
         estimator_names = nothing,
@@ -142,8 +136,11 @@ function modelsummary(
         section_order = default_section_order()
     end
 
-    @assert align ∈ (:l, :r, :c) "align must be one of :l, :r, :c"
-    @assert header_align ∈ (:l, :r, :c) "header_align must be one of :l, :r, :c"
+    align ∈ (:l, :r, :c) ||
+        throw(ArgumentError("align = :$align is not recognized; use :l, :r, or :c"))
+    header_align ∈ (:l, :r, :c) ||
+        throw(ArgumentError("header_align = :$header_align is not recognized; use :l, :r, or :c"))
+    file === nothing || output_mime(file)
 
     if isa(transform_labels, Symbol)
         transform_labels = _escape(transform_labels)
@@ -151,11 +148,15 @@ function modelsummary(
     if isa(standardize_coef, Bool)
         standardize_coef = fill(standardize_coef, nreg)
     end
+    length(standardize_coef) == nreg ||
+        throw(ArgumentError("standardize_coef has $(length(standardize_coef)) entries for $nreg models"))
     if !isa(confint_level, AbstractVector)
         confint_level = fill(confint_level, nreg)
     end
     for (i, rr) in enumerate(rrs)
-        standardize_coef[i] = standardize_coef[i] && can_standardize(rr)
+        if standardize_coef[i] && !can_standardize(rr)
+            throw(ArgumentError("standardize_coef: the coefficients of model $i ($(typeof(rr))) cannot be standardized; define `ModelSummaries.can_standardize` and `ModelSummaries.standardize_coef_values` for this type, or pass `standardize_coef = false` for this model"))
+        end
     end
 
     # Symbol aliases for below_statistic
@@ -163,7 +164,7 @@ function modelsummary(
         below_statistic = below_statistic == :se ? StdError :
                           below_statistic == :tstat ? TStat :
                           below_statistic == :none ? nothing :
-                          error("unrecognized below_statistic")
+                          throw(ArgumentError("below_statistic = :$below_statistic is not recognized; use :se, :tstat, :none, or a statistic type"))
     end
 
     # Symbol aliases for regression_statistics
@@ -181,13 +182,11 @@ function modelsummary(
     # Collect coefficient names
     ##########################################################################
 
-    nms = if use_relabeled_values
-        union([replace_name.(_coefnames(rr), Ref(labels), Ref(transform_labels))
-               for rr in rrs]...) |> unique
-    else
-        union([_coefnames(rr) for rr in rrs]...) |> unique
-    end
+    nms = union([_coefnames(rr) for rr in rrs]...) |> unique
 
+    check_selectors(nms, keep, "keep")
+    check_selectors(nms, drop, "drop")
+    check_selectors(nms, order, "order")
     if length(keep) > 0
         nms = build_nm_list(nms, keep)
     end
@@ -197,9 +196,7 @@ function modelsummary(
     if length(order) > 0
         nms = reorder_nms_list(nms, order)
     end
-    if !use_relabeled_values
-        nms = replace_name.(nms, Ref(labels), Ref(transform_labels)) |> unique
-    end
+    nms = replace_name.(nms, Ref(labels), Ref(transform_labels)) |> unique
 
     ##########################################################################
     # Build coefficient value and under-statistic matrices
@@ -254,8 +251,6 @@ function modelsummary(
             print_clusters && push!(sections, :clusters)
         elseif s == :first_stage
             print_first_stage_section && push!(sections, :first_stage)
-        elseif s == :randomeffects
-            print_randomeffects && push!(sections, :randomeffects)
         else
             push!(sections, s)
         end
@@ -299,7 +294,7 @@ function modelsummary(
             row = Cell[Cell(nothing; halign = :left)]
             for y in y_names
                 push!(row,
-                    Cell(display_name(y);
+                    Cell(display_name(y, interaction_separator);
                         merge = true, bold = depvar_bold, border_bottom = true, halign = hdr_halign))
             end
             push!(rows, row)
@@ -324,7 +319,7 @@ function modelsummary(
 
             for j in 1:length(nms)
                 # Coefficient value row
-                row = Cell[Cell(display_name(nms[j]); halign = :left)]
+                row = Cell[Cell(display_name(nms[j], interaction_separator); halign = :left)]
                 for i in 1:nreg
                     cv = coefvalues[j, i]
                     if ismissing(cv)
@@ -337,7 +332,7 @@ function modelsummary(
                 push!(rows, row)
 
                 # Below-statistic row
-                if below_statistic !== nothing && stat_below
+                if below_statistic !== nothing
                     brow = Cell[Cell(nothing; halign = :left)]
                     for i in 1:nreg
                         push!(brow,
@@ -394,19 +389,21 @@ function modelsummary(
             end
 
         elseif v isa Symbol
-            # Handle :fe, :clusters, :first_stage, :randomeffects via other_stats
+            # Handle :fe, :clusters, :first_stage via other_stats
             temp = [other_stats(t, v) for t in rrs]
             if all(isnothing, temp)
                 continue
             end
             i_first = findfirst(!isnothing, temp)
             fill_val = fill_missing(last(first(temp[i_first])))
+            # `fixedeffects` selects fixed-effect names only; other sections show every name.
             st = combine_other_statistics(
-                temp; fill_val, print_fe_suffix, fixedeffects, labels,
+                temp; fill_val, print_fe_suffix,
+                fixedeffects = v == :fe ? fixedeffects : String[], labels,
                 transform_labels, yes_indicator)
             if st !== nothing
                 for j in 1:size(st, 1)
-                    row = Cell[Cell(string(st[j, 1]); halign = :left)]
+                    row = Cell[Cell(st[j, 1]; halign = :left)]
                     for i in 1:nreg
                         val = st[j, i + 1]
                         push!(row, Cell(format_other_stat(val; digits = stat_digits);
@@ -442,6 +439,10 @@ function modelsummary(
                                for p in sort(collect(rowgap_after))
                                if 0 < p < nrow]
 
+    if pvalue_note
+        footnotes = [footnotes; pvalue_note_text(rrs)]
+    end
+
     table = Table(cells;
         header = header_end > 0 ? header_end : nothing,
         rowgaps = rgaps,
@@ -449,20 +450,7 @@ function modelsummary(
         footnotes = footnotes
     )
 
-    if file !== nothing
-        open(file, "w") do io
-            ext = lowercase(splitext(file)[2])
-            if ext == ".tex"
-                show(io, MIME"text/latex"(), table)
-            elseif ext in (".html", ".htm")
-                show(io, MIME"text/html"(), table)
-            elseif ext == ".typ"
-                show(io, MIME"text/typst"(), table)
-            else
-                show(io, MIME"text/html"(), table)
-            end
-        end
-    end
+    file === nothing || write_table(file, table)
 
     table
 end
@@ -487,7 +475,7 @@ function combine_statistics(tables, stats)
     mat = Matrix{Any}(missing, length(types_strings), length(tables))
     for (i, t) in enumerate(tables)
         for (j, s) in enumerate(type_f)
-            mat[j, i] = s(t)
+            mat[j, i] = applies(s, t) ? s(t) : nothing
         end
     end
     hcat(types_strings, mat)
@@ -522,6 +510,7 @@ function combine_other_statistics(
         return nothing
     end
     nms = replace_name.(nms, Ref(labels), Ref(transform_labels))
+    check_selectors(nms, fixedeffects, "fixedeffects")
     if length(fixedeffects) > 0
         nms = build_nm_list(nms, fixedeffects)
     end
@@ -556,47 +545,81 @@ function combine_other_statistics(
         end
     end
 
-    # Format names with appropriate suffixes
-    if print_fe_suffix
-        nms = map(nms) do n
-            base_name = uppercasefirst(string(value(n)))
-            if n isa FixedEffectCoefName
-                base_name * fe_suffix()
-            elseif n isa ClusterCoefName
-                base_name * cluster_suffix()
-            elseif n isa FirstStageCoefName
-                base_name * first_stage_suffix()
-            else
-                base_name * fe_suffix()
-            end
-        end
-    else
-        nms = value.(nms)
-    end
-
+    nms = map(n -> section_row_name(n, print_fe_suffix), nms)
     hcat(nms, mat)
+end
+
+"""
+    section_row_name(n, print_suffix)
+
+The first cell of a `:fe`, `:clusters`, or `:first_stage` row named `n`: a `String`, or a
+`BackendMath` (followed by the suffix) when `labels` gave one. With `print_suffix`, the name
+is capitalized and gets the suffix of its type. A name that is not one of the section types
+throws an `ArgumentError`, since its suffix is unknown.
+"""
+function section_row_name(n::SectionCoefName, print_suffix)
+    print_suffix || return _section_display(value(n))
+    _with_suffix(_section_display(value(n)), section_suffix(n))
+end
+function section_row_name(n::Union{UnnamedClusterCoefName, UnnamedFixedEffectCoefName}, print_suffix)
+    string(n)
+end
+function section_row_name(n, print_suffix)
+    throw(ArgumentError("section row \"$(string(n))\" is a $(typeof(n)); `other_stats` rows " *
+                        "must be named by FixedEffectCoefName, ClusterCoefName, " *
+                        "FirstStageCoefName, UnnamedFixedEffectCoefName, or " *
+                        "UnnamedClusterCoefName"))
+end
+
+section_suffix(::FixedEffectCoefName) = fe_suffix()
+section_suffix(::ClusterCoefName) = cluster_suffix()
+section_suffix(::FirstStageCoefName) = first_stage_suffix()
+
+_section_display(x::AbstractCoefName) = string(x)
+_section_display(x::BackendMath) = x
+
+_with_suffix(name::String, suffix) = uppercasefirst(name) * suffix
+_with_suffix(name::BackendMath, suffix) = Concat(name, suffix)
+
+"""
+    check_selectors(nms, selectors, kw)
+
+Throw an `ArgumentError` if a `String` or `Regex` in `selectors` matches no element of `nms`,
+the full list of names before any filtering. `kw` names the keyword in the message.
+"""
+function check_selectors(nms, selectors, kw)
+    names = string.(nms)
+    for x in selectors
+        found = x isa String ? x in names :
+                x isa Regex ? any(n -> occursin(x, n), names) : true
+        found ||
+            throw(ArgumentError("$kw: $(repr(x)) matches no name; available names: $(join(repr.(names), ", "))"))
+    end
 end
 
 """
     value_pos(nms, x)
 
-Returns the position(s) of `x` in the vector `nms`.
+Returns the position(s) of `x` in the vector `nms`. A name absent from `nms` gives no
+positions: [`check_selectors`](@ref) has already rejected names absent from every model, and
+an earlier `keep` or `drop` may have removed the rest.
 """
-value_pos(nms, x::String) = value_pos(nms, findfirst(string.(nms) .== x))
+value_pos(nms, x::String) = findall(==(x), string.(nms))
 
 function value_pos(nms, x::Int)
-    @assert x in eachindex(nms) "x must be a valid index for the coefficient names"
+    x in eachindex(nms) ||
+        throw(ArgumentError("index $x is out of range for $(length(nms)) names"))
     x:x
 end
 
 function value_pos(nms, x::UnitRange)
-    @assert all(i in eachindex(nms) for i in x) "x must be a valid index range"
+    issubset(x, eachindex(nms)) ||
+        throw(ArgumentError("index range $x is out of range for $(length(nms)) names"))
     x
 end
 
 value_pos(nms, x::BitVector) = findall(x)
-value_pos(nms, x::Regex) = value_pos(nms, occursin.(x, string.(nms)))
-value_pos(nms, x::Nothing) = Int[]
+value_pos(nms, x::Regex) = findall(n -> occursin(x, n), string.(nms))
 
 function value_pos(nms, x::Symbol)
     if x == :last || x == :end
@@ -705,13 +728,40 @@ function add_blank(groups::Matrix, n)
         groups
     end
 end
-function add_blank(groups::Vector{Vector}, n)
-    out = Vector{Vector}()
-    for g in groups
-        if length(g) < n
-            g = vcat(fill("", n - length(g)), g)
-        end
-        push!(out, g)
+
+##############################################################################
+## File output
+##############################################################################
+
+const FILE_FORMATS = (".tex" => MIME"text/latex"(), ".html" => MIME"text/html"(),
+    ".htm" => MIME"text/html"(), ".typ" => MIME"text/typst"(), ".docx" => :docx)
+
+"""
+    output_mime(file)
+
+The output format for `file`, chosen by its extension (case-insensitive). Throws an
+`ArgumentError` for an unsupported extension.
+"""
+function output_mime(file)
+    ext = lowercase(splitext(file)[2])
+    for (e, m) in FILE_FORMATS
+        e == ext && return m
     end
-    groups
+    throw(ArgumentError("file = $(repr(file)): unsupported extension $(repr(ext)); use one of $(join(first.(FILE_FORMATS), ", "))"))
+end
+
+"""
+    write_table(file, table::Table)
+
+Write `table` to `file` in the format given by the file's extension (see [`output_mime`](@ref)).
+"""
+function write_table(file, table::Table)
+    m = output_mime(file)
+    if m === :docx
+        doc = WriteDocx.Document(WriteDocx.Body([WriteDocx.Section([SummaryTables.to_docx(table)])]))
+        WriteDocx.save(file, doc)
+    else
+        open(io -> show(io, m, table), file, "w")
+    end
+    file
 end

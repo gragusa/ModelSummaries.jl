@@ -45,7 +45,7 @@ end
     buf = IOBuffer()
     show(buf, MIME"text/typst"(), modelsummary(rr1))
     out = String(take!(buf))
-    @test occursin("#table", out)
+    @test occursin(r"^\s*#\{.*\btable\("s, out)
     @test occursin("SepalWidth", out)
 end
 
@@ -155,7 +155,7 @@ end
         typfile = joinpath(dir, "test.typ")
         modelsummary(lm1, lm2; file = typfile)
         @test isfile(typfile)
-        @test occursin("#table", read(typfile, String))
+        @test occursin(r"^\s*#\{.*\btable\("s, read(typfile, String))
     end
 end
 

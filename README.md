@@ -1,6 +1,6 @@
 # ModelSummaries.jl
 
-[![CI](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml) [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)
+[![CI](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/gragusa/ModelSummaries.jl/actions/workflows/CI.yml) [![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) ![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)
 
 Publication-quality regression tables for Julia, powered by [SummaryTables.jl](https://github.com/PumasAI/SummaryTables.jl).
 
@@ -12,8 +12,8 @@ Tables render natively to **LaTeX**, **HTML**, **Typst**, and **DOCX** — with 
 |---------|-------------------------------|
 | [GLM.jl](https://github.com/JuliaStats/GLM.jl) | `lm`, `glm` |
 | [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) | `reg` (FE, IV, clusters) |
-| [Regress.jl](https://gragusa.org/gragusa/Regress.jl) | OLS, IV, FE, clusters |
-| [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) | `model + vcov(HC3())` syntax |
+| [Regress.jl](https://gragusa.org/gragusa/Regress.jl) | OLS, IV, FE, clusters; fits from matrices (`ols(X, y)`, `iv(estimator, Z, X, y)`) |
+| [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) | Estimator names in the `VcovType` row |
 | Any `StatsAPI.RegressionModel` | Basic support out of the box |
 
 ## Installation
@@ -39,12 +39,15 @@ modelsummary(m1, m2, m3, m4)
 
 ## Robust and clustered standard errors
 
-Pair any fitted model with a covariance estimator using `+`:
+Standard errors, test statistics, and confidence intervals are read from each model.
+To change the covariance estimator, use the `model + vcov(estimator)` method of the
+package that fitted the model (Regress.jl provides one):
 
 ```julia
 using CovarianceMatrices
 
-modelsummary(m2, m2 + vcov(HC0()), m2 + vcov(HC3());
+r2 = Regress.ols(df, @formula(SepalLength ~ SepalWidth + PetalLength))
+modelsummary(r2, r2 + vcov(HC0()), r2 + vcov(HC3());
     regression_statistics = [Nobs, R2, AdjR2, VcovType],
 )
 ```
@@ -53,7 +56,8 @@ modelsummary(m2, m2 + vcov(HC0()), m2 + vcov(HC3());
 
 Labels can include LaTeX math that renders correctly across all backends.
 Only the `latex` argument is needed — HTML, Typst, and text are derived
-automatically:
+automatically. Typst output is native Typst math, so a `.typ` table compiles
+without extra packages:
 
 ```julia
 modelsummary(m1, m2;
@@ -64,13 +68,16 @@ modelsummary(m1, m2;
 )
 ```
 
-Override any backend explicitly when auto-conversion isn't enough:
+The Typst conversion covers Greek letters, scripts, accents, `\frac`, `\sqrt`,
+font commands, `\text`, and common symbols; any other LaTeX command throws an
+`ArgumentError`. Override any backend explicitly when the conversion isn't enough:
 
 ```julia
 BackendMath(
-    latex = raw"$\hat{\sigma}^2$",
-    typst = raw"$hat(sigma)^2$",
-    html  = "&sigma;&#x0302;<sup>2</sup>",
+    latex = raw"$\left(\sum_i x_i\right)^2$",
+    typst = raw"$lr((sum_i x_i))^2$",
+    html  = "(&sum;<sub><i>i</i></sub> <i>x<sub>i</sub></i>)<sup>2</sup>",
+    text  = "(Σᵢ xᵢ)²",
 )
 ```
 

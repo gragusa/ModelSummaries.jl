@@ -1,23 +1,41 @@
 module ModelSummariesFixedEffectModelsExt
 
-using FixedEffectModels
-using ModelSummaries
-using Distributions
-using StatsModels
+using FixedEffectModels: FixedEffectModels, FixedEffectModel, has_fe, has_iv
+using ModelSummaries: ModelSummaries, FStat, FStatIV, FStatIVPValue, FStatPValue, Nobs, R2,
+                      R2Within, RegressionType, VcovType
+using Distributions: Normal, TDist
+using StatsModels: StatsModels
+using StatsAPI: coeftable, dof_residual
 
 ModelSummaries.FStat(x::FixedEffectModel) = FStat(x.F)
 ModelSummaries.FStatPValue(x::FixedEffectModel) = FStatPValue(x.p)
 
-ModelSummaries.FStatIV(x::FixedEffectModel) = has_iv(x) ? FStatIV(x.F_kp) : FStatIV(nothing)
-function ModelSummaries.FStatIVPValue(x::FixedEffectModel)
-    has_iv(x) ? FStatIVPValue(x.p_kp) : FStatIVPValue(nothing)
-end
+ModelSummaries.FStatIV(x::FixedEffectModel) = FStatIV(x.F_kp)
+ModelSummaries.FStatIVPValue(x::FixedEffectModel) = FStatIVPValue(x.p_kp)
+ModelSummaries.R2Within(x::FixedEffectModel) = R2Within(x.r2_within)
 
-function ModelSummaries.R2Within(x::FixedEffectModel)
-    has_fe(x) ? R2Within(x.r2_within) : R2Within(nothing)
+function ModelSummaries.applies(::Type{<:Union{FStatIV, FStatIVPValue}}, x::FixedEffectModel)
+    has_iv(x)
 end
+ModelSummaries.applies(::Type{R2Within}, x::FixedEffectModel) = has_fe(x)
 
 ModelSummaries.RegressionType(x::FixedEffectModel) = RegressionType(Normal(), has_iv(x))
+
+# Vcov.jl scales `robust()` by n/(n-k) and `cluster()` by (n-1)/(n-k) * G/(G-1).
+ModelSummaries.VcovType(x::FixedEffectModel) = VcovType(_vcov_label(x.vcov_type))
+_vcov_label(::FixedEffectModels.Vcov.SimpleCovariance) = "IID"
+_vcov_label(::FixedEffectModels.Vcov.RobustCovariance) = "HC1"
+_vcov_label(::FixedEffectModels.Vcov.ClusterCovariance) = "CR1"
+function _vcov_label(v)
+    throw(ArgumentError("no `VcovType` label for the FixedEffectModels covariance estimator \
+        $(typeof(v)); add a `_vcov_label` method in ModelSummariesFixedEffectModelsExt"))
+end
+
+# FixedEffectModels' coeftable leaves `teststatcol` unset.
+function ModelSummaries.inference_coeftable(x::FixedEffectModel)
+    ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
+end
+ModelSummaries.reference_distribution(x::FixedEffectModel) = TDist(dof_residual(x))
 
 function ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(FixedEffectModels.fe)})
     ModelSummaries.CoefName(string(x.exorig.args[end]))
@@ -26,33 +44,11 @@ function ModelSummaries.get_coefname(x::FixedEffectModels.FixedEffectTerm)
     ModelSummaries.CoefName(string(x.x))
 end
 
-"""
-    ModelSummaries.other_stats(rr::FixedEffectModel; fixedeffects=String[], fe_suffix="Fixed Effects")
-
-Return a vector of fixed effects terms. If `fixedeffects` is not empty, only the fixed effects in `fixedeffects` are returned. If `fe_suffix` is not empty, the fixed effects are returned as a tuple with the suffix.
-"""
 function ModelSummaries.other_stats(rr::FixedEffectModel, s::Symbol)
     if s == :fe
-        out = []
-        if !isdefined(rr, :formula)
-            return Dict{Symbol, Vector{Pair}}()
-        end
-        fe_set = has_fe.(rr.formula.rhs)
-        for (i, v) in enumerate(fe_set)
-            if v && !isa(fe_set, Bool)
-                push!(out,
-                    ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs[i])))
-            elseif v
-                push!(out, ModelSummaries.FixedEffectCoefName(ModelSummaries.get_coefname(rr.formula.rhs)))
-            end
-        end
-        if length(out) > 0
-            out .=> ModelSummaries.FixedEffectValue(true)
-        else
-            nothing
-        end
+        ModelSummaries.fixed_effect_entries(rr.formula.rhs, has_fe)
     elseif s == :clusters && rr.nclusters !== nothing
-        collect(ModelSummaries.ClusterCoefName.(string.(keys(rr.nclusters))) .=> ModelSummaries.ClusterValue.(values(rr.nclusters)))
+        ModelSummaries.cluster_entries(keys(rr.nclusters), values(rr.nclusters))
     else
         nothing
     end
