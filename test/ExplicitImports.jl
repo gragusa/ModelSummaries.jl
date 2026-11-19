@@ -20,10 +20,13 @@ const EXTENSIONS = (:ModelSummariesGLMExt, :ModelSummariesFixedEffectModelsExt,
 #   and FixedEffectModels (`FixedEffectTerm`, Vcov's `SimpleCovariance`, `RobustCovariance`,
 #   `ClusterCovariance`) do not declare public.
 # - `Regress.has_fe` is Regress's fixed-effects predicate, not declared public.
+# - `ModelSummaries._coefnames` and `_responsename` read names from a model's formula; the
+#   Regress extension defines them for fits from matrices, which have no formula.
 const NONPUBLIC_QUALIFIED = (
     :broadcastable, :typename, :to_docx, :Document, :Body, :Section,
     :save, :AbstractGLM, :LinPredModel, :LmResp, :GlmResp, :TableRegressionModel,
-    :FixedEffectTerm, :SimpleCovariance, :RobustCovariance, :ClusterCovariance)
+    :FixedEffectTerm, :SimpleCovariance, :RobustCovariance, :ClusterCovariance,
+    :_coefnames, :_responsename)
 const NONPUBLIC_EXPLICIT = (:has_fe,)
 
 @testset "ExplicitImports" begin

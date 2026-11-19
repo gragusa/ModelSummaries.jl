@@ -62,7 +62,8 @@ get_coefname(x::AbstractVector) = CoefName.(String.(x))
     end
 
 Used to store the different coefficient names that makes up an InteractionTerm. The internals of the
-vector are typically [`CoefName`](@ref), but can also be strings.
+vector are typically [`CoefName`](@ref), but can also be strings, or [`BackendMath`](@ref) values after
+`labels` relabels a part with one.
 
 `string(x)` joins the parts with `" & "`, as StatsModels' `coefnames` does; this is the key a
 `labels` dictionary must use (`labels = Dict("x & z" => "Treated × Post")`). Without such a key, `labels` keys for
@@ -96,23 +97,25 @@ end
 
 """
     struct CategoricalCoefName <: AbstractCoefName
-        name::String
+        name::Union{String, BackendMath}
         level::String
     end
 
 Used to store the name of a coefficient for a `CategoricalTerm`. The `level` is the level of the categorical.
-In other words, the `name` is the column name, the `level` is the category within that column.
+In other words, the `name` is the column name, the `level` is the category within that column. `name` is a
+[`BackendMath`](@ref) only after `labels` relabels the variable with one.
 
 Both `string(x)` and the table show `"name: level"`, which is also the form `labels` keys use
 (`labels = Dict("species: setosa" => "Setosa")`). Without such a key, a `labels` key for `name` relabels the
 variable name and keeps the level (`labels = Dict("species" => "Species")` shows `"Species: setosa"`).
 """
 struct CategoricalCoefName <: AbstractCoefName
-    name::String
+    name::Union{String, BackendMath}
     level::String
     function CategoricalCoefName(name::AbstractString, level::AbstractString)
         new(String(name), String(level))
     end
+    CategoricalCoefName(name::BackendMath, level::AbstractString) = new(name, String(level))
 end
 
 value(x::CategoricalCoefName) = x.name
@@ -168,6 +171,26 @@ Base.:(==)(x::FixedEffectCoefName, y::FixedEffectCoefName) = x.name == y.name
 Base.hash(x::FixedEffectCoefName, h::UInt) = hash(x.name, hash(FixedEffectCoefName, h))
 
 Base.replace(x::FixedEffectCoefName, r::Pair) = FixedEffectCoefName(replace(x.name, r))
+
+"""
+    struct UnnamedFixedEffectCoefName <: AbstractCoefName
+        position::Int
+    end
+
+An absorbed fixed effect given as a group vector rather than as a named variable (for
+example `Regress.ols(X, y; fe = (g, h))`). It is shown as `Fixed effect k`, k being
+`position` (its place among the model's fixed effects), without
+[`ModelSummaries.fe_suffix`](@ref): the label already says it is a fixed effect.
+`transform_labels` leaves it unchanged.
+"""
+struct UnnamedFixedEffectCoefName <: AbstractCoefName
+    position::Int
+    UnnamedFixedEffectCoefName(position::Integer) = new(position)
+end
+
+value(x::UnnamedFixedEffectCoefName) = string(x)
+Base.string(x::UnnamedFixedEffectCoefName) = "Fixed effect $(x.position)"
+Base.replace(x::UnnamedFixedEffectCoefName, r::Pair) = x
 
 """
     struct ClusterCoefName <: AbstractCoefName

@@ -81,12 +81,49 @@ end
     @test occursin("T × x2", out)
     @test_throws "matches no name" modelsummary(m; labels = Dict("x1" => "T"), keep = ["T & x2"])
 
-    # A non-string label may replace a whole name but not one part of it.
+    # A part label may be a string or a BackendMath; any other value must label the whole name.
     bm = MS.BackendMath(raw"$\beta_1$")
     @test MS.replace_name(MS.CoefName("x1"), Dict("x1" => bm), Dict()) === bm
     @test_throws "add a label for the full name \"x1 & x2\"" modelsummary(
-        m; labels = Dict("x1" => bm))
-    @test_throws ArgumentError MS.replace_name(c, Dict("g" => bm), Dict())
+        m; labels = Dict("x1" => 1.5))
+    @test_throws ArgumentError MS.replace_name(c, Dict("g" => 1.5), Dict())
     out = html(modelsummary(m; labels = Dict("x1" => bm, "x1 & x2" => "Both")))
     @test occursin("Both", out)
+
+    cb = MS.replace_name(c, Dict("g" => bm), Dict())
+    @test cb == MS.CategoricalCoefName(bm, "b")
+    @test MS.display_name(cb) isa MS.SummaryTables.Concat
+    @test string(cb) == "β₁: b"
+    xb = MS.replace_name(x, Dict("x1" => bm), Dict())
+    @test MS.display_name(xb) isa MS.SummaryTables.Concat
+    @test string(xb) == "β₁ & x2"
+end
+
+@testset "BackendMath part labels in every backend" begin
+    df = DataFrame(y = sin.(1:60), x1 = cos.(1:60), x2 = sin.(2 .* (1:60)),
+        g = repeat(["a", "b_1", "c"], 20))
+    m = lm(@formula(y ~ x1 * x2 + g * x1), df)
+    labels = Dict("x1" => MS.BackendMath(raw"$\beta_1$"), "x2" => "x_2 & <z>",
+        "g" => MS.BackendMath(raw"$\gamma$"))
+    t = modelsummary(m; labels)
+    out(mime) = sprint(show, mime, t)
+
+    # Plain-string parts are escaped; BackendMath parts are written as given.
+    txt = out(MIME"text/plain"())
+    @test occursin("β₁ × x_2 & <z>", txt)
+    @test occursin("γ: b_1 × β₁", txt)
+    h = out(MIME"text/html"())
+    @test occursin("<i>&beta;<sub>1</sub></i> × x_2 &amp; &lt;z&gt;", h)
+    @test occursin("<i>&gamma;</i>: b_1 × <i>&beta;<sub>1</sub></i>", h)
+    tex = out(MIME"text/latex"())
+    @test occursin(raw"$\beta_1$ $\times$ x\_2 \& <z>", tex)
+    @test occursin(raw"$\gamma$: b\_1 $\times$ $\beta_1$", tex)
+    typ = out(MIME"text/typst"())
+    @test occursin(raw"""[#mi("$\beta_1$")#" × "#"x_2 & <z>"]""", typ)
+    @test occursin(raw"""[#mi("$\gamma$")#": "#"b_1"#" × "#mi("$\beta_1$")]""", typ)
+    mktempdir() do dir
+        f = joinpath(dir, "t.docx")
+        modelsummary(m; labels, file = f)
+        @test filesize(f) > 0
+    end
 end

@@ -14,6 +14,7 @@ tests = [
     "vcov.jl",
     "inference.jl",
     "other_stats.jl",
+    "regress_matrix.jl",
     "public_api.jl"
 ]
 

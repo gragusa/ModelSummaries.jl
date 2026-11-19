@@ -286,10 +286,11 @@ function _relabel_parts(s::CategoricalCoefName, exact_dict, repl_dict)
 end
 
 _part_label(r::AbstractString, part, whole) = r
+_part_label(r::BackendMath, part, whole) = r
 function _part_label(r, part, whole)
     throw(ArgumentError("labels[\"$(string(part))\"] is a $(typeof(r)), but it would relabel " *
-                        "only part of the name \"$(string(whole))\", which requires a string; " *
-                        "add a label for the full name \"$(string(whole))\""))
+                        "only part of the name \"$(string(whole))\", which requires a string " *
+                        "or a BackendMath; add a label for the full name \"$(string(whole))\""))
 end
 function replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict)
     (replace_name(s[1], exact_dict, repl_dict), s[2])

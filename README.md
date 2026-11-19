@@ -12,7 +12,7 @@ Tables render natively to **LaTeX**, **HTML**, **Typst**, and **DOCX** — with 
 |---------|-------------------------------|
 | [GLM.jl](https://github.com/JuliaStats/GLM.jl) | `lm`, `glm` |
 | [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) | `reg` (FE, IV, clusters) |
-| [Regress.jl](https://gragusa.org/gragusa/Regress.jl) | OLS, IV, FE, clusters |
+| [Regress.jl](https://gragusa.org/gragusa/Regress.jl) | OLS, IV, FE, clusters; fits from matrices (`ols(X, y)`, `iv(estimator, Z, X, y)`) |
 | [CovarianceMatrices.jl](https://github.com/gragusa/CovarianceMatrices.jl) | Estimator names in the `VcovType` row |
 | Any `StatsAPI.RegressionModel` | Basic support out of the box |
 

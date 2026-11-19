@@ -112,16 +112,27 @@ end
 """
     display_name(x, interaction_separator = " × ")
 
-Convert a coefficient name or other value to the string shown in the table. The parts of an
-[`ModelSummaries.InteractedCoefName`](@ref) are joined by `interaction_separator`; every other
-name is shown as `string(x)` prints it. A new name type needs a two-argument method.
+Convert a coefficient name or other value to the cell value shown in the table. The parts of
+an [`ModelSummaries.InteractedCoefName`](@ref) are joined by `interaction_separator`; every
+other name is shown as `string(x)` prints it. A name with a [`BackendMath`](@ref) part (from a
+part label) is a `SummaryTables.Concat` of its parts, so the renderer escapes the string parts
+and writes the `BackendMath` markup for each backend unchanged. A new name type needs a
+two-argument method.
 """
 display_name(x) = display_name(x, " \u00d7 ")
 display_name(x::CoefName, sep) = x.name
 function display_name(x::InteractedCoefName, sep)
-    join(display_name.(x.names, Ref(sep)), sep)
+    parts = display_name.(x.names, Ref(sep))
+    all(p -> p isa String, parts) && return join(parts, sep)
+    pieces = Any[first(parts)]
+    for p in parts[2:end]
+        push!(pieces, sep, p)
+    end
+    Concat(pieces...)
 end
-display_name(x::CategoricalCoefName, sep) = "$(x.name): $(x.level)"
+display_name(x::CategoricalCoefName, sep) = _categorical_display(x.name, x.level)
+_categorical_display(name::String, level) = "$name: $level"
+_categorical_display(name::BackendMath, level) = Concat(name, ": ", level)
 display_name(x::InterceptCoefName, sep) = "(Intercept)"
 display_name(x::FixedEffectCoefName, sep) = display_name(x.name, sep)
 display_name(x::ClusterCoefName, sep) = display_name(x.name, sep)

@@ -58,8 +58,8 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
   relabeled by its own key (`Dict("x" => "T")` shows `x & z` as `T × z`), and a key for a
   categorical's variable name relabels that part (`Dict("species" => "Species")` shows
   `"Species: setosa"`). Levels are relabeled only by a full-name key or `transform_labels`. A
-  label that replaces only part of a name must be a string. `keep`, `drop`, and `order` match
-  the names before relabeling.
+  label that replaces only part of a name must be a string or a `BackendMath`. `keep`, `drop`,
+  and `order` match the names before relabeling.
 * `interaction_separator`: String placed between the parts of an unlabeled interaction in the
   table (default `" × "`); `labels` keys always use `" & "`.
 * `below_statistic`: Type shown below coefficients (`StdError`, `TStat`, `ConfInt`, or `nothing`).
@@ -551,7 +551,7 @@ function combine_other_statistics(
                 base_name * fe_suffix()
             elseif n isa ClusterCoefName
                 base_name * cluster_suffix()
-            elseif n isa UnnamedClusterCoefName
+            elseif n isa Union{UnnamedClusterCoefName, UnnamedFixedEffectCoefName}
                 base_name
             elseif n isa FirstStageCoefName
                 base_name * first_stage_suffix()

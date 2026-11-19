@@ -42,8 +42,8 @@ public AbstractRegressionData, AbstractUnderStatistic, AbstractR2,
        get_coefname, display_name, significance_stars,
        fe_suffix, cluster_suffix, first_stage_suffix,
        AbstractCoefName, CoefName, InteractedCoefName, CategoricalCoefName,
-       InterceptCoefName, FixedEffectCoefName, ClusterCoefName, UnnamedClusterCoefName,
-       FirstStageCoefName
+       InterceptCoefName, FixedEffectCoefName, UnnamedFixedEffectCoefName,
+       ClusterCoefName, UnnamedClusterCoefName, FirstStageCoefName
 
 ##############################################################################
 ## Load files
