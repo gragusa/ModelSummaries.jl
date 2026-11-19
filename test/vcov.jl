@@ -5,6 +5,10 @@ using FixedEffectModels: reg, Vcov
 
 const MS = ModelSummaries
 
+# A model whose `vcov` is a plain matrix, with no record of how it was computed.
+struct PlainVcovModel <: StatsAPI.RegressionModel end
+StatsAPI.vcov(::PlainVcovModel) = [1.0;;]
+
 @testset "Covariance estimators come from the model" begin
     n = 80
     x1 = sin.(1:n)
@@ -28,7 +32,17 @@ const MS = ModelSummaries
     @test MS.value(VcovType(m)) == "HC1"
     @test MS.value(VcovType(mh)) == "HC3"
     @test MS.value(VcovType(m + vcov(Bartlett(3)))) == "Bartlett(3)"
+    @test MS.value(VcovType(m + vcov(Bartlett(2.5)))) == "Bartlett(2.5)"
     @test MS.value(VcovType(m + vcov(CR1(:firm)))) == "CR1"
+
+    # A data-driven bandwidth is reported as selected for the standard errors shown.
+    ma = m + vcov(Bartlett{Andrews}())
+    bw = bandwidth(vcov(ma))
+    @test bw > 0
+    @test MS.value(VcovType(ma)) == "Bartlett(Andrews), bw: $(round(bw; digits = 2))"
+    @test MS.vcov_type_name(Parzen{NeweyWest}()) == "Parzen(NeweyWest)"
+    @test MS.vcov_type_name(Bartlett{Andrews}(), PlainVcovModel()) == "Bartlett(Andrews)"
+    @test MS.vcov_type_name(HC3(), PlainVcovModel()) == "HC3"
 
     @test modelsummary(m, mh; regression_statistics = [Nobs, R2, VcovType]) isa
           MS.SummaryTables.Table
@@ -46,7 +60,7 @@ struct NoVcovModel <: StatsAPI.RegressionModel end
     df = DataFrame(; x = sin.(1:n), y = cos.(1:n) .+ sin.(1:n),
         b = isodd.(1:n) .| (sin.(1:n) .> 0.5), g = repeat(1:6; inner = 10))
     ols = lm(@formula(y ~ x), df)
-    logit = glm(@formula(b ~ x), df, Binomial(), LogitLink())
+    logit = glm(@formula(b ~ x), df, Binomial(), GLM.LogitLink())
     gauss = glm(@formula(y ~ x), df, Normal(), IdentityLink())
     @test MS.value(VcovType(ols)) == "IID"
     @test MS.value(VcovType(ols.model)) == "IID"

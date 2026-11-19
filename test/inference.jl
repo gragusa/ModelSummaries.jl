@@ -30,7 +30,7 @@ end
     mreg = Regress.ols(df, @formula(y ~ x1 + x2); save_cluster = :firm)
     models = [
         "GLM OLS" => lm(@formula(y ~ x1 + x2), df),
-        "GLM logit" => glm(@formula(b ~ x1 + x2), df, Binomial(), LogitLink()),
+        "GLM logit" => glm(@formula(b ~ x1 + x2), df, Binomial(), GLM.LogitLink()),
         "FEM" => reg(df, @formula(y ~ x1 + x2)),
         "FEM fe + cluster" => reg(df, @formula(y ~ x1 + x2 + FixedEffectModels.fe(firm)),
             FixedEffectModels.Vcov.cluster(:firm)),

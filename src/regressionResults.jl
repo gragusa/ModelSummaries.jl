@@ -370,10 +370,17 @@ VcovType(x::RegressionModel) = _no_statistic_method(VcovType, x)
 
 """
     vcov_type_name(v) -> String
+    vcov_type_name(v, m::RegressionModel) -> String
 
-Return a readable name for the variance-covariance estimator type.
-Used in display output to indicate what type of standard errors are shown.
+Return a readable name for the variance-covariance estimator `v`, shown in the
+`Std. Error` row.
+
+The two-argument form names the estimator as attached to the fitted model `m`, for
+estimators whose description depends on the fit (a HAC kernel that selects its bandwidth
+from the data reports the bandwidth the estimate of `vcov(m)` used). It defaults to
+`vcov_type_name(v)`.
 """
 vcov_type_name(v) = string(typeof(v).name.name)
 vcov_type_name(::AbstractMatrix) = "Custom"
 vcov_type_name(::Function) = "Function"
+vcov_type_name(v, ::RegressionModel) = vcov_type_name(v)

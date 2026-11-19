@@ -17,13 +17,13 @@ const EXTENSIONS = (:ModelSummariesGLMExt, :ModelSummariesFixedEffectModelsExt,
 #   DOCX path documented in SummaryTables' manual.
 # - The extensions dispatch on model and response types that GLM (`AbstractGLM`,
 #   `LinPredModel`, `LmResp`, `GlmResp`), StatsModels (`TableRegressionModel`),
-#   FixedEffectModels (`FixedEffectTerm`, Vcov's `SimpleCovariance`, `RobustCovariance`,
-#   `ClusterCovariance`), and CovarianceMatrices (`Fixed` bandwidth) do not declare public.
+#   and FixedEffectModels (`FixedEffectTerm`, Vcov's `SimpleCovariance`, `RobustCovariance`,
+#   `ClusterCovariance`) do not declare public.
 # - `Regress.has_fe` is Regress's fixed-effects predicate, not declared public.
 const NONPUBLIC_QUALIFIED = (
     :broadcastable, :typename, :to_docx, :Document, :Body, :Section,
     :save, :AbstractGLM, :LinPredModel, :LmResp, :GlmResp, :TableRegressionModel,
-    :FixedEffectTerm, :SimpleCovariance, :RobustCovariance, :ClusterCovariance, :Fixed)
+    :FixedEffectTerm, :SimpleCovariance, :RobustCovariance, :ClusterCovariance)
 const NONPUBLIC_EXPLICIT = (:has_fe,)
 
 @testset "ExplicitImports" begin
