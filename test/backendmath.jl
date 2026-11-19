@@ -138,3 +138,17 @@ else
         @test typst_errors(typst_cells(cells)) === nothing
     end
 end
+
+@testset "Negative numbers are set with a minus sign" begin
+    df = DataFrame(y = [1.0, 0.4, -0.3, -1.2, -2.1, -2.8], x = 1.0:6.0)
+    t = modelsummary(lm(@formula(y ~ x), df))
+    typ = sprint(show, MIME"text/typst"(), t)
+    @test occursin("#\"−0.", typ)
+    @test !occursin(r"\"-\d", typ)
+    @test occursin(raw"$-$0.", sprint(show, MIME"text/latex"(), t))
+    @test occursin("&minus;0.", sprint(show, MIME"text/html"(), t))
+    @test occursin("-0.", sprint(show, MIME"text/plain"(), t))
+    @test MS.with_minus("0.25") == "0.25"
+    @test MS.with_minus("1e-08") == "1e-08"
+    @test MS.with_minus("(-0.2, 3.1)").typst == "#\"(−0.2, 3.1)\""
+end

@@ -39,6 +39,27 @@ format_number(x::Int; digits = 3) = format(x, commas = true)
 format_number(::Nothing; digits = 3) = ""
 format_number(::Missing; digits = 3) = ""
 
+# A hyphen that starts a number: "-1.4", "(-0.2, 3.1)".
+const _NEGATIVE = r"(?<![\w.])-(?=[\d.])"
+
+"""
+    with_minus(s::AbstractString)
+
+`s` itself, or, when it contains a negative number, a [`BackendMath`](@ref)
+that sets the sign as a minus: `\$-\$` in LaTeX, U+2212 in Typst, `&minus;`
+in HTML. Plain text keeps the hyphen, so numbers stay readable as code.
+"""
+function with_minus(s::AbstractString)
+    occursin(_NEGATIVE, s) || return s
+    typst_str = replace(s, _NEGATIVE => "−", "\\" => "\\\\", "\"" => "\\\"")
+    BackendMath(
+        latex = replace(s, _NEGATIVE => raw"$-$"),
+        typst = "#\"" * typst_str * "\"",
+        html = replace(s, _NEGATIVE => "&minus;"),
+        text = String(s)
+    )
+end
+
 """
     significance_stars(pval; breaks=[0.001, 0.01, 0.05])
 
@@ -64,7 +85,7 @@ end
 Create a Cell for a coefficient value, optionally with significance stars.
 """
 function make_coef_cell(cv::CoefValue; digits = 3, stars = false, halign = :right)
-    s = format_number(cv.val; digits)
+    s = with_minus(format_number(cv.val; digits))
     if stars
         star_str = significance_stars(cv.pvalue)
         nstars = length(star_str)
@@ -83,7 +104,7 @@ end
 Create a Cell for an under-statistic (standard error, t-stat).
 """
 function make_understat_cell(us::AbstractUnderStatistic; digits = 3, stars = false, halign = :right)
-    s = "(" * format_number(value(us); digits) * ")"
+    s = with_minus("(" * format_number(value(us); digits) * ")")
     if stars
         return Cell(Concat(s, _phantom_sup_stars(_MAX_STARS)...); halign)
     end
@@ -93,7 +114,7 @@ end
 function make_understat_cell(ci::ConfInt; digits = 3, stars = false, halign = :right)
     lo = format_number(value(ci)[1]; digits)
     hi = format_number(value(ci)[2]; digits)
-    s = "($lo, $hi)"
+    s = with_minus("($lo, $hi)")
     if stars
         return Cell(Concat(s, _phantom_sup_stars(_MAX_STARS)...); halign)
     end
@@ -179,7 +200,7 @@ Create a Cell for a regression statistic, padded to align with coefficient cells
 """
 function make_stat_cell(sv; digits = 3, stars = false, halign = :right)
     s = format_stat_value(sv; digits)
-    if isempty(s)
+    if s isa AbstractString && isempty(s)
         return Cell(nothing; halign)
     end
     parts = Any[_PHANTOM_OPEN, s]
@@ -194,7 +215,7 @@ end
 Format a regression statistic value for display in a cell.
 """
 function format_stat_value(x::AbstractRegressionStatistic; digits = 3)
-    format_number(value(x); digits)
+    with_minus(format_number(value(x); digits))
 end
 function format_stat_value(x::Nobs; digits = 3)
     value(x) === nothing ? "" : format(value(x), commas = true)
@@ -221,9 +242,9 @@ format_other_stat(x::BackendMath; digits = 3) = x
 format_other_stat(x::Missing; digits = 3) = ""
 format_other_stat(x::ClusterValue; digits = 3) = value(x) > 0 ? "Yes" : ""
 function format_other_stat(x::FirstStageValue; digits = 3)
-    value(x) === nothing ? "" : format_number(value(x); digits)
+    value(x) === nothing ? "" : with_minus(format_number(value(x); digits))
 end
-format_other_stat(x::Float64; digits = 3) = format_number(x; digits)
+format_other_stat(x::Float64; digits = 3) = with_minus(format_number(x; digits))
 format_other_stat(x::Int; digits = 3) = format(x, commas = true)
 format_other_stat(x::Bool; digits = 3) = x ? "Yes" : ""
 
