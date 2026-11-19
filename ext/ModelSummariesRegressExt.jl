@@ -73,7 +73,7 @@ function vcov_cluster_entries(rr::Union{OLSEstimator, IVEstimator})
     V isa CovarianceMatrix || throw(ArgumentError(
         "vcov of a $(nameof(typeof(rr))) with a cluster-robust estimator is a " *
         "$(nameof(typeof(V))), not a CovarianceMatrix; the number of clusters is unknown"))
-    names = [d isa Symbol ? string(d) : "Cluster $i" for (i, d) in enumerate(clusters(k))]
+    names = [d isa Symbol ? string(d) : nothing for d in clusters(k)]
     ModelSummaries.cluster_entries(names, collect(nclusters(estimator(V))))
 end
 

@@ -344,13 +344,19 @@ end
     cluster_entries(names, counts)
 
 The `:clusters` section rows: `ClusterCoefName(string(name)) => ClusterValue(count)` for
-each pair from `names` and `counts`, which must have equal length.
+each pair from `names` and `counts`, which must have equal length. A `nothing` in `names`
+marks a dimension given as data; its row is named `UnnamedClusterCoefName(k)`, k its
+position in `names`.
 """
 function cluster_entries(names, counts)
     length(names) == length(counts) || throw(DimensionMismatch(
         "got $(length(names)) cluster names and $(length(counts)) cluster counts"))
-    [ClusterCoefName(string(n)) => ClusterValue(c) for (n, c) in zip(names, counts)]
+    [_cluster_name(n, k) => ClusterValue(c)
+     for (k, (n, c)) in enumerate(zip(names, counts))]
 end
+
+_cluster_name(n, k) = ClusterCoefName(string(n))
+_cluster_name(::Nothing, k) = UnnamedClusterCoefName(k)
 
 """
     VcovType(x::RegressionModel)

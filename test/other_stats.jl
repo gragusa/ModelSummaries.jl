@@ -25,7 +25,9 @@ const MS = ModelSummaries
     @test MS.other_stats(reg(df, @formula(y ~ x1)), :clusters) === nothing
 
     # Regress: cluster rows are the clustering dimensions of the attached estimator only.
-    cl(pairs...) = [MS.ClusterCoefName(n) => MS.ClusterValue(c) for (n, c) in pairs]
+    clname(n::String, k) = MS.ClusterCoefName(n)
+    clname(::Nothing, k) = MS.UnnamedClusterCoefName(k)
+    cl(pairs...) = [clname(n, k) => MS.ClusterValue(c) for (k, (n, c)) in enumerate(pairs)]
     rols0 = Regress.ols(df, @formula(y ~ x1 + Regress.fe(firm)); save_cluster = :year)
     @test fenames(MS.other_stats(rols0, :fe)) == ["firm"]
     @test MS.other_stats(rols0, :clusters) === nothing
@@ -34,16 +36,16 @@ const MS = ModelSummaries
     rols = rols0 + vcov(Regress.CR1(:year))
     @test MS.other_stats(rols, :clusters) == cl("year" => 10)
     @test MS.other_stats(rols0 + vcov(Regress.CR1(df.year)), :clusters) ==
-          cl("Cluster 1" => 10)
+          cl(nothing => 10)
     @test MS.other_stats(
         rols0 + vcov(CovarianceMatrices.CachedCR(Regress.CR1(df.year), 1)), :clusters) ==
-          cl("Cluster 1" => 10)
+          cl(nothing => 10)
     df.y2 = df.x1 .+ sin.((1:n) .^ 1.7) .+ 0.5 .* cos.(0.37 .* (1:n) .^ 2)
     rols2 = Regress.ols(df, @formula(y2 ~ x1); save_cluster = [:year, :firm])
     @test MS.other_stats(rols2 + vcov(Regress.CR1(:year, :firm)), :clusters) ==
           cl("year" => 10, "firm" => 8)
     @test MS.other_stats(rols2 + vcov(Regress.CR1(df.year, df.firm)), :clusters) ==
-          cl("Cluster 1" => 10, "Cluster 2" => 8)
+          cl(nothing => 10, nothing => 8)
     riv0 = Regress.iv(Regress.TSLS(), df, @formula(y ~ (x1 ~ x2) + Regress.fe(firm));
         save_cluster = :year)
     @test MS.other_stats(riv0, :clusters) === nothing
@@ -54,6 +56,22 @@ const MS = ModelSummaries
     @test occursin("Year Fixed Effects", html)
     @test occursin("Firm Clustering", html)
     @test occursin("Year Clustering", html)
+
+    # A dimension given as data is named `Cluster k`, without the cluster suffix.
+    rdata = rols0 + vcov(Regress.CR1(df.year))
+    for mime in (MIME"text/html"(), MIME"text/latex"(), MIME"text/typst"())
+        out = sprint(show, mime, modelsummary(rols, rdata; print_clusters = true))
+        @test occursin("Year Clustering", out)
+        @test occursin("Cluster 1", out)
+        @test !occursin("Cluster 1 Clustering", out)
+    end
+    @test string(MS.UnnamedClusterCoefName(2)) == "Cluster 2"
+    @test MS.UnnamedClusterCoefName(1) == MS.UnnamedClusterCoefName(1)
+    @test MS.UnnamedClusterCoefName(1) != MS.UnnamedClusterCoefName(2)
+    @test MS.UnnamedClusterCoefName(1) != MS.ClusterCoefName("Cluster 1")
+    @test MS.cluster_entries(["year", nothing], [10, 8]) ==
+          [MS.ClusterCoefName("year") => MS.ClusterValue(10),
+        MS.UnnamedClusterCoefName(2) => MS.ClusterValue(8)]
 
     single = @formula(y ~ g).rhs
     @test MS.fixed_effect_entries(single, t -> false) === nothing

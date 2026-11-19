@@ -559,6 +559,8 @@ function combine_other_statistics(
                 base_name * fe_suffix()
             elseif n isa ClusterCoefName
                 base_name * cluster_suffix()
+            elseif n isa UnnamedClusterCoefName
+                base_name
             elseif n isa FirstStageCoefName
                 base_name * first_stage_suffix()
             else

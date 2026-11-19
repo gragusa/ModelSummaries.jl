@@ -192,6 +192,25 @@ Base.hash(x::ClusterCoefName, h::UInt) = hash(x.name, hash(ClusterCoefName, h))
 Base.replace(x::ClusterCoefName, r::Pair) = ClusterCoefName(replace(x.name, r))
 
 """
+    struct UnnamedClusterCoefName <: AbstractCoefName
+        position::Int
+    end
+
+A clustering dimension given as data rather than as a column name. It is shown as
+`Cluster k`, k being `position` (the dimension's place in the estimator), without
+[`ModelSummaries.cluster_suffix`](@ref): the label already says it is a cluster.
+`transform_labels` leaves it unchanged.
+"""
+struct UnnamedClusterCoefName <: AbstractCoefName
+    position::Int
+    UnnamedClusterCoefName(position::Integer) = new(position)
+end
+
+value(x::UnnamedClusterCoefName) = string(x)
+Base.string(x::UnnamedClusterCoefName) = "Cluster $(x.position)"
+Base.replace(x::UnnamedClusterCoefName, r::Pair) = x
+
+"""
     struct FirstStageCoefName <: AbstractCoefName
         name::AbstractCoefName
     end
