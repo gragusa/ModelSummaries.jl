@@ -24,6 +24,14 @@ const MS = ModelSummaries
     @test MS.other_stats(reg(df, @formula(y ~ x1)), :fe) === nothing
     @test MS.other_stats(reg(df, @formula(y ~ x1)), :clusters) === nothing
 
+    # FixedEffectModels omits the common slope spanned by `fe(firm) & x1`.
+    slopes = reg(df, @formula(y ~ FixedEffectModels.fe(firm) * x1 + x2))
+    @test coefnames(slopes) == ["x2"]
+    @test fenames(MS.other_stats(slopes, :fe)) == ["firm", "firm & x1"]
+    txt = sprint(show, MIME"text/plain"(), modelsummary(slopes))
+    @test occursin("x2", txt)
+    @test !occursin(r"^x1 "m, txt)
+
     # Regress: cluster rows are the clustering dimensions of the attached estimator only.
     clname(n::String, k) = MS.ClusterCoefName(n)
     clname(::Nothing, k) = MS.UnnamedClusterCoefName(k)
