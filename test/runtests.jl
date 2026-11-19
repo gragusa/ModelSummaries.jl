@@ -9,6 +9,7 @@ tests = [
     "modelsummaries.jl",
     "new_features.jl",
     "coefnames.jl",
+    "backendmath.jl",
     "statistics_errors.jl",
     "input_validation.jl",
     "vcov.jl",

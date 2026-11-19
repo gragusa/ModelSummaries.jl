@@ -119,8 +119,8 @@ end
     @test occursin(raw"$\beta_1$ $\times$ x\_2 \& <z>", tex)
     @test occursin(raw"$\gamma$: b\_1 $\times$ $\beta_1$", tex)
     typ = out(MIME"text/typst"())
-    @test occursin(raw"""[#mi("$\beta_1$")#" × "#"x_2 & <z>"]""", typ)
-    @test occursin(raw"""[#mi("$\gamma$")#": "#"b_1"#" × "#mi("$\beta_1$")]""", typ)
+    @test occursin(raw"""[$beta_1$#" × "#"x_2 & <z>"]""", typ)
+    @test occursin(raw"""[$gamma$#": "#"b_1"#" × "$beta_1$]""", typ)
     mktempdir() do dir
         f = joinpath(dir, "t.docx")
         modelsummary(m; labels, file = f)

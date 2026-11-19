@@ -56,7 +56,8 @@ modelsummary(r2, r2 + vcov(HC0()), r2 + vcov(HC3());
 
 Labels can include LaTeX math that renders correctly across all backends.
 Only the `latex` argument is needed — HTML, Typst, and text are derived
-automatically:
+automatically. Typst output is native Typst math, so a `.typ` table compiles
+without extra packages:
 
 ```julia
 modelsummary(m1, m2;
@@ -67,13 +68,16 @@ modelsummary(m1, m2;
 )
 ```
 
-Override any backend explicitly when auto-conversion isn't enough:
+The Typst conversion covers Greek letters, scripts, accents, `\frac`, `\sqrt`,
+font commands, `\text`, and common symbols; any other LaTeX command throws an
+`ArgumentError`. Override any backend explicitly when the conversion isn't enough:
 
 ```julia
 BackendMath(
-    latex = raw"$\hat{\sigma}^2$",
-    typst = raw"$hat(sigma)^2$",
-    html  = "&sigma;&#x0302;<sup>2</sup>",
+    latex = raw"$\left(\sum_i x_i\right)^2$",
+    typst = raw"$lr((sum_i x_i))^2$",
+    html  = "(&sum;<sub><i>i</i></sub> <i>x<sub>i</sub></i>)<sup>2</sup>",
+    text  = "(Σᵢ xᵢ)²",
 )
 ```
 
