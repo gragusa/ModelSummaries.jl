@@ -58,8 +58,10 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
   relabeled by its own key (`Dict("x" => "T")` shows `x & z` as `T × z`), and a key for a
   categorical's variable name relabels that part (`Dict("species" => "Species")` shows
   `"Species: setosa"`). Levels are relabeled only by a full-name key or `transform_labels`. A
-  label that replaces only part of a name must be a string or a `BackendMath`. `keep`, `drop`,
-  and `order` match the names before relabeling.
+  label that replaces only part of a name must be a string or a `BackendMath`. A key for a
+  fixed-effect, cluster, or first-stage name relabels that name and keeps the row's suffix
+  (`Dict("year" => "Year")` shows `Year Fixed Effects` and `Year Clustering`); it must also be
+  a string or a `BackendMath`. `keep`, `drop`, and `order` match the names before relabeling.
 * `interaction_separator`: String placed between the parts of an unlabeled interaction in the
   table (default `" × "`); `labels` keys always use `" & "`.
 * `below_statistic`: Type shown below coefficients (`StdError`, `TStat`, `ConfInt`, or `nothing`).
@@ -401,7 +403,7 @@ function modelsummary(
                 transform_labels, yes_indicator)
             if st !== nothing
                 for j in 1:size(st, 1)
-                    row = Cell[Cell(string(st[j, 1]); halign = :left)]
+                    row = Cell[Cell(st[j, 1]; halign = :left)]
                     for i in 1:nreg
                         val = st[j, i + 1]
                         push!(row, Cell(format_other_stat(val; digits = stat_digits);
@@ -543,28 +545,41 @@ function combine_other_statistics(
         end
     end
 
-    # Format names with appropriate suffixes
-    if print_fe_suffix
-        nms = map(nms) do n
-            base_name = uppercasefirst(string(value(n)))
-            if n isa FixedEffectCoefName
-                base_name * fe_suffix()
-            elseif n isa ClusterCoefName
-                base_name * cluster_suffix()
-            elseif n isa Union{UnnamedClusterCoefName, UnnamedFixedEffectCoefName}
-                base_name
-            elseif n isa FirstStageCoefName
-                base_name * first_stage_suffix()
-            else
-                base_name * fe_suffix()
-            end
-        end
-    else
-        nms = value.(nms)
-    end
-
+    nms = map(n -> section_row_name(n, print_fe_suffix), nms)
     hcat(nms, mat)
 end
+
+"""
+    section_row_name(n, print_suffix)
+
+The first cell of a `:fe`, `:clusters`, or `:first_stage` row named `n`: a `String`, or a
+`BackendMath` (followed by the suffix) when `labels` gave one. With `print_suffix`, the name
+is capitalized and gets the suffix of its type. A name that is not one of the section types
+throws an `ArgumentError`, since its suffix is unknown.
+"""
+function section_row_name(n::SectionCoefName, print_suffix)
+    print_suffix || return _section_display(value(n))
+    _with_suffix(_section_display(value(n)), section_suffix(n))
+end
+function section_row_name(n::Union{UnnamedClusterCoefName, UnnamedFixedEffectCoefName}, print_suffix)
+    string(n)
+end
+function section_row_name(n, print_suffix)
+    throw(ArgumentError("section row \"$(string(n))\" is a $(typeof(n)); `other_stats` rows " *
+                        "must be named by FixedEffectCoefName, ClusterCoefName, " *
+                        "FirstStageCoefName, UnnamedFixedEffectCoefName, or " *
+                        "UnnamedClusterCoefName"))
+end
+
+section_suffix(::FixedEffectCoefName) = fe_suffix()
+section_suffix(::ClusterCoefName) = cluster_suffix()
+section_suffix(::FirstStageCoefName) = first_stage_suffix()
+
+_section_display(x::AbstractCoefName) = string(x)
+_section_display(x::BackendMath) = x
+
+_with_suffix(name::String, suffix) = uppercasefirst(name) * suffix
+_with_suffix(name::BackendMath, suffix) = Concat(name, suffix)
 
 """
     check_selectors(nms, selectors, kw)

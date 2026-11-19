@@ -292,6 +292,21 @@ function _part_label(r, part, whole)
                         "only part of the name \"$(string(whole))\", which requires a string " *
                         "or a BackendMath; add a label for the full name \"$(string(whole))\""))
 end
+const SectionCoefName = Union{FixedEffectCoefName, ClusterCoefName, FirstStageCoefName}
+
+# A section row keeps its wrapper type through relabeling: the wrapper decides the suffix
+# (`fe_suffix`, `cluster_suffix`, `first_stage_suffix`) the row is shown with.
+function replace_name(s::T, exact_dict, repl_dict) where {T <: SectionCoefName}
+    T(_section_label(replace_name(value(s), exact_dict, repl_dict), s))
+end
+
+_section_label(r::Union{AbstractCoefName, BackendMath}, s) = r
+_section_label(r::AbstractString, s) = CoefName(r)
+function _section_label(r, s)
+    throw(ArgumentError("labels[\"$(string(s))\"] is a $(typeof(r)), but the row \"$(string(s))\" " *
+                        "is shown with a suffix, which requires a string or a BackendMath"))
+end
+
 function replace_name(s::Tuple{<:AbstractCoefName, <:AbstractString}, exact_dict, repl_dict)
     (replace_name(s[1], exact_dict, repl_dict), s[2])
 end
@@ -320,9 +335,12 @@ default_regression_statistics(rr::RegressionModel) = [Nobs, R2]
     other_stats(rr::RegressionModel, s::Symbol)
 
 Returns the rows of section `s` (`:fe`, `:clusters`, or `:first_stage`) for `rr` as a vector
-of `name => value` pairs, or `nothing` if the model has none. Package extensions define
-methods for model types with fixed effects, clustered standard errors, or a first stage
-(see [`fixed_effect_entries`](@ref) and [`cluster_entries`](@ref)). The fallback returns
+of `name => value` pairs, or `nothing` if the model has none. Each `name` is a
+`FixedEffectCoefName`, `ClusterCoefName`, `FirstStageCoefName`, `UnnamedFixedEffectCoefName`,
+or `UnnamedClusterCoefName`; its type sets the suffix the row is shown with, and any other
+name throws when the table is built. Package extensions define methods for model types with
+fixed effects, clustered standard errors, or a first stage (see
+[`fixed_effect_entries`](@ref) and [`cluster_entries`](@ref)). The fallback returns
 `nothing`.
 """
 other_stats(x::RegressionModel, s::Symbol) = nothing

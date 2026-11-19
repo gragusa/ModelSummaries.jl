@@ -65,6 +65,34 @@ const MS = ModelSummaries
     @test occursin("Firm Clustering", html)
     @test occursin("Year Clustering", html)
 
+    # `labels` for a fixed-effect or cluster variable keep the row's suffix.
+    lab = Dict("firm" => "Company", "year" => "Calendar year")
+    txt = sprint(show, MIME"text/plain"(),
+        modelsummary(fem, rols; print_clusters = true, labels = lab))
+    for row in ("Company Fixed Effects", "Calendar year Fixed Effects",
+        "Company Clustering", "Calendar year Clustering")
+        @test occursin(row, txt)
+    end
+    @test !occursin("Clustering Fixed Effects", txt)
+    @test !occursin("Calendar year Clustering Fixed", txt)
+    txt = sprint(show, MIME"text/plain"(),
+        modelsummary(
+            fem, rols; print_clusters = true, labels = lab, print_fe_suffix = false))
+    @test occursin(r"^Company  "m, txt)
+    @test !occursin("Company Clustering", txt)
+    @test occursin("Company & x1 Fixed Effects",
+        sprint(show, MIME"text/plain"(), modelsummary(slopes; labels = lab)))
+    bm = Dict("firm" => BackendMath(raw"$\alpha_i$"))
+    tex = sprint(show, MIME"text/latex"(), modelsummary(fem; print_clusters = true, labels = bm))
+    @test occursin(raw"$\alpha_i$ Fixed Effects", tex)
+    @test occursin(raw"$\alpha_i$ Clustering", tex)
+    @test_throws ArgumentError modelsummary(fem; labels = Dict("firm" => 1))
+    @test MS.replace_name(MS.FirstStageCoefName("F-statistic"),
+        Dict("F-statistic" => "Kleibergen-Paap F"), Dict()) ==
+          MS.FirstStageCoefName("Kleibergen-Paap F")
+    @test MS.section_row_name(MS.FirstStageCoefName("F"), true) == "F First Stage"
+    @test_throws ArgumentError MS.section_row_name(MS.CoefName("firm"), true)
+
     # A dimension given as data is named `Cluster k`, without the cluster suffix.
     rdata = rols0 + vcov(Regress.CR1(df.year))
     for mime in (MIME"text/html"(), MIME"text/latex"(), MIME"text/typst"())

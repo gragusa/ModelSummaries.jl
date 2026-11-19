@@ -153,17 +153,21 @@ end
 
 """
     struct FixedEffectCoefName <: AbstractCoefName
-        name::AbstractCoefName
+        name::Union{AbstractCoefName, BackendMath}
     end
 
 Used to store the name of a coefficient for a `FixedEffectTerm`.
-The `name` is the name of the fixed effect. This allows a suffix to be
-applied later.
+The `name` is the name of the fixed effect, so that [`ModelSummaries.fe_suffix`](@ref) can be
+appended to it. A `labels` entry for the variable replaces `name` and keeps the wrapper, so
+the row keeps its suffix; `name` is a [`BackendMath`](@ref) only after such a label.
 """
 struct FixedEffectCoefName <: AbstractCoefName
-    name::AbstractCoefName
+    name::Union{AbstractCoefName, BackendMath}
     FixedEffectCoefName(x::AbstractCoefName) = new(x)
+    FixedEffectCoefName(x::BackendMath) = new(x)
 end
+
+FixedEffectCoefName(x::AbstractString) = FixedEffectCoefName(CoefName(x))
 
 value(x::FixedEffectCoefName) = x.name
 Base.string(x::FixedEffectCoefName) = string(x.name)
@@ -194,18 +198,21 @@ Base.replace(x::UnnamedFixedEffectCoefName, r::Pair) = x
 
 """
     struct ClusterCoefName <: AbstractCoefName
-        name::AbstractCoefName
+        name::Union{AbstractCoefName, BackendMath}
     end
 
 Used to store the name of a cluster variable, so that
-[`ModelSummaries.cluster_suffix`](@ref) can be appended to it.
+[`ModelSummaries.cluster_suffix`](@ref) can be appended to it. A `labels` entry for the
+variable replaces `name` and keeps the wrapper, so the row keeps its suffix; `name` is a
+[`BackendMath`](@ref) only after such a label.
 """
 struct ClusterCoefName <: AbstractCoefName
-    name::AbstractCoefName
+    name::Union{AbstractCoefName, BackendMath}
     ClusterCoefName(x::AbstractCoefName) = new(x)
+    ClusterCoefName(x::BackendMath) = new(x)
 end
 
-ClusterCoefName(x::String) = ClusterCoefName(CoefName(x))
+ClusterCoefName(x::AbstractString) = ClusterCoefName(CoefName(x))
 
 value(x::ClusterCoefName) = x.name
 Base.string(x::ClusterCoefName) = string(x.name)
@@ -235,17 +242,21 @@ Base.replace(x::UnnamedClusterCoefName, r::Pair) = x
 
 """
     struct FirstStageCoefName <: AbstractCoefName
-        name::AbstractCoefName
+        name::Union{AbstractCoefName, BackendMath}
     end
 
-Used to store the name of a first-stage statistic for IV models.
+Used to store the name of a first-stage statistic for IV models, so that
+[`ModelSummaries.first_stage_suffix`](@ref) can be appended to it. A `labels` entry for the
+statistic replaces `name` and keeps the wrapper; `name` is a [`BackendMath`](@ref) only after
+such a label.
 """
 struct FirstStageCoefName <: AbstractCoefName
-    name::AbstractCoefName
+    name::Union{AbstractCoefName, BackendMath}
     FirstStageCoefName(x::AbstractCoefName) = new(x)
+    FirstStageCoefName(x::BackendMath) = new(x)
 end
 
-FirstStageCoefName(x::String) = FirstStageCoefName(CoefName(x))
+FirstStageCoefName(x::AbstractString) = FirstStageCoefName(CoefName(x))
 
 value(x::FirstStageCoefName) = x.name
 Base.string(x::FirstStageCoefName) = string(x.name)
