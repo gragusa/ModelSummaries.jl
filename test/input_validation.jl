@@ -41,6 +41,16 @@ end
         @test t isa ModelSummaries.SummaryTables.Table
         t = modelsummary(m1, m2; keep = [r"x"])
         @test t isa ModelSummaries.SummaryTables.Table
+
+        # Selectors match the names before relabeling, never the labels.
+        labels = Dict("x1" => "Income")
+        @test_throws "keep: \"Income\" matches no name" modelsummary(
+            m1, m2; labels, keep = ["Income"])
+        html = sprint(show, MIME"text/html"(), modelsummary(m1, m2; labels, keep = ["x1"]))
+        @test occursin("Income", html)
+        @test !occursin("x2", html)
+        @test_throws "unsupported keyword argument \"use_relabeled_values\"" modelsummary(
+            m1, m2; use_relabeled_values = true)
     end
 
     @testset "file extensions" begin

@@ -117,7 +117,6 @@ function modelsummary(
         print_clusters = false,
         digits = nothing,
         digits_stats = nothing,
-        use_relabeled_values = false,
         confint_level = 0.95,
         stars::Bool = false,
         pvalue_note::Bool = false,
@@ -181,12 +180,7 @@ function modelsummary(
     # Collect coefficient names
     ##########################################################################
 
-    nms = if use_relabeled_values
-        union([replace_name.(_coefnames(rr), Ref(labels), Ref(transform_labels))
-               for rr in rrs]...) |> unique
-    else
-        union([_coefnames(rr) for rr in rrs]...) |> unique
-    end
+    nms = union([_coefnames(rr) for rr in rrs]...) |> unique
 
     check_selectors(nms, keep, "keep")
     check_selectors(nms, drop, "drop")
@@ -200,9 +194,7 @@ function modelsummary(
     if length(order) > 0
         nms = reorder_nms_list(nms, order)
     end
-    if !use_relabeled_values
-        nms = replace_name.(nms, Ref(labels), Ref(transform_labels)) |> unique
-    end
+    nms = replace_name.(nms, Ref(labels), Ref(transform_labels)) |> unique
 
     ##########################################################################
     # Build coefficient value and under-statistic matrices
