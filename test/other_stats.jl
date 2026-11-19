@@ -1,6 +1,7 @@
 using ModelSummaries
 using Test
 using DataFrames, FixedEffectModels, Regress
+import CovarianceMatrices
 
 const MS = ModelSummaries
 
@@ -23,11 +24,30 @@ const MS = ModelSummaries
     @test MS.other_stats(reg(df, @formula(y ~ x1)), :fe) === nothing
     @test MS.other_stats(reg(df, @formula(y ~ x1)), :clusters) === nothing
 
-    rols = Regress.ols(df, @formula(y ~ x1 + Regress.fe(firm)); save_cluster = :year)
-    @test fenames(MS.other_stats(rols, :fe)) == ["firm"]
-    @test (MS.ClusterCoefName("year") => MS.ClusterValue(10)) in
-          MS.other_stats(rols, :clusters)
+    # Regress: cluster rows are the clustering dimensions of the attached estimator only.
+    cl(pairs...) = [MS.ClusterCoefName(n) => MS.ClusterValue(c) for (n, c) in pairs]
+    rols0 = Regress.ols(df, @formula(y ~ x1 + Regress.fe(firm)); save_cluster = :year)
+    @test fenames(MS.other_stats(rols0, :fe)) == ["firm"]
+    @test MS.other_stats(rols0, :clusters) === nothing
+    @test MS.other_stats(Regress.ols(df, @formula(y ~ x1)), :clusters) === nothing
     @test MS.other_stats(Regress.ols(df, @formula(y ~ x1)), :fe) === nothing
+    rols = rols0 + vcov(Regress.CR1(:year))
+    @test MS.other_stats(rols, :clusters) == cl("year" => 10)
+    @test MS.other_stats(rols0 + vcov(Regress.CR1(df.year)), :clusters) ==
+          cl("Cluster 1" => 10)
+    @test MS.other_stats(
+        rols0 + vcov(CovarianceMatrices.CachedCR(Regress.CR1(df.year), 1)), :clusters) ==
+          cl("Cluster 1" => 10)
+    df.y2 = df.x1 .+ sin.((1:n) .^ 1.7) .+ 0.5 .* cos.(0.37 .* (1:n) .^ 2)
+    rols2 = Regress.ols(df, @formula(y2 ~ x1); save_cluster = [:year, :firm])
+    @test MS.other_stats(rols2 + vcov(Regress.CR1(:year, :firm)), :clusters) ==
+          cl("year" => 10, "firm" => 8)
+    @test MS.other_stats(rols2 + vcov(Regress.CR1(df.year, df.firm)), :clusters) ==
+          cl("Cluster 1" => 10, "Cluster 2" => 8)
+    riv0 = Regress.iv(Regress.TSLS(), df, @formula(y ~ (x1 ~ x2) + Regress.fe(firm));
+        save_cluster = :year)
+    @test MS.other_stats(riv0, :clusters) === nothing
+    @test MS.other_stats(riv0 + vcov(Regress.CR1(:year)), :clusters) == cl("year" => 10)
 
     html = sprint(show, MIME"text/html"(), modelsummary(fem, rols; print_clusters = true))
     @test occursin("Firm Fixed Effects", html)

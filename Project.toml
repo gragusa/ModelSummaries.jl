@@ -24,7 +24,7 @@ Regress = "0ccf13ad-a1f2-44b4-972b-15ef40764d74"
 ModelSummariesCovarianceMatricesExt = "CovarianceMatrices"
 ModelSummariesFixedEffectModelsExt = "FixedEffectModels"
 ModelSummariesGLMExt = "GLM"
-ModelSummariesRegressExt = "Regress"
+ModelSummariesRegressExt = ["Regress", "CovarianceMatrices"]
 
 [compat]
 CovarianceMatrices = "0.33.1"

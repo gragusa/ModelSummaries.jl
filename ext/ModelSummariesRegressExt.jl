@@ -3,9 +3,10 @@ module ModelSummariesRegressExt
 using Regress: Regress, IVEstimator, OLSEstimator, has_fe
 using ModelSummaries: ModelSummaries, FStat, FStatIV, FStatIVPValue, FStatPValue, Nobs, R2,
                       R2Within, RegressionType, VcovType
+using CovarianceMatrices: CR, CovarianceMatrix, clusters, estimator, nclusters
 using Distributions: Normal, TDist
 using StatsModels: StatsModels
-using StatsAPI: coeftable, dof_residual
+using StatsAPI: coeftable, dof_residual, vcov
 
 ##############################################################################
 ## Statistics for OLSEstimator and IVEstimator
@@ -57,6 +58,26 @@ function ModelSummaries.get_coefname(x::StatsModels.FunctionTerm{typeof(Regress.
 end
 
 ##############################################################################
+## Clusters of the estimator behind `stderror`
+##############################################################################
+
+# One row per clustering dimension of `vcov_estimator`, and none when it is not
+# cluster-robust: fixed-effect and `save_cluster` columns the standard errors do not
+# cluster on are not listed. A dimension named by column (`CR1(:year)`) shows the column
+# name; one given as data (`CR1(df.year)`, a `CachedCR`) shows `Cluster k`, k its position
+# in the estimator. Group counts come from the resolved estimator that `vcov` reports.
+function vcov_cluster_entries(rr::Union{OLSEstimator, IVEstimator})
+    k = rr.vcov_estimator
+    k isa CR || return nothing
+    V = vcov(rr)
+    V isa CovarianceMatrix || throw(ArgumentError(
+        "vcov of a $(nameof(typeof(rr))) with a cluster-robust estimator is a " *
+        "$(nameof(typeof(V))), not a CovarianceMatrix; the number of clusters is unknown"))
+    names = [d isa Symbol ? string(d) : "Cluster $i" for (i, d) in enumerate(clusters(k))]
+    ModelSummaries.cluster_entries(names, collect(nclusters(estimator(V))))
+end
+
+##############################################################################
 ## Fixed Effects and Clusters for OLSEstimator
 ##############################################################################
 
@@ -65,10 +86,7 @@ function ModelSummaries.other_stats(rr::OLSEstimator, s::Symbol)
         has_fe(rr) || return nothing
         ModelSummaries.fixed_effect_entries(rr.formula.rhs, has_fe)
     elseif s == :clusters
-        # Check if cluster variables are stored
-        hasfield(typeof(rr.fes), :clusters) && !isempty(rr.fes.clusters) || return nothing
-        clusters = rr.fes.clusters
-        ModelSummaries.cluster_entries(keys(clusters), length.(unique.(values(clusters))))
+        vcov_cluster_entries(rr)
     elseif s == :first_stage
         # OLS models have no first stage
         nothing
@@ -86,11 +104,7 @@ function ModelSummaries.other_stats(rr::IVEstimator, s::Symbol)
         has_fe(rr) || return nothing
         ModelSummaries.fixed_effect_entries(rr.formula.rhs, has_fe)
     elseif s == :clusters
-        isnothing(rr.postestimation) && return nothing
-        cluster_vars = rr.postestimation.cluster_vars
-        isempty(cluster_vars) && return nothing
-        ModelSummaries.cluster_entries(keys(cluster_vars),
-            length.(unique.(values(cluster_vars))))
+        vcov_cluster_entries(rr)
     elseif s == :first_stage
         # Return first-stage F-statistic (Kleibergen-Paap) as a section
         isnothing(rr.F_kp) && return nothing
