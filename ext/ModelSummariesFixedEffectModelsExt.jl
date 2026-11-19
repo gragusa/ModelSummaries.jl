@@ -1,9 +1,10 @@
 module ModelSummariesFixedEffectModelsExt
 
-using FixedEffectModels
-using ModelSummaries
-using Distributions
-using StatsModels
+using FixedEffectModels: FixedEffectModels, FixedEffectModel, has_fe, has_iv
+using ModelSummaries: ModelSummaries, FStat, FStatIV, FStatIVPValue, FStatPValue, Nobs, R2,
+                      R2Within, RegressionType, VcovType
+using Distributions: Normal, TDist
+using StatsModels: StatsModels
 using StatsAPI: coeftable, dof_residual
 
 ModelSummaries.FStat(x::FixedEffectModel) = FStat(x.F)

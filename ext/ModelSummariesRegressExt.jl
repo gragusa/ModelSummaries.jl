@@ -1,13 +1,11 @@
 module ModelSummariesRegressExt
 
-using Regress
-using ModelSummaries
-using Distributions
-using StatsModels
+using Regress: Regress, IVEstimator, OLSEstimator, has_fe
+using ModelSummaries: ModelSummaries, FStat, FStatIV, FStatIVPValue, FStatPValue, Nobs, R2,
+                      R2Within, RegressionType, VcovType
+using Distributions: Normal, TDist
+using StatsModels: StatsModels
 using StatsAPI: coeftable, dof_residual
-
-# Import model types
-using Regress: OLSEstimator, IVEstimator, has_iv, has_fe
 
 ##############################################################################
 ## Statistics for OLSEstimator and IVEstimator

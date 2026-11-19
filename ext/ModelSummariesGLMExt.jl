@@ -1,11 +1,12 @@
 module ModelSummariesGLMExt
 
-using GLM
-using ModelSummaries
-using StatsModels
-using Statistics
-using Distributions
-using LinearAlgebra
+using GLM: GLM, GeneralizedLinearModel, LinearModel
+using ModelSummaries: ModelSummaries, AdjR2, FStat, FStatIV, FStatIVPValue, FStatPValue,
+                      Nobs, R2, R2McFadden, R2Within, RegressionType, VcovType
+using Distributions: FDist, Normal, TDist, ccdf
+using Statistics: std
+using StatsAPI: deviance, dof, dof_residual, modelmatrix, nulldeviance, response
+using StatsModels: StatsModels, hasintercept
 
 ModelSummaries.default_regression_statistics(rr::LinearModel) = [Nobs, R2]
 function ModelSummaries.default_regression_statistics(rr::StatsModels.TableRegressionModel{T}) where {T <:

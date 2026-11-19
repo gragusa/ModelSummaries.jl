@@ -4,8 +4,8 @@ module ModelSummariesCovarianceMatricesExt
 # estimator to a model (`model + vcov(estimator)`) is the job of the package that owns the
 # model type or `VcovSpec`; ModelSummaries reads the result through StatsAPI.
 
-using ModelSummaries
-using CovarianceMatrices
+using ModelSummaries: ModelSummaries
+using CovarianceMatrices: CovarianceMatrices
 
 ##############################################################################
 ##
