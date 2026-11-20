@@ -86,6 +86,20 @@ end
     @test !occursin("#mi(", typ)
 end
 
+@testset "Statistic labels given with the statistic" begin
+    df = DataFrame(y = sin.(1:30), x = cos.(1:30))
+    pval = BackendMath(latex = raw"\textit{p-val}", typst = "_p-val_",
+        html = "<i>p-val</i>", text = "p-val")
+    t = modelsummary(lm(@formula(y ~ x), df);
+        regression_statistics = [Nobs, R2 => "R-squared", AdjR2 => pval])
+    typ = sprint(show, MIME"text/typst"(), t)
+    @test occursin("[_p-val_]", typ)
+    @test occursin("R-squared", typ)
+    @test occursin(raw"\textit{p-val}", sprint(show, MIME"text/latex"(), t))
+    @test occursin("<i>p-val</i>", sprint(show, MIME"text/html"(), t))
+    @test occursin("p-val", sprint(show, MIME"text/plain"(), t))
+end
+
 const TYPST = Sys.which("typst")
 
 # Compile `src` with the typst CLI; return `nothing` on success and the diagnostics otherwise.
