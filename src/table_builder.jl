@@ -253,11 +253,13 @@ format_other_stat(x::Bool; digits = 3) = x ? "Yes" : ""
 """
     stat_label(x)
 
-Get the display label for a statistic type or custom label string.
+Get the display label for a statistic type, or a custom label given as a string or a
+[`BackendMath`](@ref).
 """
 stat_label(x::Type{<:AbstractRegressionStatistic}) = label(x)
 stat_label(x::Type{<:RegressionType}) = label(x)
 stat_label(x::AbstractString) = x
+stat_label(x::BackendMath) = x
 stat_label(x) = string(x)
 
 # Alignment conversion helper

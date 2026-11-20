@@ -77,6 +77,8 @@ end
         @test isempty(modelsummary(ols).footnotes)
         @test MS.pvalue_note_text([mreg + vcov(HC3())]) ==
               "p-values: t($(dof_residual(mreg)))"
+        # Regress tests clustered coefficients against t(G - 1), here 8 firms.
+        @test MS.pvalue_note_text([mreg + vcov(CR1(:firm))]) == "p-values: t(7)"
     end
 end
 

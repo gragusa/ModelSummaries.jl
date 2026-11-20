@@ -8,7 +8,7 @@ using ModelSummaries: ModelSummaries, CoefName, FixedEffectValue, FStat, FStatIV
 using CovarianceMatrices: CR, CovarianceMatrix, clusters, estimator, nclusters
 using Distributions: Normal, TDist
 using StatsModels: StatsModels
-using StatsAPI: coefnames, coeftable, dof_residual, vcov
+using StatsAPI: coefnames, coeftable, vcov
 
 # Fits from `ols(df, formula)` and `iv(estimator, df, formula)`.
 const FormulaFit = Union{OLSEstimator, IVEstimator}
@@ -65,8 +65,10 @@ end
 function ModelSummaries.inference_coeftable(x::RegressFit)
     ModelSummaries.with_teststatcol(coeftable(x), "t-stat")
 end
+# t with `Regress.inference_dof(x)` degrees of freedom: `G - 1` with cluster-robust
+# standard errors, `dof_residual(x)` otherwise, as Regress computes its p-values.
 function ModelSummaries.reference_distribution(x::RegressFit)
-    TDist(dof_residual(x))
+    TDist(Regress.inference_dof(x))
 end
 
 # Regression Type

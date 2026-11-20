@@ -68,7 +68,11 @@ Returns a `SummaryTables.Table` object that renders natively to HTML, LaTeX, and
 * `regression_statistics`: Vector of statistic types for the bottom section. The default is
   the union of each model's [`ModelSummaries.default_regression_statistics`](@ref), e.g.
   `[Nobs, R2, R2McFadden]` for an OLS and a logit column. A cell is blank when the statistic
-  does not apply to that column's model (see [`ModelSummaries.applies`](@ref)).
+  does not apply to that column's model (see [`ModelSummaries.applies`](@ref)). An entry
+  `Statistic => label` shows the statistic under its own row label, a string or a
+  [`BackendMath`](@ref): `FStatPValue => "p-value"`, or
+  `FStatPValue => BackendMath(latex = raw"\\textit{p-val}", typst = "_p-val_", html = "<i>p-val</i>", text = "p-val")`
+  for an italic label.
 * `digits`, `digits_stats`: Number of decimal places.
 * `stars`: Show significance stars (default `false`).
 * `pvalue_note`: Append a note stating, per column, the distribution behind the p-values,

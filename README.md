@@ -148,6 +148,15 @@ modelsummary(models...;
 | `DOF` | Degrees of Freedom | |
 | `VcovType` | Std. Error | Shows estimator name |
 
+To show a statistic under another label, pair it with the label, a string or a
+`BackendMath`:
+
+```julia
+pval = BackendMath(latex = raw"\textit{p-val}", typst = "_p-val_",
+    html = "<i>p-val</i>", text = "p-val")
+modelsummary(m1, m2; regression_statistics = [Nobs, R2, FStat, FStatPValue => pval])
+```
+
 ## Defining custom statistics
 
 ```julia
